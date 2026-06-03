@@ -209,7 +209,36 @@ All queries use parameterized statements. No raw string interpolation.
 | 7 — Backup & Sync | ✅ Done | Encrypted backup, restore, cloud sync architecture |
 | 8 — Security | ✅ Done | Biometric lock, redaction, privacy hardening |
 | 9 — Polish | ✅ Done | Performance, accessibility, skeleton loaders |
-| 10 — Launch | — | Onboarding, store assets, analytics |
+| 10 — Launch | ✅ Done | Onboarding, store assets, analytics |
+
+---
+
+## What's Built (v1.0.0)
+
+All 10 phases are complete. Here's the full feature inventory:
+
+| Feature | Where |
+|---|---|
+| Document capture (camera, photo, PDF import) | `app/capture/` |
+| Native PDF viewer with zoom + page nav | `app/viewer/[id].tsx` |
+| Gesture crop with draggable corner handles | `components/capture/ImageCropper.tsx` |
+| Full-text search with snippet highlighting | `app/(tabs)/search.tsx` |
+| Search history + suggestions | `services/searchHistory.ts` |
+| Folders, tags, categories | `store/documentStore.ts` |
+| Multi-select + bulk move / tag / delete | `app/(tabs)/index.tsx`, `components/BulkActionBar.tsx` |
+| Tag editor with autocomplete | `components/TagEditor.tsx` |
+| Filter chips: category, favorites, tags | `app/(tabs)/index.tsx` |
+| ZIP export | `services/exportService.ts` |
+| Local backup (.ptbak) + restore | `services/backupService.ts` |
+| OCR background queue + retry | `services/ocrQueue.ts` |
+| OCR metadata extraction (dates, amounts, vendor) | `services/ocr.ts` |
+| Biometric lock (Face ID / Touch ID) | `services/biometricService.ts`, `components/LockScreen.tsx` |
+| Lock-on-background via AppState | `app/_layout.tsx` |
+| Skeleton loaders | `components/SkeletonLoader.tsx` |
+| Accessibility (VoiceOver / TalkBack) | `components/DocumentCard.tsx` |
+| Onboarding walkthrough | `app/onboarding.tsx` |
+| Analytics stub (no-op, ready for provider) | `services/analytics.ts` |
+| EAS dev builds (iOS simulator + Android APK) | `eas.json`, `app.json` |
 
 ---
 

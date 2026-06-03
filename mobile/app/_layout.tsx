@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { AppState } from 'react-native';
-import { Stack } from 'expo-router';
+import { Stack, router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -9,6 +9,7 @@ import { Colors } from '@/theme';
 import { useDocumentStore } from '@/store/documentStore';
 import { useAppStore } from '@/store/appStore';
 import { LockScreen } from '@/components/LockScreen';
+import { track } from '@/services/analytics';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -17,11 +18,18 @@ export default function RootLayout() {
   const biometricEnabled = useAppStore(s => s.biometricEnabled);
   const isLocked = useAppStore(s => s.isLocked);
   const setLocked = useAppStore(s => s.setLocked);
+  const hasOnboarded = useAppStore(s => s.hasOnboarded);
   const appStateRef = useRef(AppState.currentState);
 
   useEffect(() => {
     SplashScreen.hideAsync();
     processOCRQueue();
+    track('app_opened');
+
+    // Show onboarding on first launch
+    if (!hasOnboarded) {
+      router.replace('/onboarding');
+    }
 
     // Lock when app goes to background
     if (biometricEnabled) setLocked(true);
@@ -38,7 +46,7 @@ export default function RootLayout() {
     });
 
     return () => sub.remove();
-  }, [biometricEnabled]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [biometricEnabled, hasOnboarded]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
@@ -59,6 +67,7 @@ export default function RootLayout() {
           <Stack.Screen name="viewer/[id]" options={{ headerShown: false }} />
           <Stack.Screen name="document/[id]" options={{ title: 'Document', headerBackTitle: 'Back' }} />
           <Stack.Screen name="folder/[id]" options={{ title: 'Folder', headerBackTitle: 'Back' }} />
+          <Stack.Screen name="onboarding" options={{ headerShown: false, gestureEnabled: false }} />
         </Stack>
 
         {biometricEnabled && isLocked && (
