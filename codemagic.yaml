@@ -154,7 +154,7 @@ workflows:
         submit_to_testflight: true
       email:
         recipients:
-          - $CM_EMAIL
+          - mrnickrushing@gmail.com
         notify:
           success: true
           failure: true
@@ -200,7 +200,7 @@ workflows:
         track: internal
       email:
         recipients:
-          - $CM_EMAIL
+          - mrnickrushing@gmail.com
         notify:
           success: true
           failure: true
