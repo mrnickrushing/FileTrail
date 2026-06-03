@@ -199,7 +199,9 @@ export default function SettingsScreen() {
               </Text>
               <Text style={styles.switchSub}>
                 {biometricAvailable
-                  ? 'Lock vault when app goes to background'
+                  ? biometricEnabled
+                    ? `Vault locks when app backgrounds`
+                    : 'Enable to lock vault on backgrounding'
                   : 'Not available on this device'}
               </Text>
             </View>
@@ -275,6 +277,27 @@ export default function SettingsScreen() {
         <Text style={styles.hint}>
           To share a single document, open it and tap ↑ in the top right.
         </Text>
+
+        {/* Pro Upsell */}
+        <SectionHeader title="Upgrade" />
+        <View style={styles.proCard}>
+          <View style={styles.proCardHeader}>
+            <Text style={styles.proTitle}>PaperTrail Pro</Text>
+            <View style={styles.proBadge}><Text style={styles.proBadgeText}>PRO</Text></View>
+          </View>
+          <Text style={styles.proBody}>
+            Cloud sync across devices, AI auto-naming, expiry detection, shared vaults, and natural-language search.
+          </Text>
+          <View style={styles.proFeatures}>
+            {['☁️ Encrypted cloud sync', '🤖 AI auto-naming', '⏰ Expiry detection', '👥 Shared vaults'].map(f => (
+              <Text key={f} style={styles.proFeatureItem}>{f}</Text>
+            ))}
+          </View>
+          <View style={styles.proAction}>
+            <Text style={styles.proPrice}>From $4.99/mo</Text>
+            <View style={styles.proCTA}><Text style={styles.proCTAText}>Learn More →</Text></View>
+          </View>
+        </View>
 
         {/* About */}
         <SectionHeader title="About" />
@@ -373,4 +396,40 @@ const styles = StyleSheet.create({
   actionChevron: { fontSize: 22, color: C.ash },
   hint: { fontSize: T.xs, color: C.ink4, marginHorizontal: S[2], marginBottom: S[2], lineHeight: 18 },
   footer: { fontSize: T.sm, color: C.ink4, textAlign: 'center', marginTop: S[6], lineHeight: 20 },
+  proCard: {
+    backgroundColor: C.ink2,
+    borderRadius: R.lg,
+    overflow: 'hidden',
+    marginBottom: S[2],
+    borderWidth: 1,
+    borderColor: C.amber + '55',
+    padding: S[4],
+    gap: S[3],
+    shadowColor: C.amber,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  proCardHeader: { flexDirection: 'row', alignItems: 'center', gap: S[2] },
+  proTitle: { fontSize: T.lg, fontWeight: '700', color: C.cream, flex: 1 },
+  proBadge: {
+    backgroundColor: C.amber,
+    borderRadius: R.sm,
+    paddingHorizontal: S[2],
+    paddingVertical: 2,
+  },
+  proBadgeText: { fontSize: T.xs, fontWeight: '700', color: C.ink1, letterSpacing: 0.5 },
+  proBody: { fontSize: T.sm, color: C.ash, lineHeight: 20 },
+  proFeatures: { gap: S[1] },
+  proFeatureItem: { fontSize: T.sm, color: C.ash },
+  proAction: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: S[1] },
+  proPrice: { fontSize: T.sm, color: C.ash },
+  proCTA: {
+    backgroundColor: C.amber,
+    borderRadius: R.lg,
+    paddingHorizontal: S[4],
+    paddingVertical: S[2],
+  },
+  proCTAText: { fontSize: T.sm, fontWeight: '700', color: C.ink1 },
 });

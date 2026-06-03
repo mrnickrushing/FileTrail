@@ -231,7 +231,8 @@ export default function VaultScreen() {
             <EmptyState
               icon="file-text"
               title="Your vault is empty"
-              subtitle="Tap the + button to add your first document"
+              subtitle="Capture receipts, contracts, IDs, and more — everything stays on your device."
+              showFABHint
             />
           }
           refreshControl={
