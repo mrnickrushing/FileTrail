@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import {
-  View, Text, FlatList, StyleSheet, Pressable,
+  View, Text, FlatList, StyleSheet,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';

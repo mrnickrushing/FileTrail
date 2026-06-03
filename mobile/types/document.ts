@@ -16,7 +16,7 @@ export type DocumentCategory =
   | 'tax'
   | 'other';
 
-export type OCRStatus = 'pending' | 'processing' | 'done' | 'failed';
+export type OCRStatus = 'pending' | 'processing' | 'done' | 'failed' | 'unavailable';
 
 export interface Document {
   id: string;

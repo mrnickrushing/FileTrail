@@ -91,7 +91,7 @@ export default function TabLayout() {
   );
 }
 
-function TabIcon({ label, color, focused }: { label: string; color: string; focused: boolean }) {
+function TabIcon({ label, focused }: { label: string; color: string; focused: boolean }) {
   return (
     <View style={[styles.iconWrap, focused && styles.iconWrapActive]}>
       <Text style={{ fontSize: 18 }}>{label}</Text>

@@ -30,7 +30,7 @@ export function LockScreen({ onUnlocked }: LockScreenProps) {
   useEffect(() => {
     getBiometricCapability().then(cap => setBiometricLabel(cap.label));
     tryAuth();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
   async function tryAuth() {
     setIsAuthenticating(true);

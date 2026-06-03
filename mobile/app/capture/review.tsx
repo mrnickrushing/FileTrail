@@ -30,7 +30,7 @@ import {
 import { useLocalSearchParams, router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { nanoid } from 'nanoid/non-secure';
-import { useDocumentStore, useSettingsStore } from '@/store';
+import { useAppStore, useDocumentStore } from '@/store';
 import { saveDocumentFile, generateThumbnail, getFileSize, getExtension } from '@/services/fileStorage';
 import { extractText, isOCRAvailable } from '@/services/ocr';
 import { isPDFLike } from '@/services/pdfService';
@@ -71,7 +71,7 @@ export default function DocumentReviewScreen() {
   }>();
 
   const addDocument = useDocumentStore(s => s.addDocument);
-  const autoOcr = useSettingsStore(s => s.autoOcr);
+  const autoOcr = useAppStore(s => s.autoOcr);
 
   const [title, setTitle] = useState(() => generateTitle(params.source, params.mimeType));
   const [category, setCategory] = useState<DocumentCategory>('other');
@@ -139,7 +139,12 @@ export default function DocumentReviewScreen() {
         fileSizeBytes: sizeBytes,
         pageCount: 1,
         ocrText: ocrText ?? undefined,
-        ocrStatus: ocrStatus === 'done' ? 'done' : 'pending',
+        ocrStatus:
+          ocrStatus === 'done'
+            ? 'done'
+            : ocrStatus === 'unavailable'
+              ? 'unavailable'
+              : 'pending',
         isFavorite: false,
         folderId: null,
         tags: [],

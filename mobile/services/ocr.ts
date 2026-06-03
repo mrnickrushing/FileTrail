@@ -13,7 +13,6 @@
  */
 
 import * as ImageManipulator from 'expo-image-manipulator';
-import { Platform } from 'react-native';
 
 export interface OCRResult {
   text: string;
@@ -58,7 +57,9 @@ async function preprocessImage(
  * Returns a mock result in development so the rest of the app can be developed
  * without a native build.
  */
-async function runNativeOCR(_base64: string, _language: string): Promise<OCRResult> {
+async function runNativeOCR(base64: string, language: string): Promise<OCRResult> {
+  void base64;
+  void language;
   // In a real EAS build this calls:
   //   iOS:     NativeModules.VisionOCR.recognize(base64, language)
   //   Android: NativeModules.MLKitOCR.recognize(base64, language)
@@ -133,9 +134,9 @@ export function extractMetadata(text: string): ExtractedMeta {
   // ── Dates ──────────────────────────────────────────────────────────────────
   // Match: 01/15/2024  |  Jan 15, 2024  |  2024-01-15
   const datePatterns = [
-    /\b(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})\b/,
+    /\b(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})\b/,
     /\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\.?\s+(\d{1,2}),?\s+(\d{4})\b/i,
-    /\b(\d{4})[\/\-](\d{2})[\/\-](\d{2})\b/,
+    /\b(\d{4})[/-](\d{2})[/-](\d{2})\b/,
   ];
   for (const pat of datePatterns) {
     const m = text.match(pat);

@@ -11,6 +11,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { C, T, S, R } from '@/theme/tokens';
 import type { Folder } from '@/types/document';
 
+type FolderOption = Pick<Folder, 'name' | 'color'> & { id: string | null };
+
 interface FolderPickerModalProps {
   visible: boolean;
   folders: Folder[];
@@ -33,8 +35,8 @@ export function FolderPickerModal({
         <View style={styles.handle} />
         <Text style={styles.title}>Move to Folder</Text>
 
-        <FlatList
-          data={[{ id: null, name: 'Unfiled', color: '#6B7280' } as any, ...folders]}
+        <FlatList<FolderOption>
+          data={[{ id: null, name: 'Unfiled', color: '#6B7280' }, ...folders]}
           keyExtractor={(item) => String(item.id)}
           contentContainerStyle={styles.list}
           renderItem={({ item }) => (

@@ -28,7 +28,7 @@ export function useCamera() {
       }
 
       const result = await ImagePicker.launchCameraAsync({
-        mediaTypes: ['images'],
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: false, // we handle crop in the review step
         quality: 0.92,
         exif: false,

@@ -19,6 +19,7 @@ interface AppState {
   viewMode: 'card' | 'list';
   sortBy: 'updatedAt' | 'createdAt' | 'title' | 'category';
   sortDir: 'asc' | 'desc';
+  autoOcr: boolean;
 
   // Pro
   isPro: boolean;
@@ -30,6 +31,7 @@ interface AppState {
   setViewMode: (mode: 'card' | 'list') => void;
   setSortBy: (by: AppState['sortBy']) => void;
   setSortDir: (dir: 'asc' | 'desc') => void;
+  setAutoOcr: (enabled: boolean) => void;
   setIsPro: (v: boolean) => void;
 }
 
@@ -42,6 +44,7 @@ export const useAppStore = create<AppState>()(
       viewMode: 'card',
       sortBy: 'updatedAt',
       sortDir: 'desc',
+      autoOcr: true,
       isPro: false,
 
       setLocked: (isLocked) => set({ isLocked }),
@@ -50,6 +53,7 @@ export const useAppStore = create<AppState>()(
       setViewMode: (viewMode) => set({ viewMode }),
       setSortBy: (sortBy) => set({ sortBy }),
       setSortDir: (sortDir) => set({ sortDir }),
+      setAutoOcr: (autoOcr) => set({ autoOcr }),
       setIsPro: (isPro) => set({ isPro }),
     }),
     {
@@ -62,6 +66,7 @@ export const useAppStore = create<AppState>()(
         viewMode: state.viewMode,
         sortBy: state.sortBy,
         sortDir: state.sortDir,
+        autoOcr: state.autoOcr,
         isPro: state.isPro,
       }),
     }

@@ -39,19 +39,36 @@ import type { DocumentCategory } from '@/types/document';
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 
+interface NativePdfProps {
+  source: { uri: string; cache: boolean };
+  page: number;
+  style: object;
+  enablePaging: boolean;
+  horizontal: boolean;
+  onLoadComplete: (numberOfPages: number) => void;
+  onPageChanged: (page: number) => void;
+  onError: (error: unknown) => void;
+  trustAllCerts: boolean;
+}
+
+function errorMessage(err: unknown, fallback: string): string {
+  return err instanceof Error ? err.message : fallback;
+}
+
 // Attempt to load react-native-pdf.  The require() will throw in Expo Go
 // because the native module is missing.  We catch and set to null.
-let RNPdf: React.ComponentType<any> | null = null;
+let RNPdf: React.ComponentType<NativePdfProps> | null = null;
 try {
   // eslint-disable-next-line @typescript-eslint/no-var-requires
-  RNPdf = require('react-native-pdf').default;
+  RNPdf = (require('react-native-pdf') as { default: React.ComponentType<NativePdfProps> }).default;
 } catch {
   RNPdf = null;
 }
 
+const expoConstants = Constants as typeof Constants & { appOwnership?: string };
 const IS_EXPO_GO =
   Constants.executionEnvironment === 'storeClient' ||
-  (Constants as any).appOwnership === 'expo';
+  expoConstants.appOwnership === 'expo';
 
 const CATEGORY_LABELS: Record<DocumentCategory, string> = {
   receipt: '🧾 Receipt',
@@ -137,8 +154,8 @@ export default function DocumentViewerScreen() {
     setIsSharing(true);
     try {
       await shareDocument(document);
-    } catch (err: any) {
-      Alert.alert('Share Failed', err?.message ?? 'Could not share this document.');
+    } catch (err: unknown) {
+      Alert.alert('Share Failed', errorMessage(err, 'Could not share this document.'));
     } finally {
       setIsSharing(false);
     }
@@ -336,14 +353,18 @@ export default function DocumentViewerScreen() {
         </View>
 
         {/* ── OCR Panel ── */}
-        {(document.ocrText || document.ocrStatus === 'pending') && (
+        {(document.ocrText || document.ocrStatus === 'pending' || document.ocrStatus === 'unavailable') && (
           <View style={styles.ocrSection}>
             <Pressable
               style={styles.ocrHeader}
               onPress={() => setShowOCR(v => !v)}
             >
               <Text style={styles.ocrTitle}>
-                {document.ocrStatus === 'pending' ? '⏳ Extracting text…' : '📝 Extracted Text'}
+                {document.ocrStatus === 'pending'
+                  ? '⏳ Extracting text…'
+                  : document.ocrStatus === 'unavailable'
+                    ? 'OCR unavailable in this build'
+                    : '📝 Extracted Text'}
               </Text>
               <Text style={styles.ocrChevron}>{showOCR ? '▲' : '▼'}</Text>
             </Pressable>
@@ -488,9 +509,9 @@ function PDFViewer({
           onLoadComplete(numberOfPages);
         }}
         onPageChanged={(p: number) => onPageChange(p)}
-        onError={(err: any) => {
+        onError={(err: unknown) => {
           setLoading(false);
-          onError(err?.message ?? 'Unknown error');
+          onError(errorMessage(err, 'Unknown error'));
         }}
         trustAllCerts={false}
       />
