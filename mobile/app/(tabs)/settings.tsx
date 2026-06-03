@@ -13,6 +13,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
+  Linking,
   Pressable,
   StyleSheet,
   ScrollView,
@@ -295,7 +296,14 @@ export default function SettingsScreen() {
           </View>
           <View style={styles.proAction}>
             <Text style={styles.proPrice}>From $4.99/mo</Text>
-            <View style={styles.proCTA}><Text style={styles.proCTAText}>Learn More →</Text></View>
+            <Pressable
+              style={({ pressed }) => [styles.proCTA, pressed && { opacity: 0.8 }]}
+              onPress={() => Linking.openURL('https://papertrail.app/pro')}
+              accessibilityRole="link"
+              accessibilityLabel="Learn more about PaperTrail Pro"
+            >
+              <Text style={styles.proCTAText}>Learn More →</Text>
+            </Pressable>
           </View>
         </View>
 

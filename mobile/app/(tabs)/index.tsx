@@ -9,11 +9,15 @@ import {
   RefreshControl,
   ScrollView,
   Alert,
+  LayoutAnimation,
+  Platform,
+  UIManager,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { useDocumentStore } from '@/store';
+import { useAppStore } from '@/store/appStore';
 import { DocumentCard } from '@/components/DocumentCard';
 import { BulkActionBar } from '@/components/BulkActionBar';
 import { TagEditor } from '@/components/TagEditor';
@@ -23,6 +27,11 @@ import { FAB } from '@/components/FAB';
 import { EmptyState } from '@/components/EmptyState';
 import { Colors, Typography, Spacing } from '@/theme';
 import { C, T, S, R } from '@/theme/tokens';
+
+// Enable LayoutAnimation on Android
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 
 const CATEGORIES = [
   { key: undefined,    label: 'All' },
@@ -50,9 +59,15 @@ export default function VaultScreen() {
     bulkSetTags,
   } = useDocumentStore();
 
+  const sortBy = useAppStore(s => s.sortBy);
+  const sortDir = useAppStore(s => s.sortDir);
+  const viewMode = useAppStore(s => s.viewMode);
+  const setSortBy = useAppStore(s => s.setSortBy);
+  const setSortDir = useAppStore(s => s.setSortDir);
+  const setViewMode = useAppStore(s => s.setViewMode);
+
   // ── Filter logic ──────────────────────────────────────────────────────────
 
-  // Derive tags directly from documents so useMemo dep is stable
   const allTags = useMemo(() => {
     const tagSet = new Set<string>();
     for (const doc of documents) for (const tag of doc.tags) tagSet.add(tag);
@@ -66,9 +81,14 @@ export default function VaultScreen() {
     if (filters.tags?.length) {
       docs = docs.filter((d) => filters.tags!.every((tag) => d.tags.includes(tag)));
     }
-    // Sort by ISO date string descending — localeCompare is correct for ISO 8601
-    return docs.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
-  }, [documents, filters]);
+    docs.sort((a, b) => {
+      const aVal = a[sortBy] ?? '';
+      const bVal = b[sortBy] ?? '';
+      const cmp = String(aVal).localeCompare(String(bVal));
+      return sortDir === 'asc' ? cmp : -cmp;
+    });
+    return docs;
+  }, [documents, filters, sortBy, sortDir]);
 
   // ── Multi-select state ─────────────────────────────────────────────────────
 
@@ -78,7 +98,8 @@ export default function VaultScreen() {
   const [showFolderPicker, setShowFolderPicker] = useState(false);
 
   const enterSelectionMode = useCallback((id: string) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); // medium = mode enter
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setSelectionMode(true);
     setSelectedIds(new Set([id]));
   }, []);
@@ -115,7 +136,9 @@ export default function VaultScreen() {
           text: 'Delete',
           style: 'destructive',
           onPress: async () => {
+            LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
             await bulkDelete(Array.from(selectedIds));
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             exitSelectionMode();
           },
         },
@@ -124,13 +147,16 @@ export default function VaultScreen() {
   }, [selectedIds, bulkDelete, exitSelectionMode]);
 
   const handleBulkMove = useCallback((folderId: string | null) => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     bulkMove(Array.from(selectedIds), folderId);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setShowFolderPicker(false);
     exitSelectionMode();
   }, [selectedIds, bulkMove, exitSelectionMode]);
 
   const handleBulkTag = useCallback((tags: string[]) => {
     bulkSetTags(Array.from(selectedIds), tags);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setShowTagEditor(false);
     exitSelectionMode();
   }, [selectedIds, bulkSetTags, exitSelectionMode]);
@@ -167,19 +193,65 @@ export default function VaultScreen() {
       <View style={[styles.header, { paddingTop: insets.top + Spacing['4'] }]}>
         {selectionMode ? (
           <>
-            <Text style={styles.headerTitle}>
-              {selectedIds.size} selected
-            </Text>
+            <Text style={styles.headerTitle}>{selectedIds.size} selected</Text>
             <Pressable onPress={selectAll} hitSlop={8}>
               <Text style={styles.selectAllBtn}>Select All</Text>
             </Pressable>
           </>
         ) : (
           <>
-            <Text style={styles.headerTitle}>PaperTrail</Text>
-            <Text style={styles.headerSub}>
-              {visibleDocuments.length} document{visibleDocuments.length !== 1 ? 's' : ''}
-            </Text>
+            <View>
+              <Text style={styles.headerTitle}>PaperTrail</Text>
+              <Text style={styles.headerSub}>
+                {visibleDocuments.length} document{visibleDocuments.length !== 1 ? 's' : ''}
+              </Text>
+            </View>
+            <View style={styles.headerControls}>
+              {/* Sort cycle: updatedAt → createdAt → title → category */}
+              <Pressable
+                style={styles.headerControlBtn}
+                hitSlop={8}
+                onPress={() => {
+                  Haptics.selectionAsync();
+                  const order: typeof sortBy[] = ['updatedAt', 'createdAt', 'title', 'category'];
+                  const next = order[(order.indexOf(sortBy) + 1) % order.length];
+                  setSortBy(next);
+                }}
+                accessibilityLabel={`Sort by ${sortBy}`}
+                accessibilityRole="button"
+              >
+                <Text style={styles.headerControlText}>
+                  {sortBy === 'updatedAt' ? '↕ Modified' :
+                   sortBy === 'createdAt' ? '↕ Added' :
+                   sortBy === 'title'     ? '↕ Name' : '↕ Type'}
+                </Text>
+              </Pressable>
+              <Pressable
+                style={styles.headerControlBtn}
+                hitSlop={8}
+                onPress={() => {
+                  Haptics.selectionAsync();
+                  setSortDir(sortDir === 'desc' ? 'asc' : 'desc');
+                }}
+                accessibilityLabel={sortDir === 'desc' ? 'Sort descending' : 'Sort ascending'}
+                accessibilityRole="button"
+              >
+                <Text style={styles.headerControlText}>{sortDir === 'desc' ? '↓' : '↑'}</Text>
+              </Pressable>
+              <Pressable
+                style={styles.headerControlBtn}
+                hitSlop={8}
+                onPress={() => {
+                  Haptics.selectionAsync();
+                  LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+                  setViewMode(viewMode === 'card' ? 'list' : 'card');
+                }}
+                accessibilityLabel={viewMode === 'card' ? 'Switch to list view' : 'Switch to card view'}
+                accessibilityRole="button"
+              >
+                <Text style={styles.headerControlText}>{viewMode === 'card' ? '☰' : '⊞'}</Text>
+              </Pressable>
+            </View>
           </>
         )}
       </View>
@@ -208,6 +280,7 @@ export default function VaultScreen() {
           renderItem={({ item }) => (
             <DocumentCard
               document={item}
+              compact={viewMode === 'list'}
               selectionMode={selectionMode}
               isSelected={selectedIds.has(item.id)}
               onPress={() => {
@@ -311,6 +384,9 @@ function FilterBar({ filters, allTags, onCategoryChange, onToggleFavorite, onTog
             style={[styles.chip, isActive && styles.chipActive]}
             onPress={() => onCategoryChange(c.key)}
             hitSlop={6}
+            accessibilityRole="button"
+            accessibilityState={{ selected: isActive }}
+            accessibilityLabel={`${c.label} filter${isActive ? ', active' : ''}`}
           >
             <Text style={[styles.chipText, isActive && styles.chipTextActive]}>
               {isActive && c.key !== undefined ? '✓ ' : ''}{c.label}
@@ -327,6 +403,9 @@ function FilterBar({ filters, allTags, onCategoryChange, onToggleFavorite, onTog
         style={[styles.chip, favoriteActive && styles.chipActive]}
         onPress={onToggleFavorite}
         hitSlop={6}
+        accessibilityRole="button"
+        accessibilityState={{ selected: favoriteActive }}
+        accessibilityLabel={`Favorites filter${favoriteActive ? ', active' : ''}`}
       >
         <Text style={[styles.chipText, favoriteActive && styles.chipTextActive]}>
           {favoriteActive ? '★ Favorites ×' : '☆ Favorites'}
@@ -342,6 +421,9 @@ function FilterBar({ filters, allTags, onCategoryChange, onToggleFavorite, onTog
             style={[styles.chip, isActive && styles.chipTagActive]}
             onPress={() => onToggleTag(tag)}
             hitSlop={6}
+            accessibilityRole="button"
+            accessibilityState={{ selected: isActive }}
+            accessibilityLabel={`Tag ${tag}${isActive ? ', active' : ''}`}
           >
             <Text style={[styles.chipText, isActive && styles.chipTagTextActive]}>
               {isActive ? `#${tag} ×` : `#${tag}`}
@@ -375,6 +457,27 @@ const styles = StyleSheet.create({
   selectAllBtn: {
     fontSize: T.base,
     color: C.amber,
+    fontWeight: '600',
+  },
+  headerControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: S[1],
+  },
+  headerControlBtn: {
+    paddingHorizontal: S[2],
+    paddingVertical: S[1],
+    borderRadius: R.md,
+    backgroundColor: C.ink2,
+    borderWidth: 1,
+    borderColor: C.ink3,
+    minHeight: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  headerControlText: {
+    fontSize: T.xs,
+    color: C.ash,
     fontWeight: '600',
   },
   chips: {
