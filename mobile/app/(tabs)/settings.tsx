@@ -1,14 +1,15 @@
 /**
- * settings.tsx — App settings screen (Phase 7)
+ * settings.tsx — App settings screen (Phase 8)
  *
  * Sections:
+ *   - Security: biometric lock toggle
  *   - Storage: total docs, disk usage, clear all
+ *   - Backup & Restore: create/restore .ptbak
  *   - Export: ZIP export
- *   - Backup & Restore: create local backup, restore from backup
  *   - About: version, build
  */
 
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -17,22 +18,29 @@ import {
   ScrollView,
   Alert,
   ActivityIndicator,
+  Switch,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useDocumentStore } from '@/store/documentStore';
+import { useAppStore } from '@/store/appStore';
 import { deleteDocumentFiles } from '@/services/fileStorage';
 import { exportAllAsZip } from '@/services/exportService';
 import { createBackup, restoreBackup } from '@/services/backupService';
+import { getBiometricCapability, authenticate } from '@/services/biometricService';
 import { C, T, R, S } from '@/theme/tokens';
 
-const APP_VERSION = '0.7.0';
-const BUILD = 'Phase 7 — Backup & Restore';
+const APP_VERSION = '0.8.0';
+const BUILD = 'Phase 8 — Biometric Lock · Privacy';
 
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
   const documents = useDocumentStore(s => s.documents);
   const folders = useDocumentStore(s => s.folders);
+  const biometricEnabled = useAppStore(s => s.biometricEnabled);
+  const setBiometricEnabled = useAppStore(s => s.setBiometricEnabled);
 
+  const [biometricLabel, setBiometricLabel] = useState('Biometric Lock');
+  const [biometricAvailable, setBiometricAvailable] = useState(false);
   const [isClearing, setIsClearing] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [exportProgress, setExportProgress] = useState<string | null>(null);
@@ -40,6 +48,25 @@ export default function SettingsScreen() {
   const [backupProgress, setBackupProgress] = useState<string | null>(null);
   const [isRestoring, setIsRestoring] = useState(false);
   const [restoreProgress, setRestoreProgress] = useState<string | null>(null);
+
+  useEffect(() => {
+    getBiometricCapability().then(cap => {
+      setBiometricAvailable(cap.available);
+      if (cap.available) setBiometricLabel(cap.label);
+    });
+  }, []);
+
+  const handleToggleBiometric = async (value: boolean) => {
+    if (value) {
+      // Require auth before enabling to prove device ownership
+      const success = await authenticate('Confirm to enable biometric lock');
+      if (!success) {
+        Alert.alert('Authentication Required', 'Could not verify biometric identity.');
+        return;
+      }
+    }
+    setBiometricEnabled(value);
+  };
 
   const totalSize = useMemo(
     () => documents.reduce((sum, d) => sum + (d.fileSizeBytes ?? 0), 0),
@@ -162,6 +189,30 @@ export default function SettingsScreen() {
       <ScrollView
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + S[8] }]}
       >
+        {/* Security */}
+        <SectionHeader title="Security" />
+        <View style={styles.card}>
+          <View style={styles.switchRow}>
+            <View style={styles.switchInfo}>
+              <Text style={[styles.rowLabel, !biometricAvailable && styles.rowLabelDisabled]}>
+                {biometricLabel}
+              </Text>
+              <Text style={styles.switchSub}>
+                {biometricAvailable
+                  ? 'Lock vault when app goes to background'
+                  : 'Not available on this device'}
+              </Text>
+            </View>
+            <Switch
+              value={biometricEnabled}
+              onValueChange={handleToggleBiometric}
+              disabled={!biometricAvailable}
+              trackColor={{ false: C.ink4, true: C.amber }}
+              thumbColor={biometricEnabled ? C.ink1 : C.ash}
+            />
+          </View>
+        </View>
+
         {/* Storage */}
         <SectionHeader title="Storage" />
         <View style={styles.card}>
@@ -305,6 +356,10 @@ const styles = StyleSheet.create({
   card: { backgroundColor: C.ink2, borderRadius: R.lg, overflow: 'hidden', marginBottom: S[2] },
   row: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: S[4], paddingVertical: S[4], minHeight: 52 },
   rowLabel: { flex: 1, fontSize: T.base, color: C.cream },
+  rowLabelDisabled: { color: C.ash },
+  switchRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: S[4], paddingVertical: S[3], minHeight: 60 },
+  switchInfo: { flex: 1, gap: 2 },
+  switchSub: { fontSize: T.xs, color: C.ash },
   rowValue: { fontSize: T.base, color: C.ash, fontWeight: '500' },
   divider: { height: 1, backgroundColor: C.ink3, marginLeft: S[4] },
   dangerRow: { alignItems: 'center', justifyContent: 'center', paddingVertical: S[4], minHeight: 52 },

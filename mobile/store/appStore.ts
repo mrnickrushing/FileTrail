@@ -1,8 +1,13 @@
 /**
- * PaperTrail — App-level Zustand Store
- * Auth state, onboarding, settings, biometric lock.
+ * appStore.ts — App-level Zustand store with persistence (Phase 8)
+ *
+ * Persists: biometricEnabled, hasOnboarded, viewMode, sortBy, sortDir
+ * Runtime-only: isLocked (always starts locked if biometric is enabled)
  */
+
 import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface AppState {
   // Lock
@@ -28,20 +33,37 @@ interface AppState {
   setIsPro: (v: boolean) => void;
 }
 
-export const useAppStore = create<AppState>((set) => ({
-  isLocked: false,
-  biometricEnabled: false,
-  hasOnboarded: false,
-  viewMode: 'card',
-  sortBy: 'updatedAt',
-  sortDir: 'desc',
-  isPro: false,
+export const useAppStore = create<AppState>()(
+  persist(
+    (set) => ({
+      isLocked: false,
+      biometricEnabled: false,
+      hasOnboarded: false,
+      viewMode: 'card',
+      sortBy: 'updatedAt',
+      sortDir: 'desc',
+      isPro: false,
 
-  setLocked: (isLocked) => set({ isLocked }),
-  setBiometricEnabled: (biometricEnabled) => set({ biometricEnabled }),
-  setHasOnboarded: (hasOnboarded) => set({ hasOnboarded }),
-  setViewMode: (viewMode) => set({ viewMode }),
-  setSortBy: (sortBy) => set({ sortBy }),
-  setSortDir: (sortDir) => set({ sortDir }),
-  setIsPro: (isPro) => set({ isPro }),
-}));
+      setLocked: (isLocked) => set({ isLocked }),
+      setBiometricEnabled: (biometricEnabled) => set({ biometricEnabled }),
+      setHasOnboarded: (hasOnboarded) => set({ hasOnboarded }),
+      setViewMode: (viewMode) => set({ viewMode }),
+      setSortBy: (sortBy) => set({ sortBy }),
+      setSortDir: (sortDir) => set({ sortDir }),
+      setIsPro: (isPro) => set({ isPro }),
+    }),
+    {
+      name: 'papertrail-app-settings-v1',
+      storage: createJSONStorage(() => AsyncStorage),
+      // isLocked is always runtime — never persisted
+      partialize: (state) => ({
+        biometricEnabled: state.biometricEnabled,
+        hasOnboarded: state.hasOnboarded,
+        viewMode: state.viewMode,
+        sortBy: state.sortBy,
+        sortDir: state.sortDir,
+        isPro: state.isPro,
+      }),
+    }
+  )
+);

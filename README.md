@@ -207,7 +207,7 @@ All queries use parameterized statements. No raw string interpolation.
 | 5 — Organization & Bulk | ✅ Done | Multi-select, bulk move/delete, tag editor, filter chips |
 | 6 — OCR & Search | ✅ Done | OCR retry, metadata extraction, smarter search |
 | 7 — Backup & Sync | ✅ Done | Encrypted backup, restore, cloud sync architecture |
-| 8 — Security | — | Biometric lock, redaction, privacy hardening |
+| 8 — Security | ✅ Done | Biometric lock, redaction, privacy hardening |
 | 9 — Polish | — | Performance, accessibility, skeleton loaders |
 | 10 — Launch | — | Onboarding, store assets, analytics |
 
