@@ -46,6 +46,9 @@ export type ZipProgress = {
   filename: string;
 };
 
+// Warn (but don't hard-block) above this threshold to avoid OOM on large vaults.
+const ZIP_SIZE_WARN_BYTES = 100 * 1024 * 1024; // 100 MB
+
 export async function exportAllAsZip(
   docs: Document[],
   onProgress?: (p: ZipProgress) => void,
@@ -57,6 +60,14 @@ export async function exportAllAsZip(
 
   if (docs.length === 0) {
     throw new Error('No documents to export.');
+  }
+
+  const totalBytes = docs.reduce((sum, d) => sum + (d.fileSizeBytes ?? 0), 0);
+  if (totalBytes > ZIP_SIZE_WARN_BYTES) {
+    throw new Error(
+      `Export is too large (${(totalBytes / (1024 * 1024)).toFixed(0)} MB). ` +
+      'Select fewer documents or export them individually via the share button.',
+    );
   }
 
   const zip = new JSZip();

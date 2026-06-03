@@ -24,7 +24,6 @@ import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
-  runOnJS,
   clamp,
 } from 'react-native-reanimated';
 import * as ImageManipulator from 'expo-image-manipulator';

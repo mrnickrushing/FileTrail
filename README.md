@@ -69,7 +69,7 @@ papertrail/
 │   │   │   ├── folders.tsx    # Folder management
 │   │   │   ├── search.tsx     # Full-text search
 │   │   │   └── settings.tsx   # App settings + Pro upsell
-│   │   ├── document/[id].tsx  # Document detail
+│   │   ├── viewer/[id].tsx    # Full document viewer (image + PDF)
 │   │   └── folder/[id].tsx    # Folder detail
 │   ├── components/            # Reusable UI components
 │   │   ├── DocumentCard.tsx   # List card with category strip
@@ -78,7 +78,8 @@ papertrail/
 │   │   ├── FAB.tsx            # Floating action button
 │   │   └── TabIcon.tsx        # Bottom tab icons
 │   ├── services/
-│   │   └── db.ts              # SQLite service (CRUD + FTS5 search)
+│   │   ├── db.ts              # SQLite service (CRUD + FTS5 search)
+│   │   └── exportService.ts   # Share and ZIP export
 │   ├── store/
 │   │   ├── documentStore.ts   # Zustand — documents, folders, tags
 │   │   └── settingsStore.ts   # Zustand — app settings
