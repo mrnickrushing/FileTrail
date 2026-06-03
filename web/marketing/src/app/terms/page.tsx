@@ -28,7 +28,7 @@ export default function TermsOfService() {
         <ul>
           <li>Maintaining the confidentiality of your credentials</li>
           <li>All activity that occurs under your account</li>
-          <li>Notifying us immediately of any unauthorised use at <a href="mailto:admin@rushingtechnologies.com">admin@rushingtechnologies.com</a></li>
+          <li>Notifying us immediately of any unauthorised use at <a href="mailto:nickrushing@rushingtechnologies.com">nickrushing@rushingtechnologies.com</a></li>
         </ul>
 
         <h2>4. Pro subscription</h2>
@@ -37,7 +37,7 @@ export default function TermsOfService() {
           <li><strong>Free trial:</strong> New Pro subscribers receive a 7-day free trial. You will not be charged until the trial ends.</li>
           <li><strong>Cancellation:</strong> You may cancel at any time. Your Pro access continues until the end of the current billing period. No refunds are issued for partial months.</li>
           <li><strong>Price changes:</strong> We may change the Pro price with 30 days' notice. Continued use after the notice period constitutes acceptance.</li>
-          <li><strong>Refunds:</strong> Refund requests are handled on a case-by-case basis. Contact <a href="mailto:admin@rushingtechnologies.com">admin@rushingtechnologies.com</a> within 14 days of a charge to request a refund.</li>
+          <li><strong>Refunds:</strong> Refund requests are handled on a case-by-case basis. Contact <a href="mailto:nickrushing@rushingtechnologies.com">nickrushing@rushingtechnologies.com</a> within 14 days of a charge to request a refund.</li>
         </ul>
 
         <h2>5. Acceptable use</h2>
@@ -81,7 +81,7 @@ export default function TermsOfService() {
         <p>If any provision of these Terms is found unenforceable, the remaining provisions will continue in full force and effect.</p>
 
         <h2>15. Contact</h2>
-        <p>For questions about these Terms, contact Rushing Technologies at <a href="mailto:admin@rushingtechnologies.com">admin@rushingtechnologies.com</a>.</p>
+        <p>For questions about these Terms, contact Rushing Technologies at <a href="mailto:nickrushing@rushingtechnologies.com">nickrushing@rushingtechnologies.com</a>.</p>
       </div>
     </div>
   );
