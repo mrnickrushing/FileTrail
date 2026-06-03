@@ -1,3 +1,12 @@
+/**
+ * document.ts — Core domain types for PaperTrail
+ *
+ * Phase 3 additions:
+ *   - Folder type
+ *   - folderId on Document (was already present, now enforced)
+ *   - SearchResult type
+ */
+
 export type DocumentCategory =
   | 'receipt'
   | 'contract'
@@ -7,63 +16,46 @@ export type DocumentCategory =
   | 'tax'
   | 'other';
 
-export interface DocumentTag {
-  id: string;
-  name: string;
-  color?: string;
-}
-
-export interface DocumentFolder {
-  id: string;
-  name: string;
-  icon?: string;
-  color?: string;
-  parentId?: string | null;
-  createdAt: number;
-  updatedAt: number;
-}
+export type OCRStatus = 'pending' | 'processing' | 'done' | 'failed';
 
 export interface Document {
   id: string;
   title: string;
   category: DocumentCategory;
-  folderId?: string | null;
-  tags: string[];          // tag IDs
-  fileUri: string;         // local file:// URI
-  thumbnailUri?: string | null;
-  mimeType: string;        // 'application/pdf' | 'image/jpeg' | etc
-  fileSize: number;        // bytes
-  pageCount?: number | null;
-  ocrText?: string | null; // extracted text for search
-  ocrStatus: 'pending' | 'processing' | 'done' | 'failed' | 'skipped';
-  notes?: string | null;
+
+  // File references
+  fileUri: string;
+  thumbnailUri: string | null;
+  mimeType: string;
+  fileSizeBytes: number;
+  pageCount: number;
+
+  // OCR
+  ocrText?: string;
+  ocrStatus: OCRStatus;
+
+  // Organisation
   isFavorite: boolean;
-  isLocked: boolean;
-  expiresAt?: number | null; // unix ms, optional expiry date
-  reminderAt?: number | null;
-  healthScore?: number | null; // 0-100
-  createdAt: number;       // unix ms
-  updatedAt: number;
-  syncedAt?: number | null;  // null = not synced (Pro)
-  cloudId?: string | null;   // remote ID (Pro)
+  folderId: string | null;
+  tags: string[];
+
+  // Timestamps (ISO strings)
+  createdAt: string;
+  updatedAt: string;
 }
 
-export interface DocumentComment {
+export interface Folder {
   id: string;
-  documentId: string;
-  text: string;
-  createdAt: number;
+  name: string;
+  color: string; // hex color for folder icon accent
+  createdAt: string;
+  updatedAt: string;
 }
 
-export type SortField = 'title' | 'createdAt' | 'updatedAt' | 'fileSize' | 'category';
-export type SortDirection = 'asc' | 'desc';
-
-export interface SearchFilters {
-  query?: string;
-  category?: DocumentCategory;
-  folderId?: string;
-  tags?: string[];
-  isFavorite?: boolean;
-  sortBy?: SortField;
-  sortDir?: SortDirection;
+export interface SearchResult {
+  document: Document;
+  /** Snippet of OCR text around the matched term, with <mark> tags */
+  snippet: string | null;
+  /** Which fields matched */
+  matchedFields: Array<'title' | 'ocrText' | 'category' | 'tags'>;
 }

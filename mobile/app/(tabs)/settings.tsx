@@ -1,197 +1,246 @@
-import React from 'react';
+/**
+ * settings.tsx — App settings screen
+ *
+ * Sections:
+ *   - Storage: total docs, total disk usage, clear all data
+ *   - Export: export all documents as ZIP (Phase 4)
+ *   - About: version, build, licenses
+ */
+
+import React, { useMemo, useState } from 'react';
 import {
-  View, Text, Switch, StyleSheet,
-  ScrollView, Pressable, Alert,
+  View,
+  Text,
+  Pressable,
+  StyleSheet,
+  ScrollView,
+  Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useSettingsStore } from '@/store';
-import { Colors, Typography, Spacing, Radius, Shadows } from '@/theme';
+import { useDocumentStore } from '@/store/documentStore';
+import { deleteDocumentFiles } from '@/services/fileStorage';
+import { C, T, R, S } from '@/theme/tokens';
+
+const APP_VERSION = '0.3.0';
+const BUILD = 'Phase 3 — Viewer · Search · Folders';
 
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
-  const {
-    biometricEnabled, setBiometric,
-    autoOcr, setAutoOcr,
-    isPro,
-  } = useSettingsStore();
+  const documents = useDocumentStore(s => s.documents);
+  const folders = useDocumentStore(s => s.folders);
 
-  const showProUpsell = () => {
+  // We need direct store access to wipe state
+  const storeState = useDocumentStore.getState;
+
+  const [isClearing, setIsClearing] = useState(false);
+
+  const totalSize = useMemo(
+    () => documents.reduce((sum, d) => sum + (d.fileSizeBytes ?? 0), 0),
+    [documents]
+  );
+
+  const handleClearAll = () => {
     Alert.alert(
-      'PaperTrail Pro',
-      'Unlock cloud sync, AI organization, expiry alerts, shared vaults, and natural-language search for $4.99/mo.',
+      'Clear All Data',
+      `This will permanently delete all ${documents.length} document${documents.length === 1 ? '' : 's'} and ${folders.length} folder${folders.length === 1 ? '' : 's'}. This cannot be undone.`,
       [
-        { text: 'Not Now', style: 'cancel' },
-        { text: 'Upgrade', onPress: () => {} },
-      ],
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Clear Everything',
+          style: 'destructive',
+          onPress: async () => {
+            setIsClearing(true);
+            try {
+              // Delete all files from disk
+              await Promise.all(
+                documents.map(d => deleteDocumentFiles(d.id).catch(() => {}))
+              );
+              // Clear store
+              useDocumentStore.setState({ documents: [], folders: [] });
+            } finally {
+              setIsClearing(false);
+            }
+          },
+        },
+      ]
     );
   };
 
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}
-      showsVerticalScrollIndicator={false}
-    >
-      <View style={[styles.header, { paddingTop: insets.top + Spacing['4'] }]}>
-        <Text style={styles.title}>Settings</Text>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
+      <View style={styles.header}>
+        <Text style={styles.screenTitle}>Settings</Text>
       </View>
 
-      {/* Pro Banner */}
-      {!isPro && (
-        <Pressable style={styles.proBanner} onPress={showProUpsell}>
-          <View>
-            <Text style={styles.proBannerTitle}>⚡ Go Pro</Text>
-            <Text style={styles.proBannerSub}>
-              Cloud sync, AI, sharing & more
-            </Text>
-          </View>
-          <Text style={styles.proBannerCta}>Upgrade →</Text>
-        </Pressable>
-      )}
-
-      {/* Security */}
-      <SettingSection title="Security">
-        <SettingRow
-          label="Biometric Lock"
-          sub="Require Face ID / Touch ID to open PaperTrail"
-        >
-          <Switch
-            value={biometricEnabled}
-            onValueChange={setBiometric}
-            trackColor={{ false: Colors.surfaceDynamic, true: Colors.primary }}
-            thumbColor={Colors.text}
+      <ScrollView
+        contentContainerStyle={[
+          styles.content,
+          { paddingBottom: insets.bottom + S[8] },
+        ]}
+      >
+        {/* Storage */}
+        <SectionHeader title="Storage" />
+        <View style={styles.card}>
+          <SettingsRow
+            label="Documents"
+            value={`${documents.length}`}
           />
-        </SettingRow>
-      </SettingSection>
-
-      {/* Documents */}
-      <SettingSection title="Documents">
-        <SettingRow
-          label="Auto-OCR on Import"
-          sub="Extract text from documents automatically"
-        >
-          <Switch
-            value={autoOcr}
-            onValueChange={setAutoOcr}
-            trackColor={{ false: Colors.surfaceDynamic, true: Colors.primary }}
-            thumbColor={Colors.text}
+          <Divider />
+          <SettingsRow
+            label="Folders"
+            value={`${folders.length}`}
           />
-        </SettingRow>
-      </SettingSection>
+          <Divider />
+          <SettingsRow
+            label="Disk Usage"
+            value={formatBytes(totalSize)}
+          />
+        </View>
 
-      {/* About */}
-      <SettingSection title="About">
-        <SettingRow label="Version" sub="1.0.0 (Phase 1 — Foundation)">
-          <Text style={styles.rowValue}>1.0.0</Text>
-        </SettingRow>
-        <SettingRow label="License" sub="MIT">
-          <Text style={styles.rowValue}>MIT</Text>
-        </SettingRow>
-      </SettingSection>
-    </ScrollView>
-  );
-}
+        <View style={styles.card}>
+          <Pressable
+            style={({ pressed }) => [styles.dangerRow, pressed && { opacity: 0.7 }]}
+            onPress={handleClearAll}
+            disabled={isClearing || documents.length === 0}
+          >
+            {isClearing ? (
+              <ActivityIndicator color={C.danger} />
+            ) : (
+              <Text style={[
+                styles.dangerText,
+                documents.length === 0 && styles.dangerTextDisabled,
+              ]}>
+                Clear All Documents
+              </Text>
+            )}
+          </Pressable>
+        </View>
 
-function SettingSection({
-  title, children,
-}: {
-  title: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <View style={styles.section}>
-      <Text style={styles.sectionTitle}>{title}</Text>
-      <View style={styles.sectionCard}>{children}</View>
+        {/* Export (placeholder for Phase 4) */}
+        <SectionHeader title="Export" />
+        <View style={styles.card}>
+          <Pressable style={styles.disabledRow}>
+            <Text style={styles.disabledLabel}>Export as ZIP</Text>
+            <Text style={styles.comingSoonBadge}>Phase 4</Text>
+          </Pressable>
+          <Divider />
+          <Pressable style={styles.disabledRow}>
+            <Text style={styles.disabledLabel}>iCloud Backup</Text>
+            <Text style={styles.comingSoonBadge}>Phase 4</Text>
+          </Pressable>
+        </View>
+
+        {/* About */}
+        <SectionHeader title="About" />
+        <View style={styles.card}>
+          <SettingsRow label="Version" value={APP_VERSION} />
+          <Divider />
+          <SettingsRow label="Build" value={BUILD} />
+          <Divider />
+          <SettingsRow label="Storage" value="On-device only" />
+        </View>
+
+        <Text style={styles.footer}>
+          PaperTrail stores all your documents privately on your device.{"\n"}
+          Nothing is uploaded to any server.
+        </Text>
+      </ScrollView>
     </View>
   );
 }
 
-function SettingRow({
-  label, sub, children,
-}: {
-  label: string;
-  sub?: string;
-  children?: React.ReactNode;
-}) {
+function SectionHeader({ title }: { title: string }) {
+  return <Text style={styles.sectionHeader}>{title.toUpperCase()}</Text>;
+}
+
+function SettingsRow({ label, value }: { label: string; value: string }) {
   return (
     <View style={styles.row}>
-      <View style={styles.rowLeft}>
-        <Text style={styles.rowLabel}>{label}</Text>
-        {sub ? <Text style={styles.rowSub}>{sub}</Text> : null}
-      </View>
-      {children}
+      <Text style={styles.rowLabel}>{label}</Text>
+      <Text style={styles.rowValue}>{value}</Text>
     </View>
   );
+}
+
+function Divider() {
+  return <View style={styles.divider} />;
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes === 0) return '0 B';
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.bg },
+  container: { flex: 1, backgroundColor: C.ink1 },
   header: {
-    paddingHorizontal: Spacing['6'],
-    paddingBottom:     Spacing['4'],
+    paddingHorizontal: S[4],
+    paddingVertical: S[4],
+    borderBottomWidth: 1,
+    borderBottomColor: C.ink3,
   },
-  title: {
-    fontSize:      Typography.xxl,
-    fontWeight:    Typography.bold,
-    color:         Colors.text,
-    letterSpacing: -0.5,
-  },
-  proBanner: {
-    marginHorizontal: Spacing['4'],
-    marginBottom:     Spacing['4'],
-    backgroundColor:  Colors.primaryHighlight,
-    borderRadius:     Radius.xl,
-    padding:          Spacing['5'],
-    flexDirection:    'row',
-    alignItems:       'center',
-    justifyContent:   'space-between',
-    borderWidth:      1,
-    borderColor:      Colors.primary,
-    ...Shadows.md,
-  },
-  proBannerTitle: {
-    fontSize:   Typography.lg,
-    fontWeight: Typography.bold,
-    color:      Colors.primary,
-  },
-  proBannerSub: {
-    fontSize:  Typography.sm,
-    color:     Colors.textMuted,
-    marginTop: 2,
-  },
-  proBannerCta: {
-    fontSize:   Typography.base,
-    fontWeight: Typography.semibold,
-    color:      Colors.primary,
-  },
-  section:      { marginBottom: Spacing['6'], paddingHorizontal: Spacing['4'] },
-  sectionTitle: {
-    fontSize:     Typography.xs,
-    fontWeight:   Typography.semibold,
-    color:        Colors.textFaint,
-    letterSpacing: 0.8,
+  screenTitle: { fontSize: T.xl, fontWeight: '700', color: C.cream },
+  content: { padding: S[4], gap: S[2] },
+  sectionHeader: {
+    fontSize: T.xs,
+    fontWeight: '600',
+    color: C.ash,
     textTransform: 'uppercase',
-    marginBottom:  Spacing['2'],
-    paddingLeft:   Spacing['2'],
+    letterSpacing: 0.8,
+    marginTop: S[4],
+    marginBottom: S[1],
+    marginLeft: S[2],
   },
-  sectionCard: {
-    backgroundColor: Colors.surface,
-    borderRadius:    Radius.lg,
-    overflow:        'hidden',
-    ...Shadows.sm,
+  card: {
+    backgroundColor: C.ink2,
+    borderRadius: R.lg,
+    overflow: 'hidden',
+    marginBottom: S[2],
   },
   row: {
-    flexDirection:  'row',
-    alignItems:     'center',
-    paddingHorizontal: Spacing['4'],
-    paddingVertical: Spacing['4'],
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.divider,
-    minHeight:       56,
-    gap:             Spacing['3'],
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: S[4],
+    paddingVertical: S[4],
+    minHeight: 52,
   },
-  rowLeft:  { flex: 1 },
-  rowLabel: { fontSize: Typography.base, fontWeight: Typography.medium, color: Colors.text },
-  rowSub:   { fontSize: Typography.xs, color: Colors.textMuted, marginTop: 2 },
-  rowValue: { fontSize: Typography.sm, color: Colors.textFaint },
+  rowLabel: { flex: 1, fontSize: T.base, color: C.cream },
+  rowValue: { fontSize: T.base, color: C.ash, fontWeight: '500' },
+  divider: { height: 1, backgroundColor: C.ink3, marginLeft: S[4] },
+  dangerRow: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: S[4],
+    minHeight: 52,
+  },
+  dangerText: { fontSize: T.base, color: C.danger, fontWeight: '600' },
+  dangerTextDisabled: { color: C.ink4 },
+  disabledRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: S[4],
+    paddingVertical: S[4],
+    minHeight: 52,
+    opacity: 0.5,
+  },
+  disabledLabel: { flex: 1, fontSize: T.base, color: C.ash },
+  comingSoonBadge: {
+    fontSize: T.xs,
+    color: C.amber,
+    backgroundColor: C.amberDim,
+    borderRadius: R.full,
+    paddingHorizontal: S[3],
+    paddingVertical: S[1],
+    fontWeight: '600',
+  },
+  footer: {
+    fontSize: T.sm,
+    color: C.ink4,
+    textAlign: 'center',
+    marginTop: S[6],
+    lineHeight: 20,
+  },
 });
