@@ -27,6 +27,12 @@ export class PostgresStore implements PapertrailStore {
   async migrate(): Promise<void> {
     const client = await this.pool.connect();
     try {
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS schema_migrations (
+          id integer PRIMARY KEY,
+          applied_at timestamptz NOT NULL DEFAULT now()
+        )
+      `);
       await client.query('BEGIN');
       for (const migration of MIGRATIONS) {
         const existing = await client.query('SELECT id FROM schema_migrations WHERE id = $1', [migration.id]);
