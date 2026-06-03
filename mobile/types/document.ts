@@ -1,67 +1,69 @@
-export type DocumentType =
+export type DocumentCategory =
   | 'receipt'
   | 'contract'
   | 'id'
   | 'warranty'
   | 'medical'
-  | 'insurance'
   | 'tax'
-  | 'invoice'
-  | 'personal'
   | 'other';
+
+export interface DocumentTag {
+  id: string;
+  name: string;
+  color?: string;
+}
+
+export interface DocumentFolder {
+  id: string;
+  name: string;
+  icon?: string;
+  color?: string;
+  parentId?: string | null;
+  createdAt: number;
+  updatedAt: number;
+}
 
 export interface Document {
   id: string;
   title: string;
-  type: DocumentType;
-  uri: string;              // local file URI
-  thumbnailUri?: string;
-  ocrText?: string;         // extracted text from OCR
+  category: DocumentCategory;
+  folderId?: string | null;
+  tags: string[];          // tag IDs
+  fileUri: string;         // local file:// URI
+  thumbnailUri?: string | null;
+  mimeType: string;        // 'application/pdf' | 'image/jpeg' | etc
+  fileSize: number;        // bytes
+  pageCount?: number | null;
+  ocrText?: string | null; // extracted text for search
+  ocrStatus: 'pending' | 'processing' | 'done' | 'failed' | 'skipped';
+  notes?: string | null;
+  isFavorite: boolean;
+  isLocked: boolean;
+  expiresAt?: number | null; // unix ms, optional expiry date
+  reminderAt?: number | null;
+  healthScore?: number | null; // 0-100
+  createdAt: number;       // unix ms
+  updatedAt: number;
+  syncedAt?: number | null;  // null = not synced (Pro)
+  cloudId?: string | null;   // remote ID (Pro)
+}
+
+export interface DocumentComment {
+  id: string;
+  documentId: string;
+  text: string;
+  createdAt: number;
+}
+
+export type SortField = 'title' | 'createdAt' | 'updatedAt' | 'fileSize' | 'category';
+export type SortDirection = 'asc' | 'desc';
+
+export interface SearchFilters {
+  query?: string;
+  category?: DocumentCategory;
   folderId?: string;
-  tags: string[];
-  notes?: string;
-  expiryDate?: string;      // ISO date string
-  reminderDate?: string;    // ISO date string
-  isFavorited: boolean;
-  isEncrypted: boolean;
-  fileSize: number;         // bytes
-  mimeType: string;
-  pageCount?: number;
-  createdAt: string;        // ISO datetime
-  updatedAt: string;        // ISO datetime
-}
-
-export interface Folder {
-  id: string;
-  name: string;
-  parentId?: string;
-  color: string;
-  icon: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface Tag {
-  id: string;
-  name: string;
-  color: string;
-  createdAt: string;
-}
-
-export interface Comment {
-  id: string;
-  documentId: string;
-  body: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface Reminder {
-  id: string;
-  documentId: string;
-  title: string;
-  date: string;             // ISO datetime
-  notificationId?: string;
-  isCompleted: boolean;
-  createdAt: string;
+  tags?: string[];
+  isFavorite?: boolean;
+  sortBy?: SortField;
+  sortDir?: SortDirection;
 }

@@ -1,154 +1,187 @@
-import { View, Text, ScrollView, StyleSheet, Pressable, Alert } from 'react-native';
-import { useLocalSearchParams, router } from 'expo-router';
+import React, { useEffect, useState } from 'react';
+import {
+  View, Text, ScrollView, StyleSheet,
+  Pressable, Alert, ActivityIndicator,
+} from 'react-native';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Colors, T, S, Font, Radius } from '@/theme';
-import { useDocumentStore } from '@/store/documentStore';
-import { format } from 'date-fns';
+import { useDocumentStore } from '@/store';
+import { Document } from '@/types';
+import { Colors, Typography, Spacing, Radius, Shadows } from '@/theme';
+import { CategoryBadge } from '@/components/CategoryBadge';
+import { formatFileSize, formatDate } from '@/utils/format';
 
-export default function DocumentScreen() {
+export default function DocumentDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const router = useRouter();
   const insets = useSafeAreaInsets();
-  const documents = useDocumentStore((s) => s.documents);
-  const toggleFavorite = useDocumentStore((s) => s.toggleFavorite);
-  const deleteDocument = useDocumentStore((s) => s.deleteDocument);
+  const { documents, removeDocument } = useDocumentStore();
+  const [doc, setDoc] = useState<Document | null>(null);
 
-  const doc = documents.find((d) => d.id === id);
+  useEffect(() => {
+    const found = documents.find((d) => d.id === id);
+    setDoc(found ?? null);
+  }, [id, documents]);
 
   if (!doc) {
     return (
-      <View style={[styles.container, { paddingTop: insets.top }]}>
-        <Text style={styles.notFound}>Document not found.</Text>
+      <View style={styles.center}>
+        <ActivityIndicator color={Colors.primary} />
       </View>
     );
   }
 
   const handleDelete = () => {
-    Alert.alert('Delete Document', `Delete "${doc.title}"? This cannot be undone.`, [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: async () => {
-          await deleteDocument(doc.id);
-          router.back();
+    Alert.alert(
+      'Delete Document',
+      `Permanently delete "${doc.title}"? This cannot be undone.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            await removeDocument(doc.id);
+            router.back();
+          },
         },
-      },
-    ]);
+      ],
+    );
   };
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
-      {/* Nav */}
-      <View style={styles.nav}>
-        <Pressable onPress={() => router.back()} hitSlop={8}>
-          <Text style={styles.back}>← Back</Text>
-        </Pressable>
-        <Pressable onPress={() => toggleFavorite(doc.id)} hitSlop={8}>
-          <Text style={styles.fav}>{doc.isFavorited ? '★' : '☆'}</Text>
-        </Pressable>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}
+      showsVerticalScrollIndicator={false}
+    >
+      {/* Title block */}
+      <View style={styles.titleBlock}>
+        <CategoryBadge category={doc.category} size="lg" />
+        <Text style={styles.title} numberOfLines={3}>{doc.title}</Text>
+        <Text style={styles.meta}>
+          {formatDate(doc.createdAt)} · {formatFileSize(doc.fileSize)}
+        </Text>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scroll}>
-        {/* Title */}
-        <Text style={styles.title}>{doc.title}</Text>
+      {/* Metadata card */}
+      <View style={styles.card}>
+        <MetaRow label="Category" value={doc.category} />
+        <MetaRow label="MIME type" value={doc.mimeType} />
+        {doc.pageCount != null && (
+          <MetaRow label="Pages" value={String(doc.pageCount)} />
+        )}
+        <MetaRow
+          label="OCR"
+          value={doc.ocrStatus === 'done' ? '✓ Complete' : doc.ocrStatus}
+        />
+        {doc.expiresAt && (
+          <MetaRow label="Expires" value={formatDate(doc.expiresAt)} />
+        )}
+      </View>
 
-        {/* Meta */}
-        <View style={styles.metaRow}>
-          <View style={styles.typePill}>
-            <Text style={styles.typeText}>{doc.type.toUpperCase()}</Text>
-          </View>
-          <Text style={styles.meta}>
-            {format(new Date(doc.createdAt), 'MMM d, yyyy')}
-          </Text>
-          <Text style={styles.meta}>
-            {(doc.fileSize / 1024).toFixed(1)} KB
-          </Text>
+      {/* OCR text preview */}
+      {doc.ocrText && doc.ocrText.length > 0 && (
+        <View style={styles.card}>
+          <Text style={styles.sectionLabel}>Extracted Text</Text>
+          <Text style={styles.ocrText}>{doc.ocrText}</Text>
         </View>
+      )}
 
-        {/* OCR Text Preview */}
-        {doc.ocrText ? (
-          <View style={styles.section}>
-            <Text style={styles.sectionLabel}>Extracted Text</Text>
-            <View style={styles.ocrBox}>
-              <Text style={styles.ocrText}>{doc.ocrText}</Text>
-            </View>
-          </View>
-        ) : null}
+      {/* Notes */}
+      <View style={styles.card}>
+        <Text style={styles.sectionLabel}>Notes</Text>
+        <Text style={[styles.ocrText, !doc.notes && { color: Colors.textFaint }]}>
+          {doc.notes || 'No notes yet'}
+        </Text>
+      </View>
 
-        {/* Notes */}
-        {doc.notes ? (
-          <View style={styles.section}>
-            <Text style={styles.sectionLabel}>Notes</Text>
-            <Text style={styles.notes}>{doc.notes}</Text>
-          </View>
-        ) : null}
+      {/* Actions */}
+      <View style={styles.actions}>
+        <Pressable
+          style={[styles.actionBtn, styles.actionBtnDanger]}
+          onPress={handleDelete}
+        >
+          <Text style={styles.actionBtnDangerText}>🗑 Delete Document</Text>
+        </Pressable>
+      </View>
+    </ScrollView>
+  );
+}
 
-        {/* Expiry */}
-        {doc.expiryDate ? (
-          <View style={styles.section}>
-            <Text style={styles.sectionLabel}>Expires</Text>
-            <Text style={styles.expiryDate}>
-              {format(new Date(doc.expiryDate), 'MMMM d, yyyy')}
-            </Text>
-          </View>
-        ) : null}
-
-        {/* Actions */}
-        <View style={styles.actions}>
-          <Pressable style={styles.actionBtn} onPress={handleDelete}>
-            <Text style={styles.actionBtnDanger}>Delete Document</Text>
-          </Pressable>
-        </View>
-      </ScrollView>
+function MetaRow({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={styles.metaRow}>
+      <Text style={styles.metaLabel}>{label}</Text>
+      <Text style={styles.metaValue}>{value}</Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.bg },
-  nav: {
-    flexDirection: 'row',
+  container:     { flex: 1, backgroundColor: Colors.bg },
+  center:        { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: Colors.bg },
+  titleBlock: {
+    padding:      Spacing['6'],
+    gap:          Spacing['3'],
+  },
+  title: {
+    fontSize:   Typography.xl,
+    fontWeight: Typography.bold,
+    color:      Colors.text,
+    lineHeight: Typography.xl * 1.2,
+  },
+  meta: {
+    fontSize: Typography.sm,
+    color:    Colors.textMuted,
+  },
+  card: {
+    marginHorizontal: Spacing['4'],
+    marginBottom:     Spacing['4'],
+    backgroundColor:  Colors.surface,
+    borderRadius:     Radius.lg,
+    overflow:         'hidden',
+    ...Shadows.sm,
+  },
+  sectionLabel: {
+    fontSize:     Typography.xs,
+    fontWeight:   Typography.semibold,
+    color:        Colors.textFaint,
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+    padding:      Spacing['4'],
+    paddingBottom: Spacing['2'],
+  },
+  metaRow: {
+    flexDirection:  'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: S[4],
-    paddingVertical: S[3],
+    alignItems:     'center',
+    paddingHorizontal: Spacing['4'],
+    paddingVertical: Spacing['3'],
     borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    borderBottomColor: Colors.divider,
+    minHeight:      48,
   },
-  back: { fontSize: T.base, color: Colors.accent, fontWeight: Font.medium },
-  fav: { fontSize: T.xl, color: Colors.accent },
-  scroll: { padding: S[4], paddingBottom: S[16] },
-  title: { fontSize: T['2xl'], fontWeight: Font.bold, color: Colors.text, marginBottom: S[3] },
-  metaRow: { flexDirection: 'row', alignItems: 'center', gap: S[2], marginBottom: S[5] },
-  typePill: {
-    backgroundColor: Colors.accentHighlight,
-    borderRadius: Radius.full,
-    paddingHorizontal: S[2],
-    paddingVertical: 3,
+  metaLabel: { fontSize: Typography.sm, color: Colors.textMuted },
+  metaValue: { fontSize: Typography.sm, color: Colors.text, fontWeight: Typography.medium },
+  ocrText: {
+    fontSize:   Typography.sm,
+    color:      Colors.textMuted,
+    lineHeight: Typography.sm * 1.6,
+    padding:    Spacing['4'],
   },
-  typeText: { fontSize: T.xs, color: Colors.accent, fontWeight: Font.bold, letterSpacing: 0.5 },
-  meta: { fontSize: T.sm, color: Colors.textMuted },
-  section: { marginBottom: S[5] },
-  sectionLabel: { fontSize: T.xs, color: Colors.textFaint, fontWeight: Font.semibold, letterSpacing: 0.5, marginBottom: S[2] },
-  ocrBox: {
-    backgroundColor: Colors.surface,
-    borderRadius: Radius.md,
-    padding: S[3],
-    borderWidth: 1,
-    borderColor: Colors.border,
+  actions: {
+    paddingHorizontal: Spacing['4'],
+    marginTop:         Spacing['4'],
+    gap:               Spacing['3'],
   },
-  ocrText: { fontSize: T.sm, color: Colors.textMuted, lineHeight: 20 },
-  notes: { fontSize: T.base, color: Colors.text, lineHeight: 22 },
-  expiryDate: { fontSize: T.base, color: Colors.warning, fontWeight: Font.medium },
-  notFound: { fontSize: T.base, color: Colors.textMuted, margin: S[4] },
-  actions: { marginTop: S[8] },
   actionBtn: {
-    paddingVertical: S[3],
-    borderRadius: Radius.md,
-    backgroundColor: Colors.dangerHighlight,
-    borderWidth: 1,
-    borderColor: Colors.danger,
-    alignItems: 'center',
+    borderRadius:    Radius.lg,
+    paddingVertical: Spacing['4'],
+    alignItems:      'center',
+    minHeight:       52,
+    justifyContent:  'center',
   },
-  actionBtnDanger: { fontSize: T.base, color: Colors.danger, fontWeight: Font.semibold },
+  actionBtnDanger:     { backgroundColor: Colors.errorHighlight, borderWidth: 1, borderColor: Colors.error },
+  actionBtnDangerText: { fontSize: Typography.base, fontWeight: Typography.semibold, color: Colors.error },
 });

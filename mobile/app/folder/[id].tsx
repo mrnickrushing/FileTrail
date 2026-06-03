@@ -1,34 +1,57 @@
-import { View, Text, FlatList, StyleSheet, Pressable } from 'react-native';
-import { useLocalSearchParams, router } from 'expo-router';
+import React, { useMemo } from 'react';
+import {
+  View, Text, FlatList, StyleSheet, Pressable,
+} from 'react-native';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Colors, T, S, Font } from '@/theme';
-import { useDocumentStore } from '@/store/documentStore';
+import { useDocumentStore } from '@/store';
 import { DocumentCard } from '@/components/DocumentCard';
 import { EmptyState } from '@/components/EmptyState';
+import { Colors, Typography, Spacing } from '@/theme';
 
 export default function FolderScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const router = useRouter();
   const insets = useSafeAreaInsets();
-  const folders = useDocumentStore((s) => s.folders);
-  const getDocumentsByFolder = useDocumentStore((s) => s.getDocumentsByFolder);
+  const { folders, documents } = useDocumentStore();
 
-  const folder = folders.find((f) => f.id === id);
-  const docs = getDocumentsByFolder(id);
+  const folder = useMemo(
+    () => folders.find((f) => f.id === id),
+    [folders, id],
+  );
+
+  const folderDocs = useMemo(
+    () => documents.filter((d) => d.folderId === id),
+    [documents, id],
+  );
+
+  if (!folder) {
+    return (
+      <View style={styles.center}>
+        <Text style={styles.notFound}>Folder not found</Text>
+      </View>
+    );
+  }
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
-      <View style={styles.nav}>
-        <Pressable onPress={() => router.back()} hitSlop={8}>
-          <Text style={styles.back}>← Back</Text>
-        </Pressable>
-        <Text style={styles.title}>{folder?.name ?? 'Folder'}</Text>
-        <View style={{ width: 60 }} />
+    <View style={styles.container}>
+      <View style={[styles.header, { paddingTop: insets.top + Spacing['4'] }]}>
+        <Text style={styles.icon}>📁</Text>
+        <View>
+          <Text style={styles.title}>{folder.name}</Text>
+          <Text style={styles.count}>
+            {folderDocs.length} document{folderDocs.length !== 1 ? 's' : ''}
+          </Text>
+        </View>
       </View>
 
       <FlatList
-        data={docs}
+        data={folderDocs}
         keyExtractor={(d) => d.id}
-        contentContainerStyle={styles.list}
+        contentContainerStyle={[
+          styles.list,
+          folderDocs.length === 0 && styles.listEmpty,
+        ]}
         renderItem={({ item }) => (
           <DocumentCard
             document={item}
@@ -37,11 +60,12 @@ export default function FolderScreen() {
         )}
         ListEmptyComponent={
           <EmptyState
-            icon="doc"
-            title="No documents"
-            message="This folder is empty. Add documents using the + button."
+            icon="file-text"
+            title="No documents here"
+            subtitle="Add documents to this folder from the Vault"
           />
         }
+        showsVerticalScrollIndicator={false}
       />
     </View>
   );
@@ -49,16 +73,18 @@ export default function FolderScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bg },
-  nav: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: S[4],
-    paddingVertical: S[3],
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+  center:    { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: Colors.bg },
+  notFound:  { color: Colors.textMuted, fontSize: Typography.base },
+  header: {
+    flexDirection:    'row',
+    alignItems:       'center',
+    gap:              Spacing['4'],
+    paddingHorizontal: Spacing['6'],
+    paddingBottom:    Spacing['4'],
   },
-  back: { fontSize: T.base, color: Colors.accent, fontWeight: Font.medium, width: 60 },
-  title: { fontSize: T.md, fontWeight: Font.bold, color: Colors.text },
-  list: { padding: S[4], paddingBottom: S[10] },
+  icon:  { fontSize: 40 },
+  title: { fontSize: Typography.xxl, fontWeight: Typography.bold, color: Colors.text, letterSpacing: -0.5 },
+  count: { fontSize: Typography.sm, color: Colors.textMuted, marginTop: 2 },
+  list:      { paddingHorizontal: Spacing['4'], paddingBottom: 40 },
+  listEmpty: { flex: 1, justifyContent: 'center' },
 });

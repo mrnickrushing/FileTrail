@@ -10,46 +10,38 @@
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#0D0D0D"
+      "backgroundColor": "#0F0F12"
     },
+    "assetBundlePatterns": ["**/*"],
     "ios": {
-      "supportsTablet": true,
-      "bundleIdentifier": "com.mrnickrushing.papertrail",
+      "supportsTablet": false,
+      "bundleIdentifier": "com.nitehawk.papertrail",
       "infoPlist": {
-        "NSCameraUsageDescription": "PaperTrail uses your camera to scan and capture documents.",
-        "NSPhotoLibraryUsageDescription": "PaperTrail accesses your photo library to import document images.",
-        "NSFaceIDUsageDescription": "PaperTrail uses Face ID to keep your documents secure."
+        "NSCameraUsageDescription": "PaperTrail uses your camera to scan documents.",
+        "NSPhotoLibraryUsageDescription": "PaperTrail accesses your photos to import documents.",
+        "NSFaceIDUsageDescription": "PaperTrail uses Face ID to protect your vault."
       }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#0D0D0D"
+        "backgroundColor": "#0F0F12"
       },
-      "package": "com.mrnickrushing.papertrail",
+      "package": "com.nitehawk.papertrail",
       "permissions": [
         "android.permission.CAMERA",
         "android.permission.READ_EXTERNAL_STORAGE",
-        "android.permission.USE_BIOMETRIC",
-        "android.permission.USE_FINGERPRINT"
+        "android.permission.USE_BIOMETRIC"
       ]
     },
     "plugins": [
       "expo-router",
       "expo-sqlite",
+      "expo-local-authentication",
       [
         "expo-camera",
-        {
-          "cameraPermission": "PaperTrail uses your camera to scan and capture documents."
-        }
-      ],
-      [
-        "expo-local-authentication",
-        {
-          "faceIDPermission": "PaperTrail uses Face ID to keep your documents secure."
-        }
-      ],
-      "expo-notifications"
+        { "cameraPermission": "PaperTrail uses your camera to scan documents." }
+      ]
     ],
     "scheme": "papertrail",
     "experiments": {

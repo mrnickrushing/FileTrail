@@ -1,82 +1,74 @@
-import { View, Text, StyleSheet } from 'react-native';
-import { Colors, T, S, Font, Radius } from '@/theme';
+import React from 'react';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { Colors, Typography, Spacing, Radius } from '@/theme';
 
 interface Props {
-  icon: string;
+  icon: string;          // emoji or icon name placeholder
   title: string;
-  message: string;
-  action?: { label: string; onPress: () => void };
+  subtitle?: string;
+  actionLabel?: string;
+  onAction?: () => void;
 }
 
-export function EmptyState({ icon, title, message, action }: Props) {
+export function EmptyState({ icon, title, subtitle, actionLabel, onAction }: Props) {
+  const iconEmoji: Record<string, string> = {
+    'file-text': '📄',
+    'folder':    '📁',
+    'search':    '🔍',
+  };
+
   return (
     <View style={styles.container}>
-      <View style={styles.iconWrap}>
-        <Text style={styles.icon}>{getEmoji(icon)}</Text>
-      </View>
+      <Text style={styles.icon}>{iconEmoji[icon] ?? '📄'}</Text>
       <Text style={styles.title}>{title}</Text>
-      <Text style={styles.message}>{message}</Text>
-      {action && (
-        <View style={styles.btn}>
-          <Text style={styles.btnText} onPress={action.onPress}>
-            {action.label}
-          </Text>
-        </View>
-      )}
+      {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
+      {actionLabel && onAction ? (
+        <Pressable
+          style={styles.action}
+          onPress={onAction}
+          hitSlop={8}
+        >
+          <Text style={styles.actionText}>{actionLabel}</Text>
+        </Pressable>
+      ) : null}
     </View>
   );
 }
 
-function getEmoji(icon: string): string {
-  const map: Record<string, string> = {
-    'doc.text': '📄',
-    'folder': '📁',
-    'magnifyingglass': '🔍',
-    'doc.text.magnifyingglass': '🔎',
-    'doc': '📋',
-    'house': '🏠',
-  };
-  return map[icon] ?? '📄';
-}
-
 const styles = StyleSheet.create({
   container: {
-    alignItems: 'center',
-    paddingVertical: S[16],
-    paddingHorizontal: S[8],
-  },
-  iconWrap: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: Colors.surface2,
-    alignItems: 'center',
+    alignItems:     'center',
     justifyContent: 'center',
-    marginBottom: S[4],
+    paddingVertical: Spacing['16'],
+    paddingHorizontal: Spacing['8'],
+    gap:            Spacing['3'],
   },
-  icon: { fontSize: 28 },
+  icon:     { fontSize: 52 },
   title: {
-    fontSize: T.md,
-    fontWeight: Font.semibold,
-    color: Colors.text,
-    marginBottom: S[2],
-    textAlign: 'center',
+    fontSize:   Typography.lg,
+    fontWeight: Typography.semibold,
+    color:      Colors.text,
+    textAlign:  'center',
   },
-  message: {
-    fontSize: T.sm,
-    color: Colors.textMuted,
-    textAlign: 'center',
-    lineHeight: 20,
-    maxWidth: 280,
+  subtitle: {
+    fontSize:   Typography.base,
+    color:      Colors.textMuted,
+    textAlign:  'center',
+    lineHeight: Typography.base * 1.5,
+    maxWidth:   280,
   },
-  btn: {
-    marginTop: S[4],
-    paddingHorizontal: S[4],
-    paddingVertical: S[2],
-    borderRadius: Radius.md,
-    backgroundColor: Colors.accentHighlight,
-    borderWidth: 1,
-    borderColor: Colors.accent,
+  action: {
+    marginTop:        Spacing['2'],
+    paddingHorizontal: Spacing['5'],
+    paddingVertical:  Spacing['3'],
+    borderRadius:     Radius.full,
+    backgroundColor:  Colors.primary,
+    minHeight:        44,
+    justifyContent:   'center',
   },
-  btnText: { fontSize: T.sm, color: Colors.accent, fontWeight: Font.semibold },
+  actionText: {
+    fontSize:   Typography.base,
+    fontWeight: Typography.semibold,
+    color:      Colors.textInverse,
+  },
 });

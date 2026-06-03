@@ -1,121 +1,155 @@
-import { View, Text, ScrollView, StyleSheet, Pressable } from 'react-native';
+import React, { useCallback } from 'react';
+import {
+  View, Text, FlatList, StyleSheet,
+  Pressable, ActivityIndicator, RefreshControl,
+} from 'react-native';
+import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
-import { Colors, T, S, Font } from '@/theme';
-import { useDocumentStore } from '@/store/documentStore';
+import { useDocumentStore } from '@/store';
 import { DocumentCard } from '@/components/DocumentCard';
+import { FAB } from '@/components/FAB';
 import { EmptyState } from '@/components/EmptyState';
-import { HealthScoreBanner } from '@/components/HealthScoreBanner';
+import { Colors, Typography, Spacing } from '@/theme';
 
-export default function HomeScreen() {
+export default function VaultScreen() {
+  const router = useRouter();
   const insets = useSafeAreaInsets();
-  const recent = useDocumentStore((s) => s.getRecentDocuments(6));
-  const favorited = useDocumentStore((s) => s.getFavoritedDocuments());
-  const documents = useDocumentStore((s) => s.documents);
+  const { documents, isLoading, loadDocuments } = useDocumentStore();
+
+  const onRefresh = useCallback(() => loadDocuments(), [loadDocuments]);
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <View style={styles.container}>
       {/* Header */}
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.appName}>PaperTrail</Text>
-          <Text style={styles.subtitle}>{documents.length} documents</Text>
-        </View>
-        <Pressable
-          style={styles.addBtn}
-          onPress={() => router.push('/capture')}
-        >
-          <Text style={styles.addBtnText}>+</Text>
-        </Pressable>
+      <View style={[styles.header, { paddingTop: insets.top + Spacing['4'] }]}>
+        <Text style={styles.headerTitle}>PaperTrail</Text>
+        <Text style={styles.headerSub}>
+          {documents.length} document{documents.length !== 1 ? 's' : ''}
+        </Text>
       </View>
 
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Health Score */}
-        <HealthScoreBanner />
+      {/* Category filter chips */}
+      <CategoryBar />
 
-        {/* Pinned / Favorites */}
-        {favorited.length > 0 && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Pinned</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              {favorited.slice(0, 6).map((doc) => (
-                <DocumentCard key={doc.id} document={doc} compact />
-              ))}
-            </ScrollView>
-          </View>
-        )}
-
-        {/* Recent */}
-        <View style={styles.section}>
-          <View style={styles.sectionRow}>
-            <Text style={styles.sectionTitle}>Recent</Text>
-            {documents.length > 0 && (
-              <Pressable onPress={() => router.push('/folders')}>
-                <Text style={styles.seeAll}>See all</Text>
-              </Pressable>
-            )}
-          </View>
-          {recent.length === 0 ? (
-            <EmptyState
-              icon="doc.text"
-              title="No documents yet"
-              message="Tap + to scan or import your first document."
+      {/* Document list */}
+      {isLoading && documents.length === 0 ? (
+        <ActivityIndicator
+          color={Colors.primary}
+          style={{ flex: 1, alignSelf: 'center' }}
+        />
+      ) : (
+        <FlatList
+          data={documents}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={[
+            styles.list,
+            documents.length === 0 && styles.listEmpty,
+          ]}
+          renderItem={({ item }) => (
+            <DocumentCard
+              document={item}
+              onPress={() => router.push(`/document/${item.id}`)}
             />
-          ) : (
-            recent.map((doc) => (
-              <DocumentCard key={doc.id} document={doc} />
-            ))
           )}
-        </View>
-      </ScrollView>
+          ListEmptyComponent={
+            <EmptyState
+              icon="file-text"
+              title="Your vault is empty"
+              subtitle="Tap the + button to add your first document"
+            />
+          }
+          refreshControl={
+            <RefreshControl
+              refreshing={isLoading}
+              onRefresh={onRefresh}
+              tintColor={Colors.primary}
+            />
+          }
+          showsVerticalScrollIndicator={false}
+        />
+      )}
+
+      <FAB onPress={() => router.push('/capture')} />
+    </View>
+  );
+}
+
+const CATEGORIES = [
+  { key: undefined,    label: 'All' },
+  { key: 'receipt',   label: 'Receipts' },
+  { key: 'contract',  label: 'Contracts' },
+  { key: 'id',        label: 'IDs' },
+  { key: 'warranty',  label: 'Warranties' },
+  { key: 'medical',   label: 'Medical' },
+  { key: 'tax',       label: 'Tax' },
+] as const;
+
+function CategoryBar() {
+  const { filters, setFilters } = useDocumentStore();
+  const active = filters.category;
+
+  return (
+    <View style={styles.chips}>
+      {CATEGORIES.map((c) => {
+        const isActive = active === c.key;
+        return (
+          <Pressable
+            key={c.label}
+            style={[styles.chip, isActive && styles.chipActive]}
+            onPress={() => setFilters({ ...filters, category: c.key })}
+            hitSlop={6}
+          >
+            <Text style={[styles.chipText, isActive && styles.chipTextActive]}>
+              {c.label}
+            </Text>
+          </Pressable>
+        );
+      })}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.bg },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: S[4],
-    paddingVertical: S[3],
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
-  },
-  appName: {
-    fontSize: T.xl,
-    fontWeight: Font.bold,
-    color: Colors.text,
+  container:   { flex: 1, backgroundColor: Colors.bg },
+  header:      { paddingHorizontal: Spacing['6'], paddingBottom: Spacing['3'] },
+  headerTitle: {
+    fontSize:   Typography.xxl,
+    fontWeight: Typography.bold,
+    color:      Colors.text,
     letterSpacing: -0.5,
   },
-  subtitle: {
-    fontSize: T.xs,
-    color: Colors.textMuted,
-    marginTop: 1,
+  headerSub: {
+    fontSize:  Typography.sm,
+    color:     Colors.textMuted,
+    marginTop: Spacing['1'],
   },
-  addBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: Colors.accent,
-    alignItems: 'center',
-    justifyContent: 'center',
+  chips: {
+    flexDirection:  'row',
+    paddingHorizontal: Spacing['5'],
+    paddingBottom:  Spacing['3'],
+    gap:            Spacing['2'],
+    flexWrap:       'nowrap',
   },
-  addBtnText: {
-    fontSize: T.xl,
-    color: Colors.textInverse,
-    fontWeight: Font.bold,
-    lineHeight: 28,
+  chip: {
+    paddingHorizontal: Spacing['3'],
+    paddingVertical:   Spacing['1'] + 2,
+    borderRadius:      99,
+    backgroundColor:   Colors.surfaceOffset,
+    borderWidth:       1,
+    borderColor:       Colors.border,
+    minHeight:         32,
+    justifyContent:    'center',
   },
-  scroll: { flex: 1 },
-  scrollContent: { paddingBottom: S[10] },
-  section: { paddingTop: S[5], paddingHorizontal: S[4] },
-  sectionRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: S[3] },
-  sectionTitle: { fontSize: T.md, fontWeight: Font.semibold, color: Colors.text },
-  seeAll: { fontSize: T.sm, color: Colors.accent, fontWeight: Font.medium },
+  chipActive: {
+    backgroundColor: Colors.primaryHighlight,
+    borderColor:     Colors.primary,
+  },
+  chipText: {
+    fontSize:   Typography.sm,
+    fontWeight: Typography.medium,
+    color:      Colors.textMuted,
+  },
+  chipTextActive: { color: Colors.primary },
+  list:        { paddingHorizontal: Spacing['4'], paddingBottom: 120 },
+  listEmpty:   { flex: 1, justifyContent: 'center' },
 });

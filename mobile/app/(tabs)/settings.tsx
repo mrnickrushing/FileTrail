@@ -1,89 +1,125 @@
-import { View, Text, ScrollView, StyleSheet, Switch, Pressable } from 'react-native';
+import React from 'react';
+import {
+  View, Text, Switch, StyleSheet,
+  ScrollView, Pressable, Alert,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Colors, T, S, Font, Radius } from '@/theme';
-import { useAppStore } from '@/store/appStore';
+import { useSettingsStore } from '@/store';
+import { Colors, Typography, Spacing, Radius, Shadows } from '@/theme';
 
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
-  const { biometricEnabled, setBiometricEnabled, viewMode, setViewMode, isPro } = useAppStore();
+  const {
+    biometricEnabled, setBiometric,
+    autoOcr, setAutoOcr,
+    isPro,
+  } = useSettingsStore();
+
+  const showProUpsell = () => {
+    Alert.alert(
+      'PaperTrail Pro',
+      'Unlock cloud sync, AI organization, expiry alerts, shared vaults, and natural-language search for $4.99/mo.',
+      [
+        { text: 'Not Now', style: 'cancel' },
+        { text: 'Upgrade', onPress: () => {} },
+      ],
+    );
+  };
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
-      <View style={styles.header}>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}
+      showsVerticalScrollIndicator={false}
+    >
+      <View style={[styles.header, { paddingTop: insets.top + Spacing['4'] }]}>
         <Text style={styles.title}>Settings</Text>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scroll}>
-        {/* Pro Banner */}
-        {!isPro && (
-          <Pressable style={styles.proBanner}>
-            <Text style={styles.proBannerTitle}>Upgrade to Pro</Text>
+      {/* Pro Banner */}
+      {!isPro && (
+        <Pressable style={styles.proBanner} onPress={showProUpsell}>
+          <View>
+            <Text style={styles.proBannerTitle}>⚡ Go Pro</Text>
             <Text style={styles.proBannerSub}>
-              Cloud sync, AI organization, secure sharing & more.
+              Cloud sync, AI, sharing & more
             </Text>
-            <Text style={styles.proBannerCta}>Learn more →</Text>
-          </Pressable>
-        )}
-
-        {/* Security */}
-        <Text style={styles.groupLabel}>SECURITY</Text>
-        <View style={styles.group}>
-          <View style={styles.row}>
-            <Text style={styles.rowLabel}>Biometric Lock</Text>
-            <Switch
-              value={biometricEnabled}
-              onValueChange={setBiometricEnabled}
-              trackColor={{ false: Colors.surfaceDynamic, true: Colors.accent }}
-              thumbColor={Colors.text}
-            />
           </View>
-        </View>
+          <Text style={styles.proBannerCta}>Upgrade →</Text>
+        </Pressable>
+      )}
 
-        {/* Appearance */}
-        <Text style={styles.groupLabel}>APPEARANCE</Text>
-        <View style={styles.group}>
-          <View style={styles.row}>
-            <Text style={styles.rowLabel}>Default View</Text>
-            <View style={styles.segmented}>
-              {(['card', 'list'] as const).map((mode) => (
-                <Pressable
-                  key={mode}
-                  style={[styles.seg, viewMode === mode && styles.segActive]}
-                  onPress={() => setViewMode(mode)}
-                >
-                  <Text style={[styles.segText, viewMode === mode && styles.segTextActive]}>
-                    {mode.charAt(0).toUpperCase() + mode.slice(1)}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
-          </View>
-        </View>
+      {/* Security */}
+      <SettingSection title="Security">
+        <SettingRow
+          label="Biometric Lock"
+          sub="Require Face ID / Touch ID to open PaperTrail"
+        >
+          <Switch
+            value={biometricEnabled}
+            onValueChange={setBiometric}
+            trackColor={{ false: Colors.surfaceDynamic, true: Colors.primary }}
+            thumbColor={Colors.text}
+          />
+        </SettingRow>
+      </SettingSection>
 
-        {/* Pro Features — locked */}
-        <Text style={styles.groupLabel}>PRO FEATURES</Text>
-        <View style={styles.group}>
-          {['Cloud Sync', 'Email to Vault', 'AI Auto-Naming', 'Shared Vaults', 'Accountant Export'].map((feature) => (
-            <View key={feature} style={styles.row}>
-              <Text style={styles.rowLabel}>{feature}</Text>
-              <Text style={styles.proTag}>PRO</Text>
-            </View>
-          ))}
-        </View>
+      {/* Documents */}
+      <SettingSection title="Documents">
+        <SettingRow
+          label="Auto-OCR on Import"
+          sub="Extract text from documents automatically"
+        >
+          <Switch
+            value={autoOcr}
+            onValueChange={setAutoOcr}
+            trackColor={{ false: Colors.surfaceDynamic, true: Colors.primary }}
+            thumbColor={Colors.text}
+          />
+        </SettingRow>
+      </SettingSection>
 
-        {/* About */}
-        <Text style={styles.groupLabel}>ABOUT</Text>
-        <View style={styles.group}>
-          <View style={styles.row}>
-            <Text style={styles.rowLabel}>Version</Text>
-            <Text style={styles.rowValue}>1.0.0</Text>
-          </View>
-          <View style={styles.row}>
-            <Text style={styles.rowLabel}>Storage</Text>
-            <Text style={styles.rowValue}>Local (on-device)</Text>
-          </View>
-        </View>
-      </ScrollView>
+      {/* About */}
+      <SettingSection title="About">
+        <SettingRow label="Version" sub="1.0.0 (Phase 1 — Foundation)">
+          <Text style={styles.rowValue}>1.0.0</Text>
+        </SettingRow>
+        <SettingRow label="License" sub="MIT">
+          <Text style={styles.rowValue}>MIT</Text>
+        </SettingRow>
+      </SettingSection>
+    </ScrollView>
+  );
+}
+
+function SettingSection({
+  title, children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <View style={styles.section}>
+      <Text style={styles.sectionTitle}>{title}</Text>
+      <View style={styles.sectionCard}>{children}</View>
+    </View>
+  );
+}
+
+function SettingRow({
+  label, sub, children,
+}: {
+  label: string;
+  sub?: string;
+  children?: React.ReactNode;
+}) {
+  return (
+    <View style={styles.row}>
+      <View style={styles.rowLeft}>
+        <Text style={styles.rowLabel}>{label}</Text>
+        {sub ? <Text style={styles.rowSub}>{sub}</Text> : null}
+      </View>
+      {children}
     </View>
   );
 }
@@ -91,68 +127,71 @@ export default function SettingsScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bg },
   header: {
-    paddingHorizontal: S[4],
-    paddingVertical: S[3],
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    paddingHorizontal: Spacing['6'],
+    paddingBottom:     Spacing['4'],
   },
-  title: { fontSize: T.xl, fontWeight: Font.bold, color: Colors.text, letterSpacing: -0.5 },
-  scroll: { padding: S[4], paddingBottom: S[16] },
+  title: {
+    fontSize:      Typography.xxl,
+    fontWeight:    Typography.bold,
+    color:         Colors.text,
+    letterSpacing: -0.5,
+  },
   proBanner: {
-    backgroundColor: Colors.accentHighlight,
-    borderRadius: Radius.lg,
-    borderWidth: 1,
-    borderColor: Colors.accent,
-    padding: S[4],
-    marginBottom: S[5],
+    marginHorizontal: Spacing['4'],
+    marginBottom:     Spacing['4'],
+    backgroundColor:  Colors.primaryHighlight,
+    borderRadius:     Radius.xl,
+    padding:          Spacing['5'],
+    flexDirection:    'row',
+    alignItems:       'center',
+    justifyContent:   'space-between',
+    borderWidth:      1,
+    borderColor:      Colors.primary,
+    ...Shadows.md,
   },
-  proBannerTitle: { fontSize: T.md, fontWeight: Font.bold, color: Colors.accent },
-  proBannerSub: { fontSize: T.sm, color: Colors.textMuted, marginTop: S[1], lineHeight: 20 },
-  proBannerCta: { fontSize: T.sm, color: Colors.accent, fontWeight: Font.semibold, marginTop: S[2] },
-  groupLabel: {
-    fontSize: T.xs,
-    fontWeight: Font.semibold,
-    color: Colors.textFaint,
+  proBannerTitle: {
+    fontSize:   Typography.lg,
+    fontWeight: Typography.bold,
+    color:      Colors.primary,
+  },
+  proBannerSub: {
+    fontSize:  Typography.sm,
+    color:     Colors.textMuted,
+    marginTop: 2,
+  },
+  proBannerCta: {
+    fontSize:   Typography.base,
+    fontWeight: Typography.semibold,
+    color:      Colors.primary,
+  },
+  section:      { marginBottom: Spacing['6'], paddingHorizontal: Spacing['4'] },
+  sectionTitle: {
+    fontSize:     Typography.xs,
+    fontWeight:   Typography.semibold,
+    color:        Colors.textFaint,
     letterSpacing: 0.8,
-    marginBottom: S[2],
-    marginTop: S[4],
+    textTransform: 'uppercase',
+    marginBottom:  Spacing['2'],
+    paddingLeft:   Spacing['2'],
   },
-  group: {
+  sectionCard: {
     backgroundColor: Colors.surface,
-    borderRadius: Radius.lg,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    overflow: 'hidden',
+    borderRadius:    Radius.lg,
+    overflow:        'hidden',
+    ...Shadows.sm,
   },
   row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: S[4],
-    paddingVertical: S[3],
+    flexDirection:  'row',
+    alignItems:     'center',
+    paddingHorizontal: Spacing['4'],
+    paddingVertical: Spacing['4'],
     borderBottomWidth: 1,
     borderBottomColor: Colors.divider,
+    minHeight:       56,
+    gap:             Spacing['3'],
   },
-  rowLabel: { fontSize: T.base, color: Colors.text },
-  rowValue: { fontSize: T.sm, color: Colors.textMuted },
-  proTag: {
-    fontSize: T.xs,
-    color: Colors.accent,
-    fontWeight: Font.bold,
-    backgroundColor: Colors.accentHighlight,
-    paddingHorizontal: S[2],
-    paddingVertical: 2,
-    borderRadius: Radius.sm,
-    overflow: 'hidden',
-  },
-  segmented: {
-    flexDirection: 'row',
-    backgroundColor: Colors.surfaceOffset,
-    borderRadius: Radius.md,
-    padding: 2,
-  },
-  seg: { paddingHorizontal: S[3], paddingVertical: S[1], borderRadius: Radius.sm },
-  segActive: { backgroundColor: Colors.surface2 },
-  segText: { fontSize: T.sm, color: Colors.textMuted, fontWeight: Font.medium },
-  segTextActive: { color: Colors.text },
+  rowLeft:  { flex: 1 },
+  rowLabel: { fontSize: Typography.base, fontWeight: Typography.medium, color: Colors.text },
+  rowSub:   { fontSize: Typography.xs, color: Colors.textMuted, marginTop: 2 },
+  rowValue: { fontSize: Typography.sm, color: Colors.textFaint },
 });

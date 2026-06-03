@@ -1,98 +1,107 @@
-import { useState, useMemo } from 'react';
-import { View, Text, TextInput, FlatList, StyleSheet } from 'react-native';
+import React, { useState, useCallback } from 'react';
+import {
+  View, Text, TextInput, FlatList,
+  StyleSheet, Pressable, ActivityIndicator,
+} from 'react-native';
+import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
-import { Colors, T, S, Font, Radius } from '@/theme';
-import { useDocumentStore } from '@/store/documentStore';
+import { useDocumentStore } from '@/store';
 import { DocumentCard } from '@/components/DocumentCard';
 import { EmptyState } from '@/components/EmptyState';
+import { Colors, Typography, Spacing, Radius } from '@/theme';
 
 export default function SearchScreen() {
+  const router = useRouter();
   const insets = useSafeAreaInsets();
-  const documents = useDocumentStore((s) => s.documents);
+  const { documents, isLoading, search } = useDocumentStore();
   const [query, setQuery] = useState('');
 
-  const results = useMemo(() => {
-    if (!query.trim()) return [];
-    const q = query.toLowerCase();
-    return documents.filter(
-      (d) =>
-        d.title.toLowerCase().includes(q) ||
-        d.ocrText?.toLowerCase().includes(q) ||
-        d.type.toLowerCase().includes(q) ||
-        d.tags.some((t) => t.toLowerCase().includes(q))
-    );
-  }, [query, documents]);
+  const handleSearch = useCallback(
+    (text: string) => {
+      setQuery(text);
+      search(text);
+    },
+    [search],
+  );
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Search</Text>
-      </View>
-
-      <View style={styles.searchBar}>
+      {/* Search bar */}
+      <View style={styles.searchWrap}>
+        <Text style={styles.searchIcon}>🔍</Text>
         <TextInput
-          style={styles.input}
-          placeholder="Search documents, tags, content..."
+          style={styles.searchInput}
+          placeholder="Search documents, text content…"
           placeholderTextColor={Colors.textFaint}
           value={query}
-          onChangeText={setQuery}
-          returnKeyType="search"
+          onChangeText={handleSearch}
           autoCorrect={false}
           autoCapitalize="none"
           clearButtonMode="while-editing"
+          returnKeyType="search"
         />
       </View>
 
-      <FlatList
-        data={results}
-        keyExtractor={(d) => d.id}
-        contentContainerStyle={styles.list}
-        renderItem={({ item }) => (
-          <DocumentCard
-            document={item}
-            onPress={() => router.push(`/document/${item.id}`)}
-          />
-        )}
-        ListEmptyComponent={
-          query.length === 0 ? (
-            <EmptyState
-              icon="magnifyingglass"
-              title="Search everything"
-              message="Search across document names, OCR content, and tags."
+      {isLoading ? (
+        <ActivityIndicator color={Colors.primary} style={{ marginTop: Spacing['10'] }} />
+      ) : (
+        <FlatList
+          data={documents}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={[
+            styles.list,
+            documents.length === 0 && styles.listEmpty,
+          ]}
+          renderItem={({ item }) => (
+            <DocumentCard
+              document={item}
+              onPress={() => router.push(`/document/${item.id}`)}
             />
-          ) : (
-            <EmptyState
-              icon="doc.text.magnifyingglass"
-              title="No results"
-              message={`No documents matching "${query}".`}
-            />
-          )
-        }
-      />
+          )}
+          ListEmptyComponent={
+            query.length > 0 ? (
+              <EmptyState
+                icon="search"
+                title="No results"
+                subtitle={`No documents match "${query}"`}
+              />
+            ) : (
+              <EmptyState
+                icon="search"
+                title="Search your vault"
+                subtitle="Searches filenames and OCR-extracted text"
+              />
+            )
+          }
+          showsVerticalScrollIndicator={false}
+          keyboardDismissMode="on-drag"
+        />
+      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bg },
-  header: {
-    paddingHorizontal: S[4],
-    paddingVertical: S[3],
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+  searchWrap: {
+    flexDirection:    'row',
+    alignItems:       'center',
+    margin:           Spacing['4'],
+    paddingHorizontal: Spacing['4'],
+    backgroundColor:  Colors.surfaceOffset,
+    borderRadius:     Radius.lg,
+    borderWidth:      1,
+    borderColor:      Colors.border,
+    minHeight:        48,
+    gap:              Spacing['2'],
   },
-  title: { fontSize: T.xl, fontWeight: Font.bold, color: Colors.text, letterSpacing: -0.5 },
-  searchBar: { paddingHorizontal: S[4], paddingVertical: S[3] },
-  input: {
-    backgroundColor: Colors.surface2,
-    borderRadius: Radius.lg,
-    paddingHorizontal: S[4],
-    paddingVertical: S[3],
-    fontSize: T.base,
-    color: Colors.text,
-    borderWidth: 1,
-    borderColor: Colors.border,
+  searchIcon:  { fontSize: 16 },
+  searchInput: {
+    flex:      1,
+    fontSize:  Typography.base,
+    color:     Colors.text,
+    paddingVertical: Spacing['3'],
   },
-  list: { padding: S[4], paddingBottom: S[10] },
+  list:      { paddingHorizontal: Spacing['4'], paddingBottom: 40 },
+  listEmpty: { flex: 1, justifyContent: 'center', alignItems: 'center' },
 });

@@ -3,18 +3,23 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { initDatabase } from '@/services/database';
-import { useDocumentStore } from '@/store/documentStore';
+import * as SplashScreen from 'expo-splash-screen';
+import { initDb } from '@/services/db';
+import { useDocumentStore } from '@/store';
 import { Colors } from '@/theme';
 
+SplashScreen.preventAutoHideAsync();
+
 export default function RootLayout() {
-  const loadAll = useDocumentStore((s) => s.loadAll);
+  const { loadDocuments, loadFolders, loadTags } = useDocumentStore();
 
   useEffect(() => {
-    (async () => {
-      await initDatabase();
-      await loadAll();
-    })();
+    async function bootstrap() {
+      await initDb();
+      await Promise.all([loadDocuments(), loadFolders(), loadTags()]);
+      await SplashScreen.hideAsync();
+    }
+    bootstrap();
   }, []);
 
   return (
@@ -23,15 +28,23 @@ export default function RootLayout() {
         <StatusBar style="light" />
         <Stack
           screenOptions={{
-            headerShown: false,
-            contentStyle: { backgroundColor: Colors.bg },
-            animation: 'ios_from_right',
+            headerStyle:      { backgroundColor: Colors.bg },
+            headerTintColor:  Colors.text,
+            headerTitleStyle: { color: Colors.text, fontWeight: '600' },
+            headerShadowVisible: false,
+            contentStyle:     { backgroundColor: Colors.bg },
+            animation:        'slide_from_right',
           }}
         >
-          <Stack.Screen name="(tabs)" />
-          <Stack.Screen name="document/[id]" options={{ presentation: 'card' }} />
-          <Stack.Screen name="folder/[id]" options={{ presentation: 'card' }} />
-          <Stack.Screen name="onboarding" options={{ presentation: 'fullScreenModal' }} />
+          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          <Stack.Screen
+            name="document/[id]"
+            options={{ title: 'Document', headerBackTitle: 'Back' }}
+          />
+          <Stack.Screen
+            name="folder/[id]"
+            options={{ title: 'Folder', headerBackTitle: 'Back' }}
+          />
         </Stack>
       </SafeAreaProvider>
     </GestureHandlerRootView>
