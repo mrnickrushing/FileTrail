@@ -29,7 +29,7 @@ export const Colors = {
   primaryHover:     '#C8831A',
   primaryActive:    '#A86012',
   primaryHighlight: '#3A2E18',
-  primaryDim:       'rgba(232,160,32,0.15)', // selected chip backgrounds
+  primaryDim:       'rgba(232,160,32,0.15)',
 
   // Semantic
   success:          '#4D9E5A',
@@ -55,7 +55,6 @@ export const Typography = {
   fontBody: 'System',
   fontMono: 'monospace',
 
-  // Sizes (12px floor)
   xs:   12,
   sm:   13,
   base: 15,
@@ -65,13 +64,11 @@ export const Typography = {
   xxl:  28,
   hero: 36,
 
-  // Weights
   regular:  '400' as const,
   medium:   '500' as const,
   semibold: '600' as const,
   bold:     '700' as const,
 
-  // Line heights
   tight:   1.2,
   snug:    1.35,
   normal:  1.5,
@@ -123,9 +120,6 @@ export const duration = {
 
 export const HIT_SLOP = { top: 8, bottom: 8, left: 8, right: 8 };
 export const MIN_TOUCH = 44;
-
-// ─── Shorthand aliases used in Phase 2+ components ──────────────────────────
-// Capture components use C/T/S/R for brevity. These map to the canonical exports.
 
 export const C = {
   ink1:     Colors.bg,
