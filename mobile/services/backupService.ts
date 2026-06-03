@@ -17,11 +17,12 @@ import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import * as DocumentPicker from 'expo-document-picker';
 import type { Document, Folder } from '@/types/document';
-import { ensureDocumentDirectory } from '@/services/fileStorage';
+import { ensureDocumentDirectory, getExtension } from '@/services/fileStorage';
 
 const BACKUP_VERSION = 1;
 const SALT = 'PaperTrailBackup2024';
 const BACKUP_PREFIX = 'PTBAK1';
+const BACKUP_SEED_LENGTH = 16;
 
 export type BackupProgress = { current: number; total: number; label: string };
 
@@ -113,7 +114,7 @@ export async function createBackup(
 
   const json = JSON.stringify(bundle);
   const obfuscated = xorBase64(json, seed);
-  const payload = `${BACKUP_PREFIX}:${seed}:${obfuscated}`;
+  const payload = `${BACKUP_PREFIX}:${seed}|${obfuscated}`;
 
   const filename = `papertrail-backup-${createdAt.slice(0, 10)}.ptbak`;
   const dest = FileSystem.cacheDirectory + filename;
@@ -154,15 +155,20 @@ export async function restoreBackup(
 
   // Attempt to detect encoding: if valid JSON, it's an unencrypted legacy bundle
   let bundle: BackupBundle;
-  if (raw.startsWith(`${BACKUP_PREFIX}:`)) {
-    const [, seed, encoded] = raw.split(':');
-    if (!seed || !encoded) {
+  const backupHeader = `${BACKUP_PREFIX}:`;
+  if (raw.startsWith(backupHeader)) {
+    const seedStart = backupHeader.length;
+    const seed = raw.slice(seedStart, seedStart + BACKUP_SEED_LENGTH);
+    const separator = raw[seedStart + BACKUP_SEED_LENGTH];
+    const encoded = raw.slice(seedStart + BACKUP_SEED_LENGTH + 1);
+
+    if (seed.length !== BACKUP_SEED_LENGTH || (separator !== '|' && separator !== ':') || !encoded) {
       throw new Error('Invalid backup format.');
     }
     bundle = JSON.parse(unxorBase64(encoded, seed));
   } else {
     try {
-    bundle = JSON.parse(raw);
+      bundle = JSON.parse(raw);
     } catch {
       throw new Error(
         'Could not read backup file. Make sure you selected a valid .ptbak file.'
@@ -182,19 +188,20 @@ export async function restoreBackup(
     onProgress?.({ current: i + 1, total: bundle.documents.length, label: entry.title });
 
     try {
+      const { fileBase64, thumbnailBase64, ...restoredEntry } = entry;
       if (entry.fileBase64) {
         const dir = await ensureDocumentDirectory(entry.id);
-        const ext = entry.fileUri.match(/\.[^.]+$/)?.[0] ?? '.jpg';
+        const ext = `.${getExtension(entry.mimeType || entry.fileUri)}`;
         const destUri = `${dir}original${ext}`;
-        await FileSystem.writeAsStringAsync(destUri, entry.fileBase64, {
+        await FileSystem.writeAsStringAsync(destUri, fileBase64, {
           encoding: FileSystem.EncodingType.Base64,
         });
 
-        const doc: Document = { ...entry, fileUri: destUri };
+        const doc: Document = { ...restoredEntry, fileUri: destUri };
 
-        if (entry.thumbnailBase64) {
+        if (thumbnailBase64) {
           const thumbUri = `${dir}thumb.jpg`;
-          await FileSystem.writeAsStringAsync(thumbUri, entry.thumbnailBase64, {
+          await FileSystem.writeAsStringAsync(thumbUri, thumbnailBase64, {
             encoding: FileSystem.EncodingType.Base64,
           });
           doc.thumbnailUri = thumbUri;
@@ -203,7 +210,7 @@ export async function restoreBackup(
         documents.push(doc);
       } else {
         // No file data — restore metadata only
-        documents.push({ ...entry });
+        documents.push(restoredEntry);
         skipped++;
       }
     } catch {

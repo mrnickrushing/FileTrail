@@ -88,7 +88,7 @@ export async function deleteDocumentFiles(documentId: string): Promise<void> {
  * Returns the extension from a URI or MIME type.
  */
 export function getExtension(uriOrMime: string): string {
-  if (uriOrMime.includes('/')) {
+  if (/^[\w.+-]+\/[\w.+-]+$/.test(uriOrMime)) {
     // MIME type
     const mime = uriOrMime.toLowerCase();
     if (mime.includes('pdf')) return 'pdf';
@@ -98,8 +98,9 @@ export function getExtension(uriOrMime: string): string {
     return 'bin';
   }
   // URI
-  const parts = uriOrMime.split('.');
-  return parts[parts.length - 1]?.toLowerCase() ?? 'bin';
+  const cleanUri = uriOrMime.split(/[?#]/)[0];
+  const match = cleanUri.match(/\.([a-zA-Z0-9]+)$/);
+  return match ? match[1].toLowerCase() : 'bin';
 }
 
 /**

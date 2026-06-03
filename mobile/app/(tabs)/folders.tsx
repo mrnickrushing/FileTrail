@@ -127,7 +127,7 @@ export default function FoldersScreen() {
             <Text style={styles.emptyEmoji}>📂</Text>
             <Text style={styles.emptyTitle}>Empty folder</Text>
             <Text style={styles.emptyBody}>
-              Move documents here from the home screen by tapping ••• on any document.
+              Move documents here from the home screen with bulk select.
             </Text>
           </View>
         ) : (

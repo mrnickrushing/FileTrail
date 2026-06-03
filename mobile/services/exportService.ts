@@ -29,6 +29,7 @@ export async function shareDocument(doc: Document): Promise<void> {
   const safeName = sanitizeFilename(doc.title) + ext;
   const dest = FileSystem.cacheDirectory + safeName;
 
+  await FileSystem.deleteAsync(dest, { idempotent: true });
   await FileSystem.copyAsync({ from: doc.fileUri, to: dest });
 
   await Sharing.shareAsync(dest, {
@@ -72,6 +73,7 @@ export async function exportAllAsZip(
 
   const zip = new JSZip();
   const usedNames = new Set<string>();
+  let addedFiles = 0;
 
   for (let i = 0; i < docs.length; i++) {
     const doc = docs[i];
@@ -97,6 +99,11 @@ export async function exportAllAsZip(
     usedNames.add(name);
 
     zip.file(name, base64, { base64: true });
+    addedFiles++;
+  }
+
+  if (addedFiles === 0) {
+    throw new Error('No readable document files were found to export.');
   }
 
   const zipBase64 = await zip.generateAsync({

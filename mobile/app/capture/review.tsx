@@ -97,11 +97,16 @@ export default function DocumentReviewScreen() {
     }
 
     setOCRStatus('processing');
-    extractText(params.uri).then(result => {
-      if (!isMounted.current) return;
-      setOCRText(result.text || null);
-      setOCRStatus('done');
-    });
+    extractText(params.uri)
+      .then(result => {
+        if (!isMounted.current) return;
+        setOCRText(result.text || null);
+        setOCRStatus('done');
+      })
+      .catch(() => {
+        if (!isMounted.current) return;
+        setOCRStatus('unavailable');
+      });
   }, [params.mimeType, params.uri, autoOcr]);
 
   const handleSave = useCallback(async () => {

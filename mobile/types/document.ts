@@ -33,6 +33,9 @@ export interface Document {
   // OCR
   ocrText?: string;
   ocrStatus: OCRStatus;
+  inferredDate?: string;
+  amounts?: number[];
+  vendor?: string;
 
   // Organisation
   isFavorite: boolean;
