@@ -15,7 +15,7 @@
     "assetBundlePatterns": ["**/*"],
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.rushingtechnologies.filetrail",
+      "bundleIdentifier": "com.papertraill.app",
       "infoPlist": {
         "NSCameraUsageDescription": "FileTrail uses your camera to scan documents.",
         "NSPhotoLibraryUsageDescription": "FileTrail accesses your photos to import documents.",
@@ -27,7 +27,7 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0F0F12"
       },
-      "package": "com.rushingtechnologies.filetrail",
+      "package": "com.papertraill.app",
       "blockedPermissions": [
         "android.permission.RECORD_AUDIO"
       ],
