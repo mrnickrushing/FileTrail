@@ -158,8 +158,17 @@ export default function DocumentViewerScreen() {
       {/* ── Header ── */}
       <View style={styles.header}>
         <Pressable style={styles.headerBtn} onPress={() => router.back()} hitSlop={8}>
-          <Text style={styles.headerBtnText}>‹ Back</Text>
+          <Text style={styles.headerBtnText}>‹</Text>
         </Pressable>
+
+        <View style={styles.headerCenter}>
+          <Text style={styles.headerTitle} numberOfLines={1}>{document.title}</Text>
+          <View style={styles.headerCategoryBadge}>
+            <Text style={styles.headerCategoryText}>
+              {CATEGORY_LABELS[document.category]}
+            </Text>
+          </View>
+        </View>
 
         <View style={styles.headerActions}>
           <Pressable
@@ -167,13 +176,13 @@ export default function DocumentViewerScreen() {
             onPress={() => toggleFavorite(document.id)}
             hitSlop={8}
           >
-            <Text style={styles.headerIcon}>
+            <Text style={[styles.headerIcon, document.isFavorite && { color: C.amber }]}>
               {document.isFavorite ? '★' : '☆'}
             </Text>
           </Pressable>
           <Pressable style={styles.headerIconBtn} onPress={handleShare} hitSlop={8}>
             {isSharing
-              ? <ActivityIndicator size="small" color={C.ash} />
+              ? <ActivityIndicator size="small" color={C.amber} />
               : <Text style={styles.headerIcon}>↑</Text>
             }
           </Pressable>
@@ -453,9 +462,9 @@ function PDFViewer({
         trustAllCerts={false}
       />
 
-      {/* Page controls */}
+      {/* Floating page counter overlay */}
       {totalPages > 1 && (
-        <View style={pdfStyles.pageBar}>
+        <View style={pdfStyles.pageOverlay}>
           <Pressable
             style={[pdfStyles.pageBtn, page <= 1 && pdfStyles.pageBtnDisabled]}
             onPress={() => onPageChange(Math.max(1, page - 1))}
@@ -539,13 +548,18 @@ const pdfStyles = StyleSheet.create({
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
     color: C.amber,
   },
-  pageBar: {
+  pageOverlay: {
+    position: 'absolute',
+    bottom: S[3],
+    alignSelf: 'center',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: S[2],
-    gap: S[4],
-    backgroundColor: 'rgba(0,0,0,0.45)',
+    gap: S[3],
+    backgroundColor: 'rgba(0,0,0,0.65)',
+    borderRadius: R.full,
+    paddingHorizontal: S[3],
+    paddingVertical: S[1],
   },
   pageBtn: {
     width: 36,
@@ -571,8 +585,17 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: C.ink3,
   },
-  headerBtn: { minHeight: 44, justifyContent: 'center', paddingRight: S[4] },
-  headerBtnText: { fontSize: T.base, color: C.amber, fontWeight: '500' },
+  headerBtn: { minHeight: 44, justifyContent: 'center', paddingRight: S[3], width: 36 },
+  headerBtnText: { fontSize: T.xl, color: C.amber, fontWeight: '400' },
+  headerCenter: { flex: 1, alignItems: 'center', gap: 2 },
+  headerTitle: { fontSize: T.base, fontWeight: '600', color: C.cream, maxWidth: 180 },
+  headerCategoryBadge: {
+    backgroundColor: C.ink3,
+    borderRadius: R.full,
+    paddingHorizontal: S[2],
+    paddingVertical: 1,
+  },
+  headerCategoryText: { fontSize: T.xs, color: C.ash },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: S[1] },
   headerIconBtn: {
     width: 44, height: 44,
