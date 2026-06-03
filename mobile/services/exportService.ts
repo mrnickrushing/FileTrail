@@ -113,7 +113,7 @@ export async function exportAllAsZip(
   });
 
   const timestamp = new Date().toISOString().slice(0, 10);
-  const zipPath = FileSystem.cacheDirectory + `papertrail-export-${timestamp}.zip`;
+  const zipPath = FileSystem.cacheDirectory + `filetrail-export-${timestamp}.zip`;
 
   await FileSystem.writeAsStringAsync(zipPath, zipBase64, {
     encoding: FileSystem.EncodingType.Base64,
@@ -121,7 +121,7 @@ export async function exportAllAsZip(
 
   await Sharing.shareAsync(zipPath, {
     mimeType: 'application/zip',
-    dialogTitle: 'Export PaperTrail Documents',
+    dialogTitle: 'Export FileTrail Documents',
     UTI: 'public.zip-archive',
   });
 }

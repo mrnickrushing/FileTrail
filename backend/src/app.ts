@@ -4,7 +4,7 @@ import helmet from '@fastify/helmet';
 import { ZodError } from 'zod';
 import type { RuntimeConfig } from './config.js';
 import { JsonStore } from './store.js';
-import type { PapertrailStore } from './storeInterface.js';
+import type { FiletrailStore } from './storeInterface.js';
 import {
   aiSuggestSchema,
   analyticsBatchSchema,
@@ -19,7 +19,7 @@ function parseBody<T>(schema: { parse: (value: unknown) => T }, body: unknown): 
   return schema.parse(body);
 }
 
-export async function buildApp(config: RuntimeConfig, store: PapertrailStore = new JsonStore(config.dataDir)): Promise<FastifyInstance> {
+export async function buildApp(config: RuntimeConfig, store: FiletrailStore = new JsonStore(config.dataDir)): Promise<FastifyInstance> {
   await store.init();
 
   const app = Fastify({
@@ -42,7 +42,7 @@ export async function buildApp(config: RuntimeConfig, store: PapertrailStore = n
 
   app.get('/health', async () => ({
     ok: true,
-    service: 'papertrail-backend',
+    service: 'filetrail-backend',
     time: new Date().toISOString(),
     integrations: config.integrations,
   }));

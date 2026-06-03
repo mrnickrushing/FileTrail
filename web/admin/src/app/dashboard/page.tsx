@@ -20,7 +20,7 @@ export default async function OverviewPage() {
   return (
     <div>
       <h1 className={styles.pageTitle}>Overview</h1>
-      <p className={styles.pageSubtitle}>Live status from the PaperTrail backend</p>
+      <p className={styles.pageSubtitle}>Live status from the FileTrail backend</p>
 
       {error && (
         <div className={styles.errorBanner}>

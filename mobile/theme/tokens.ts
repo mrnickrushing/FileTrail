@@ -1,4 +1,4 @@
-// PaperTrail Design Tokens
+// FileTrail Design Tokens
 // Art direction: secure digital filing cabinet → clean, trustworthy, minimal
 // Palette: deep charcoal surfaces, warm paper-cream accents, amber primary
 // Typography: System UI for clarity; no decorative fonts needed in a utility app

@@ -4,7 +4,7 @@ const FEATURES = [
   {
     icon: '📷',
     title: 'Scan anything in seconds',
-    body: 'Point your camera and tap. PaperTrail captures receipts, contracts, IDs, warranties, and letters — then reads every word with on-device OCR automatically.',
+    body: 'Point your camera and tap. FileTrail captures receipts, contracts, IDs, warranties, and letters — then reads every word with on-device OCR automatically.',
   },
   {
     icon: '🔍',
@@ -14,7 +14,7 @@ const FEATURES = [
   {
     icon: '🗂️',
     title: 'Auto-organises itself',
-    body: 'PaperTrail detects receipts, contracts, IDs, tax docs, and warranties automatically. Everything lands in the right place without you lifting a finger.',
+    body: 'FileTrail detects receipts, contracts, IDs, tax docs, and warranties automatically. Everything lands in the right place without you lifting a finger.',
   },
   {
     icon: '🔒',
@@ -39,7 +39,7 @@ const FEATURES = [
   {
     icon: '📧',
     title: 'Email-to-vault',
-    body: 'Forward any email to your personal @papertrail.app address and the attachment lands straight in your vault. No more digging through Gmail for that invoice.',
+    body: 'Forward any email to your personal @filetrail.app address and the attachment lands straight in your vault. No more digging through Gmail for that invoice.',
   },
 ];
 
@@ -64,8 +64,8 @@ export default function Home() {
       <nav className={styles.nav}>
         <div className={styles.navInner}>
           <div className={styles.navBrand}>
-            <img src="/icon.png" alt="PaperTrail" className={styles.navIcon} />
-            <span className={styles.navName}>PaperTrail</span>
+            <img src="/icon.png" alt="FileTrail" className={styles.navIcon} />
+            <span className={styles.navName}>FileTrail</span>
           </div>
           <div className={styles.navLinks}>
             <a href="#features">Features</a>
@@ -81,13 +81,13 @@ export default function Home() {
         <div className={styles.heroGlow2} />
         <div className={styles.heroContent}>
           <div className={styles.heroBadge}>📱 Free on iOS &amp; Android</div>
-          <img src="/icon.png" alt="PaperTrail" className={styles.heroIcon} />
+          <img src="/icon.png" alt="FileTrail" className={styles.heroIcon} />
           <h1 className={styles.heroTitle}>
             Stop losing<br />
             <span className={styles.heroAccent}>important documents.</span>
           </h1>
           <p className={styles.heroSubtitle}>
-            PaperTrail turns your phone into a secure, searchable filing cabinet.
+            FileTrail turns your phone into a secure, searchable filing cabinet.
             Scan, organise, and find any document in seconds — even offline, even without an account.
           </p>
           <div className={styles.heroCtas} id="download">
@@ -129,7 +129,7 @@ export default function Home() {
             </div>
             <div className={styles.painArrow}>→</div>
             <div className={styles.solutionCard}>
-              <div className={styles.solutionTitle}>PaperTrail fixes this.</div>
+              <div className={styles.solutionTitle}>FileTrail fixes this.</div>
               <ul className={styles.solutionList}>
                 {[
                   '✅ Every document scanned and searchable in seconds',
@@ -272,7 +272,7 @@ export default function Home() {
             {[
               { n: '1', title: 'Download & open', body: 'No sign-up. No email. No credit card. Just open the app and you\'re ready.' },
               { n: '2', title: 'Scan your first document', body: 'Tap the camera button, point at anything — a receipt, letter, card — and tap capture.' },
-              { n: '3', title: 'Search anything', body: 'Type any word that appears in the document. PaperTrail finds it in under 3 seconds.' },
+              { n: '3', title: 'Search anything', body: 'Type any word that appears in the document. FileTrail finds it in under 3 seconds.' },
             ].map(step => (
               <div key={step.n} className={styles.step}>
                 <div className={styles.stepNum}>{step.n}</div>
@@ -293,7 +293,7 @@ export default function Home() {
             <span className={styles.privacyIcon}>🔒</span>
             <h2 className={styles.privacyTitle}>Your documents belong to you.</h2>
             <p className={styles.privacyBody}>
-              PaperTrail is built local-first. Everything lives on your device. No documents touch our servers unless you turn on cloud sync — and even then they're encrypted before they leave your phone. We don't mine your data, sell your information, or read your documents. Ever.
+              FileTrail is built local-first. Everything lives on your device. No documents touch our servers unless you turn on cloud sync — and even then they're encrypted before they leave your phone. We don't mine your data, sell your information, or read your documents. Ever.
             </p>
             <div className={styles.privacyBadges}>
               <div className={styles.privacyBadge}>🏠 Local-first storage</div>
@@ -310,7 +310,7 @@ export default function Home() {
         <div className={styles.sectionInner}>
           <div className={styles.finalCtaCard}>
             <div className={styles.finalCtaGlow} />
-            <img src="/icon.png" alt="PaperTrail" className={styles.finalCtaIcon} />
+            <img src="/icon.png" alt="FileTrail" className={styles.finalCtaIcon} />
             <h2 className={styles.finalCtaTitle}>Get your documents under control. Today.</h2>
             <p className={styles.finalCtaBody}>Free forever. No account. Works offline. Takes 60 seconds to set up.</p>
             <div className={styles.heroCtas}>
@@ -331,15 +331,15 @@ export default function Home() {
       <footer className={styles.footer}>
         <div className={styles.footerInner}>
           <div className={styles.footerBrand}>
-            <img src="/icon.png" alt="PaperTrail" className={styles.footerIcon} />
-            <span>PaperTrail</span>
+            <img src="/icon.png" alt="FileTrail" className={styles.footerIcon} />
+            <span>FileTrail</span>
           </div>
           <div className={styles.footerLinks}>
             <a href="/privacy">Privacy Policy</a>
             <a href="/terms">Terms of Service</a>
             <a href="mailto:support@rushingtechnologies.com">Support</a>
           </div>
-          <p className={styles.footerCopy}>© {new Date().getFullYear()} PaperTrail. Your documents, your device.</p>
+          <p className={styles.footerCopy}>© {new Date().getFullYear()} FileTrail. Your documents, your device.</p>
         </div>
       </footer>
 

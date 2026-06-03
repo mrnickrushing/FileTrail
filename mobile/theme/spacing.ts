@@ -1,5 +1,5 @@
 /**
- * PaperTrail Spacing Tokens — 4px base grid
+ * FileTrail Spacing Tokens — 4px base grid
  */
 export const S = {
   1:  4,

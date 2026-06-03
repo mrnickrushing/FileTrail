@@ -204,7 +204,7 @@ export default function VaultScreen() {
         ) : (
           <>
             <View>
-              <Text style={styles.headerTitle}>PaperTrail</Text>
+              <Text style={styles.headerTitle}>FileTrail</Text>
               <Text style={styles.headerSub}>
                 {visibleDocuments.length} document{visibleDocuments.length !== 1 ? 's' : ''}
               </Text>

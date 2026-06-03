@@ -1,16 +1,16 @@
-# PaperTrail 🗂️
+# FileTrail 🗂️
 
 > Your documents, your device. Upgrade when you're ready.
 
-PaperTrail is a **local-first digital filing cabinet** for iOS and Android. Capture, organize, and retrieve any document instantly — receipts, contracts, IDs, warranties, tax docs, medical records — stored privately on your device by default. No account required.
+FileTrail is a **local-first digital filing cabinet** for iOS and Android. Capture, organize, and retrieve any document instantly — receipts, contracts, IDs, warranties, tax docs, medical records — stored privately on your device by default. No account required.
 
 ---
 
 ## Philosophy
 
-**Free feels generous.** PaperTrail is fully functional offline with no account required. Your documents never leave your device unless you choose to sync. Upgrade to Pro for cloud sync, AI organization, and sharing.
+**Free feels generous.** FileTrail is fully functional offline with no account required. Your documents never leave your device unless you choose to sync. Upgrade to Pro for cloud sync, AI organization, and sharing.
 
-> *“PaperTrail is free if you store documents on your own device. Upgrade when you want smart cloud sync, AI organization, and sharing.”*
+> *“FileTrail is free if you store documents on your own device. Upgrade when you want smart cloud sync, AI organization, and sharing.”*
 
 ---
 
@@ -28,7 +28,7 @@ PaperTrail is a **local-first digital filing cabinet** for iOS and Android. Capt
 
 ### Pro (~$4.99–6.99/mo or $39.99/yr)
 - ☁️ Encrypted cloud sync + multi-device
-- 📧 Email-to-vault (`@papertrail.app` forwarding)
+- 📧 Email-to-vault (`@filetrail.app` forwarding)
 - 🤖 AI auto-naming
 - 🗾️ AI auto-categorization
 - ⏰ Expiry detection (IDs, warranties, insurance)
@@ -60,7 +60,7 @@ PaperTrail is a **local-first digital filing cabinet** for iOS and Android. Capt
 ## Project Structure
 
 ```
-papertrail/
+filetrail/
 ├── mobile/                    # React Native (Expo) app
 │   ├── app/                   # Expo Router screens
 │   │   ├── _layout.tsx        # Root layout (DB init, splash)
@@ -107,8 +107,8 @@ papertrail/
 
 ```bash
 # Clone the repo
-git clone https://github.com/mrnickrushing/Papertrail.git
-cd Papertrail/mobile
+git clone https://github.com/mrnickrushing/Filetrail.git
+cd Filetrail/mobile
 
 # Install dependencies
 npm install
@@ -135,7 +135,7 @@ npm install -g eas-cli
 eas login
 
 # Build a dev client for iOS simulator
-cd Papertrail
+cd Filetrail
 eas build --profile development --platform ios
 
 # Build a dev client APK for Android
@@ -181,7 +181,7 @@ The free local-first tier works with zero environment variables.
 
 ## Database
 
-PaperTrail uses **Expo SQLite** with WAL mode and FTS5 full-text search. The schema is initialized automatically on first launch via `services/db.ts`.
+FileTrail uses **Expo SQLite** with WAL mode and FTS5 full-text search. The schema is initialized automatically on first launch via `services/db.ts`.
 
 | Table | Purpose |
 |---|---|

@@ -1,4 +1,4 @@
-# PaperTrail — Tech Stack
+# FileTrail — Tech Stack
 
 ## Mobile (React Native / Expo)
 

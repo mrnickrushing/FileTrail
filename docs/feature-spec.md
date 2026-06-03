@@ -1,4 +1,4 @@
-# PaperTrail — Feature Specification
+# FileTrail — Feature Specification
 
 ## Free Tier
 
@@ -51,7 +51,7 @@
 - End-to-end encrypted cloud sync
 - Multi-device access (iPhone, iPad, web)
 - Offline access to starred docs
-- Email-to-vault (`@papertrail.app` unique address)
+- Email-to-vault (`@filetrail.app` unique address)
 
 ### AI
 - Auto-naming: reads document, suggests smart filename

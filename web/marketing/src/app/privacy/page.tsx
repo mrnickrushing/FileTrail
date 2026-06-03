@@ -1,8 +1,8 @@
 import styles from '../legal.module.css';
 
 export const metadata = {
-  title: 'Privacy Policy — PaperTrail',
-  description: 'How PaperTrail handles your data.',
+  title: 'Privacy Policy — FileTrail',
+  description: 'How FileTrail handles your data.',
 };
 
 const TOC = [
@@ -29,8 +29,8 @@ export default function PrivacyPolicy() {
       <nav className={styles.nav}>
         <div className={styles.navInner}>
           <a href="/" className={styles.navBrand}>
-            <img src="/icon.png" alt="PaperTrail" className={styles.navIcon} />
-            <span className={styles.navName}>PaperTrail</span>
+            <img src="/icon.png" alt="FileTrail" className={styles.navIcon} />
+            <span className={styles.navName}>FileTrail</span>
           </a>
           <a href="/" className={styles.navBack}>← Back to home</a>
         </div>
@@ -63,7 +63,7 @@ export default function PrivacyPolicy() {
         <article className={styles.article}>
 
           <p className={styles.lead}>
-            PaperTrail stores your documents <strong>on your device</strong>. We do not
+            FileTrail stores your documents <strong>on your device</strong>. We do not
             collect, read, or sell your documents. If you don't enable cloud sync, your data
             never leaves your phone. Full stop.
           </p>
@@ -71,7 +71,7 @@ export default function PrivacyPolicy() {
           <div className={styles.section} id="s1">
             <span className={styles.sectionNum}>Section 1</span>
             <h2 className={styles.sectionTitle}>Who we are</h2>
-            <p>PaperTrail is developed and operated by Rushing Technologies. For privacy-related questions, contact us at <a href="mailto:support@rushingtechnologies.com">support@rushingtechnologies.com</a>.</p>
+            <p>FileTrail is developed and operated by Rushing Technologies. For privacy-related questions, contact us at <a href="mailto:support@rushingtechnologies.com">support@rushingtechnologies.com</a>.</p>
           </div>
 
           <div className={styles.section} id="s2">
@@ -122,7 +122,7 @@ export default function PrivacyPolicy() {
           <div className={styles.section} id="s7">
             <span className={styles.sectionNum}>Section 7</span>
             <h2 className={styles.sectionTitle}>Cookies and tracking</h2>
-            <p>The PaperTrail mobile app does not use cookies. This website uses no third-party tracking scripts. We do not use Google Analytics, Facebook Pixel, or any advertising trackers.</p>
+            <p>The FileTrail mobile app does not use cookies. This website uses no third-party tracking scripts. We do not use Google Analytics, Facebook Pixel, or any advertising trackers.</p>
           </div>
 
           <div className={styles.section} id="s8">
@@ -159,7 +159,7 @@ export default function PrivacyPolicy() {
           <div className={styles.section} id="s11">
             <span className={styles.sectionNum}>Section 11</span>
             <h2 className={styles.sectionTitle}>Children's privacy</h2>
-            <p>PaperTrail is not directed at children under 13. We do not knowingly collect personal information from children. If you believe a child has provided us with personal information, please contact us and we will delete it promptly.</p>
+            <p>FileTrail is not directed at children under 13. We do not knowingly collect personal information from children. If you believe a child has provided us with personal information, please contact us and we will delete it promptly.</p>
           </div>
 
           <div className={styles.section} id="s12">
@@ -187,7 +187,7 @@ export default function PrivacyPolicy() {
         <div className={styles.footerInner}>
           <div className={styles.footerBrand}>
             <img src="/icon.png" alt="" className={styles.footerIcon} />
-            PaperTrail
+            FileTrail
           </div>
           <div className={styles.footerLinks}>
             <a href="/privacy">Privacy</a>

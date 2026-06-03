@@ -57,7 +57,7 @@ export const useAppStore = create<AppState>()(
       setIsPro: (isPro) => set({ isPro }),
     }),
     {
-      name: 'papertrail-app-settings-v1',
+      name: 'filetrail-app-settings-v1',
       storage: createJSONStorage(() => AsyncStorage),
       // isLocked is always runtime — never persisted
       partialize: (state) => ({

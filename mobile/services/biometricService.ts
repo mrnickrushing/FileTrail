@@ -36,7 +36,7 @@ export async function getBiometricCapability(): Promise<BiometricCapability> {
   return { available: true, type: 'touchId', label: 'Biometric' };
 }
 
-export async function authenticate(reason = 'Unlock PaperTrail'): Promise<boolean> {
+export async function authenticate(reason = 'Unlock FileTrail'): Promise<boolean> {
   try {
     const result = await LocalAuthentication.authenticateAsync({
       promptMessage: reason,

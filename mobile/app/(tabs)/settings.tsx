@@ -302,7 +302,7 @@ export default function SettingsScreen() {
         <SectionHeader title="Upgrade" />
         <View style={styles.proCard}>
           <View style={styles.proCardHeader}>
-            <Text style={styles.proTitle}>PaperTrail Pro</Text>
+            <Text style={styles.proTitle}>FileTrail Pro</Text>
             <View style={styles.proBadge}><Text style={styles.proBadgeText}>PRO</Text></View>
           </View>
           <Text style={styles.proBody}>
@@ -317,9 +317,9 @@ export default function SettingsScreen() {
             <Text style={styles.proPrice}>From $4.99/mo</Text>
             <Pressable
               style={({ pressed }) => [styles.proCTA, pressed && { opacity: 0.8 }]}
-              onPress={() => Linking.openURL('https://papertrail.app/pro')}
+              onPress={() => Linking.openURL('https://filetrail.app/pro')}
               accessibilityRole="link"
-              accessibilityLabel="Learn more about PaperTrail Pro"
+              accessibilityLabel="Learn more about FileTrail Pro"
             >
               <Text style={styles.proCTAText}>Learn More →</Text>
             </Pressable>
@@ -338,8 +338,8 @@ export default function SettingsScreen() {
 
         <Text style={styles.footer}>
           {backendConfigured
-            ? 'PaperTrail keeps document files on your device and syncs metadata with your configured backend.'
-            : 'PaperTrail stores all your documents privately on your device.\nNothing is uploaded to any server.'}
+            ? 'FileTrail keeps document files on your device and syncs metadata with your configured backend.'
+            : 'FileTrail stores all your documents privately on your device.\nNothing is uploaded to any server.'}
         </Text>
       </ScrollView>
     </View>

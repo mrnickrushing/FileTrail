@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "PaperTrail",
-    "slug": "papertrail",
+    "name": "FileTrail",
+    "slug": "filetrail",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -15,11 +15,11 @@
     "assetBundlePatterns": ["**/*"],
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.nitehawk.papertrail",
+      "bundleIdentifier": "com.rushingtechnologies.filetrail",
       "infoPlist": {
-        "NSCameraUsageDescription": "PaperTrail uses your camera to scan documents.",
-        "NSPhotoLibraryUsageDescription": "PaperTrail accesses your photos to import documents.",
-        "NSFaceIDUsageDescription": "PaperTrail uses Face ID to protect your vault."
+        "NSCameraUsageDescription": "FileTrail uses your camera to scan documents.",
+        "NSPhotoLibraryUsageDescription": "FileTrail accesses your photos to import documents.",
+        "NSFaceIDUsageDescription": "FileTrail uses Face ID to protect your vault."
       }
     },
     "android": {
@@ -27,7 +27,7 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0F0F12"
       },
-      "package": "com.nitehawk.papertrail",
+      "package": "com.rushingtechnologies.filetrail",
       "blockedPermissions": [
         "android.permission.RECORD_AUDIO"
       ],
@@ -45,7 +45,7 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "PaperTrail uses your camera to scan documents.",
+          "cameraPermission": "FileTrail uses your camera to scan documents.",
           "recordAudioAndroid": false
         }
       ],
@@ -58,7 +58,7 @@
         {}
       ]
     ],
-    "scheme": "papertrail",
+    "scheme": "filetrail",
     "experiments": {
       "typedRoutes": true
     }

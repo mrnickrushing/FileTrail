@@ -1,6 +1,6 @@
-# PaperTrail Backend
+# FileTrail Backend
 
-Fastify API for PaperTrail Pro features.
+Fastify API for FileTrail Pro features.
 
 The backend is Railway-ready. It uses Postgres when `DATABASE_URL` is present and falls back to local JSON persistence for development.
 

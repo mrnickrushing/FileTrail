@@ -20,7 +20,7 @@ import type { Document, Folder } from '@/types/document';
 import { ensureDocumentDirectory, getExtension } from '@/services/fileStorage';
 
 const BACKUP_VERSION = 1;
-const SALT = 'PaperTrailBackup2024';
+const SALT = 'FileTrailBackup2024';
 const BACKUP_PREFIX = 'PTBAK1';
 const BACKUP_SEED_LENGTH = 16;
 
@@ -116,7 +116,7 @@ export async function createBackup(
   const obfuscated = xorBase64(json, seed);
   const payload = `${BACKUP_PREFIX}:${seed}|${obfuscated}`;
 
-  const filename = `papertrail-backup-${createdAt.slice(0, 10)}.ptbak`;
+  const filename = `filetrail-backup-${createdAt.slice(0, 10)}.ptbak`;
   const dest = FileSystem.cacheDirectory + filename;
   await FileSystem.writeAsStringAsync(dest, payload, {
     encoding: FileSystem.EncodingType.UTF8,
@@ -124,7 +124,7 @@ export async function createBackup(
 
   await Sharing.shareAsync(dest, {
     mimeType: 'application/octet-stream',
-    dialogTitle: 'Save PaperTrail Backup',
+    dialogTitle: 'Save FileTrail Backup',
   });
 }
 

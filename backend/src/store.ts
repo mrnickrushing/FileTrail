@@ -10,7 +10,7 @@ import type {
   ShareLinkRecord,
   TombstoneRecord,
 } from './types.js';
-import type { PapertrailStore, SyncPullOutput, SyncPushInput } from './storeInterface.js';
+import type { FiletrailStore, SyncPullOutput, SyncPushInput } from './storeInterface.js';
 
 const INITIAL_DATA: AppData = {
   syncVersion: 0,
@@ -22,12 +22,12 @@ const INITIAL_DATA: AppData = {
   analytics: [],
 };
 
-export class JsonStore implements PapertrailStore {
+export class JsonStore implements FiletrailStore {
   private readonly filePath: string;
   private writeChain = Promise.resolve();
 
   constructor(dataDir: string) {
-    this.filePath = path.join(dataDir, 'papertrail.json');
+    this.filePath = path.join(dataDir, 'filetrail.json');
   }
 
   async init(): Promise<void> {

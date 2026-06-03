@@ -24,13 +24,13 @@ const COPY = {
   camera: {
     emoji: '📷',
     title: 'Camera Access Required',
-    body: 'PaperTrail needs camera access to scan documents. Your photos are stored privately on your device.',
+    body: 'FileTrail needs camera access to scan documents. Your photos are stored privately on your device.',
     action: 'Open Settings',
   },
   photos: {
     emoji: '🖼️',
     title: 'Photo Library Access',
-    body: 'PaperTrail needs access to your photo library to import images as documents.',
+    body: 'FileTrail needs access to your photo library to import images as documents.',
     action: 'Open Settings',
   },
 };

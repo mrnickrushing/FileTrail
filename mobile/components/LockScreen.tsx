@@ -36,7 +36,7 @@ export function LockScreen({ onUnlocked }: LockScreenProps) {
     setIsAuthenticating(true);
     setError(null);
     try {
-      const success = await authenticate('Unlock PaperTrail');
+      const success = await authenticate('Unlock FileTrail');
       if (success) {
         onUnlocked();
       } else {
@@ -53,7 +53,7 @@ export function LockScreen({ onUnlocked }: LockScreenProps) {
     <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
       <View style={styles.inner}>
         <Text style={styles.icon}>🔒</Text>
-        <Text style={styles.title}>PaperTrail is Locked</Text>
+        <Text style={styles.title}>FileTrail is Locked</Text>
         <Text style={styles.subtitle}>
           Use {biometricLabel} to access your documents.
         </Text>
