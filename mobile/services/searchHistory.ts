@@ -7,7 +7,7 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const KEY = 'papertrail-search-history-v1';
+const KEY = 'filetrail-search-history-v1';
 const MAX_ENTRIES = 12;
 
 async function load(): Promise<string[]> {

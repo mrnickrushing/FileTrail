@@ -28,7 +28,7 @@ const config: RuntimeConfig = {
 };
 
 before(async () => {
-  dataDir = await mkdtemp(path.join(tmpdir(), 'papertrail-backend-'));
+  dataDir = await mkdtemp(path.join(tmpdir(), 'filetrail-backend-'));
   app = await buildApp({ ...config, dataDir });
 });
 

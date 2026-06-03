@@ -23,8 +23,8 @@ export default function Sidebar() {
   return (
     <aside className={styles.sidebar}>
       <div className={styles.brand}>
-        <img src="/icon.png" alt="PaperTrail" className={styles.brandIcon} />
-        <span className={styles.brandName}>PaperTrail</span>
+        <img src="/icon.png" alt="FileTrail" className={styles.brandIcon} />
+        <span className={styles.brandName}>FileTrail</span>
         <span className={styles.brandBadge}>Admin</span>
       </div>
 

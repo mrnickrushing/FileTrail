@@ -24,8 +24,8 @@ type SyncPushResponse = {
   syncVersion: number;
 };
 
-const DEVICE_ID_KEY = 'papertrail-device-id';
-const SYNC_VERSION_KEY = 'papertrail-sync-version';
+const DEVICE_ID_KEY = 'filetrail-device-id';
+const SYNC_VERSION_KEY = 'filetrail-sync-version';
 
 export type Tombstone = {
   id: string;

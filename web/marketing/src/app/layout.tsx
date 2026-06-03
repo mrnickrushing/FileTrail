@@ -2,10 +2,10 @@ import type { Metadata } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'PaperTrail — Your documents, your device.',
+  title: 'FileTrail — Your documents, your device.',
   description: 'Scan, organise, and search all your documents — locally, privately, and offline.',
   openGraph: {
-    title: 'PaperTrail',
+    title: 'FileTrail',
     description: 'Scan, organise, and search all your documents — locally, privately, and offline.',
     images: ['/icon.png'],
   },

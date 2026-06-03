@@ -33,9 +33,9 @@ export default function LoginForm() {
   return (
     <div className={styles.page}>
       <div className={styles.card}>
-        <img src="/icon.png" alt="PaperTrail" className={styles.icon} />
+        <img src="/icon.png" alt="FileTrail" className={styles.icon} />
         <h1 className={styles.title}>Admin Dashboard</h1>
-        <p className={styles.subtitle}>PaperTrail Developer Access</p>
+        <p className={styles.subtitle}>FileTrail Developer Access</p>
         <form onSubmit={handleSubmit} className={styles.form}>
           <input
             type="password"

@@ -21,7 +21,7 @@ export type SyncPullOutput = {
   tombstones: TombstoneRecord[];
 };
 
-export interface PapertrailStore {
+export interface FiletrailStore {
   init(): Promise<void>;
   push(input: SyncPushInput): Promise<{ syncVersion: number }>;
   pull(sinceVersion: number): Promise<SyncPullOutput>;

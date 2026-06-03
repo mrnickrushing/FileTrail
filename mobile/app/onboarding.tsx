@@ -36,7 +36,7 @@ const SLIDES: Slide[] = [
     id: '1',
     emoji: '🗂️',
     title: 'Your documents,\nyour device.',
-    body: 'PaperTrail stores everything locally. No account, no cloud, no fees — your files never leave your phone unless you choose to share them.',
+    body: 'FileTrail stores everything locally. No account, no cloud, no fees — your files never leave your phone unless you choose to share them.',
   },
   {
     id: '2',

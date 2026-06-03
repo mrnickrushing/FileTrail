@@ -1,7 +1,7 @@
 import { Platform } from 'react-native';
 
 /**
- * PaperTrail Typography Tokens
+ * FileTrail Typography Tokens
  * System fonts — no external font loading needed in Phase 1.
  * iOS: SF Pro | Android: Roboto
  */

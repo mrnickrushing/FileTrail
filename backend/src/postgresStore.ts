@@ -1,12 +1,12 @@
 import { randomUUID } from 'node:crypto';
 import pg from 'pg';
 import { MIGRATIONS } from './migrations.js';
-import type { PapertrailStore, SyncPullOutput, SyncPushInput } from './storeInterface.js';
+import type { FiletrailStore, SyncPullOutput, SyncPushInput } from './storeInterface.js';
 import type { AnalyticsRecord, EmailInboundRecord, ShareLinkRecord } from './types.js';
 
 const { Pool } = pg;
 
-export class PostgresStore implements PapertrailStore {
+export class PostgresStore implements FiletrailStore {
   private readonly pool: pg.Pool;
 
   constructor(databaseUrl: string) {

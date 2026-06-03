@@ -1,5 +1,5 @@
 /**
- * document.ts — Core domain types for PaperTrail
+ * document.ts — Core domain types for FileTrail
  *
  * Phase 3 additions:
  *   - Folder type

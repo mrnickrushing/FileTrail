@@ -1,8 +1,8 @@
 import styles from '../legal.module.css';
 
 export const metadata = {
-  title: 'Terms of Service — PaperTrail',
-  description: 'Terms governing your use of PaperTrail.',
+  title: 'Terms of Service — FileTrail',
+  description: 'Terms governing your use of FileTrail.',
 };
 
 const TOC = [
@@ -30,8 +30,8 @@ export default function TermsOfService() {
       <nav className={styles.nav}>
         <div className={styles.navInner}>
           <a href="/" className={styles.navBrand}>
-            <img src="/icon.png" alt="PaperTrail" className={styles.navIcon} />
-            <span className={styles.navName}>PaperTrail</span>
+            <img src="/icon.png" alt="FileTrail" className={styles.navIcon} />
+            <span className={styles.navName}>FileTrail</span>
           </a>
           <a href="/" className={styles.navBack}>← Back to home</a>
         </div>
@@ -43,8 +43,8 @@ export default function TermsOfService() {
           <div className={styles.heroBadge}>📋 Legal</div>
           <h1 className={styles.heroTitle}>Terms of Service</h1>
           <p className={styles.heroSubtitle}>
-            These terms govern your use of PaperTrail, developed and operated by
-            Rushing Technologies. By using PaperTrail, you agree to these terms.
+            These terms govern your use of FileTrail, developed and operated by
+            Rushing Technologies. By using FileTrail, you agree to these terms.
           </p>
           <span className={styles.heroUpdated}>Last updated: June 3, 2026</span>
         </div>
@@ -64,20 +64,20 @@ export default function TermsOfService() {
         <article className={styles.article}>
 
           <p className={styles.lead}>
-            By installing or using PaperTrail you agree to be bound by these Terms of Service
+            By installing or using FileTrail you agree to be bound by these Terms of Service
             and our <a href="/privacy">Privacy Policy</a>. If you do not agree, do not use the app.
           </p>
 
           <div className={styles.section} id="s1">
             <span className={styles.sectionNum}>Section 1</span>
             <h2 className={styles.sectionTitle}>Acceptance of terms</h2>
-            <p>By installing or using PaperTrail ("the App"), you agree to be bound by these Terms of Service and our Privacy Policy. If you do not agree, do not use the App.</p>
+            <p>By installing or using FileTrail ("the App"), you agree to be bound by these Terms of Service and our Privacy Policy. If you do not agree, do not use the App.</p>
           </div>
 
           <div className={styles.section} id="s2">
             <span className={styles.sectionNum}>Section 2</span>
             <h2 className={styles.sectionTitle}>Description of service</h2>
-            <p>PaperTrail is a document management application that allows you to scan, organise, search, and store documents on your device. A free tier is available with local storage. A Pro subscription tier provides additional features including cloud sync, AI features, and sharing.</p>
+            <p>FileTrail is a document management application that allows you to scan, organise, search, and store documents on your device. A free tier is available with local storage. A Pro subscription tier provides additional features including cloud sync, AI features, and sharing.</p>
           </div>
 
           <div className={styles.section} id="s3">
@@ -106,7 +106,7 @@ export default function TermsOfService() {
           <div className={styles.section} id="s5">
             <span className={styles.sectionNum}>Section 5</span>
             <h2 className={styles.sectionTitle}>Acceptable use</h2>
-            <p>You agree not to use PaperTrail to:</p>
+            <p>You agree not to use FileTrail to:</p>
             <ul>
               <li>Store or distribute illegal content, including child sexual abuse material</li>
               <li>Violate any applicable laws or regulations</li>
@@ -121,26 +121,26 @@ export default function TermsOfService() {
           <div className={styles.section} id="s6">
             <span className={styles.sectionNum}>Section 6</span>
             <h2 className={styles.sectionTitle}>Your content</h2>
-            <p>You retain full ownership of all documents and data you store in PaperTrail. By using cloud sync, you grant us a limited, non-exclusive licence to store and transmit your encrypted content solely for the purpose of providing the sync service. We claim no ownership over your documents.</p>
-            <p>You are solely responsible for ensuring you have the right to store and use any documents you add to PaperTrail.</p>
+            <p>You retain full ownership of all documents and data you store in FileTrail. By using cloud sync, you grant us a limited, non-exclusive licence to store and transmit your encrypted content solely for the purpose of providing the sync service. We claim no ownership over your documents.</p>
+            <p>You are solely responsible for ensuring you have the right to store and use any documents you add to FileTrail.</p>
           </div>
 
           <div className={styles.section} id="s7">
             <span className={styles.sectionNum}>Section 7</span>
             <h2 className={styles.sectionTitle}>Intellectual property</h2>
-            <p>PaperTrail and all associated software, design, and branding are owned by Rushing Technologies and protected by intellectual property laws. You may not copy, modify, distribute, or create derivative works without our written permission.</p>
+            <p>FileTrail and all associated software, design, and branding are owned by Rushing Technologies and protected by intellectual property laws. You may not copy, modify, distribute, or create derivative works without our written permission.</p>
           </div>
 
           <div className={styles.section} id="s8">
             <span className={styles.sectionNum}>Section 8</span>
             <h2 className={styles.sectionTitle}>Disclaimer of warranties</h2>
-            <p>PaperTrail is provided "as is" without warranties of any kind, express or implied. We do not warrant that the App will be error-free, uninterrupted, or that your data will never be lost. <strong>You are responsible for maintaining your own backups of important documents.</strong></p>
+            <p>FileTrail is provided "as is" without warranties of any kind, express or implied. We do not warrant that the App will be error-free, uninterrupted, or that your data will never be lost. <strong>You are responsible for maintaining your own backups of important documents.</strong></p>
           </div>
 
           <div className={styles.section} id="s9">
             <span className={styles.sectionNum}>Section 9</span>
             <h2 className={styles.sectionTitle}>Limitation of liability</h2>
-            <p>To the maximum extent permitted by law, Rushing Technologies shall not be liable for any indirect, incidental, special, consequential, or punitive damages, including loss of data, arising from your use of PaperTrail. Our total liability to you for any claim shall not exceed the amount you paid us in the 12 months preceding the claim.</p>
+            <p>To the maximum extent permitted by law, Rushing Technologies shall not be liable for any indirect, incidental, special, consequential, or punitive damages, including loss of data, arising from your use of FileTrail. Our total liability to you for any claim shall not exceed the amount you paid us in the 12 months preceding the claim.</p>
           </div>
 
           <div className={styles.section} id="s10">
@@ -186,7 +186,7 @@ export default function TermsOfService() {
         <div className={styles.footerInner}>
           <div className={styles.footerBrand}>
             <img src="/icon.png" alt="" className={styles.footerIcon} />
-            PaperTrail
+            FileTrail
           </div>
           <div className={styles.footerLinks}>
             <a href="/privacy">Privacy</a>

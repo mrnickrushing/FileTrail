@@ -1,5 +1,5 @@
 /**
- * PaperTrail Design Tokens — Colors
+ * FileTrail Design Tokens — Colors
  *
  * Dark-first palette. Clean, document-forward.
  * Primary: warm off-white on deep charcoal.

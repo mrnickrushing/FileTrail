@@ -393,7 +393,7 @@ export const useDocumentStore = create<DocumentState>()(
       },
     }),
     {
-      name: 'papertrail-documents-v2',
+      name: 'filetrail-documents-v2',
       storage: createJSONStorage(() => AsyncStorage),
       partialize: (state) => ({
         documents: state.documents,
