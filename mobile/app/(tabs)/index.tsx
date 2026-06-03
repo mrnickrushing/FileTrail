@@ -18,6 +18,7 @@ import { DocumentCard } from '@/components/DocumentCard';
 import { BulkActionBar } from '@/components/BulkActionBar';
 import { TagEditor } from '@/components/TagEditor';
 import { FolderPickerModal } from '@/components/FolderPickerModal';
+import { SkeletonList } from '@/components/SkeletonLoader';
 import { FAB } from '@/components/FAB';
 import { EmptyState } from '@/components/EmptyState';
 import { Colors, Typography, Spacing } from '@/theme';
@@ -189,7 +190,7 @@ export default function VaultScreen() {
 
       {/* Document list */}
       {isLoading && visibleDocuments.length === 0 ? (
-        <ActivityIndicator color={Colors.primary} style={{ flex: 1, alignSelf: 'center' }} />
+        <SkeletonList count={5} />
       ) : (
         <FlatList
           data={visibleDocuments}
