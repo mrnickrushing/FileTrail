@@ -21,11 +21,9 @@ PaperTrail is a **local-first digital filing cabinet** for iOS and Android. Capt
 - 📁 Custom folders + tags
 - 🔍 On-device OCR (Apple Vision / ML Kit) — *Phase 2*
 - 🔎 Full-text search — filenames + OCR text
-- 🔔 Manual reminders — *Phase 4*
-- 🔒 Biometric lock (Face ID / Touch ID) — *Phase 5*
-- 📤 Export anytime (PDF, ZIP, share sheet) — *Phase 5*
+- 📤 Export as ZIP or share any document — *Phase 4*
+- 🔒 Biometric lock (Face ID / Touch ID) — *Phase 8*
 - 💬 Comments on any document — *Phase 3*
-- 🏥 Document health score (local) — *Phase 4*
 - 📴 No account required — fully offline
 
 ### Pro (~$4.99–6.99/mo or $39.99/yr)
@@ -120,6 +118,55 @@ npx expo start
 
 Press `i` for iOS simulator, `a` for Android emulator, or scan the QR code with Expo Go.
 
+> **Note:** Some Phase 4+ features (native PDF viewing, real OCR) require a **development build** rather than Expo Go. See the [Development Builds](#development-builds-phase-4) section below.
+
+### Development Builds (Phase 4+)
+
+Phase 4 introduces `react-native-pdf` and `react-native-blob-util`, which contain native code and cannot run in Expo Go. You need an EAS development build or a local bare build.
+
+#### Option A — EAS cloud build (recommended)
+
+```bash
+# Install EAS CLI globally
+npm install -g eas-cli
+
+# Log in
+eas login
+
+# Build a dev client for iOS simulator
+cd Papertrail
+eas build --profile development --platform ios
+
+# Build a dev client APK for Android
+eas build --profile development --platform android
+```
+
+Install the resulting `.app` / `.apk` on your device or simulator, then start the Metro bundler:
+
+```bash
+cd mobile
+npx expo start --dev-client
+```
+
+#### Option B — Local bare workflow
+
+```bash
+cd mobile
+npx expo prebuild           # generates ios/ and android/ directories
+cd ios && pod install && cd ..
+npx expo run:ios            # or npx expo run:android
+```
+
+#### Feature availability matrix
+
+| Feature | Expo Go | Dev Build |
+|---|---|---|
+| Capture, folders, search | ✅ | ✅ |
+| Image crop (gesture) | ✅ | ✅ |
+| ZIP export | ✅ | ✅ |
+| On-device OCR | ❌ stub | ✅ |
+| Native PDF viewer | ❌ notice shown | ✅ |
+
 ### Environment Variables (Pro features only)
 
 ```bash
@@ -150,18 +197,18 @@ All queries use parameterized statements. No raw string interpolation.
 
 ## Development Phases
 
-| Phase | Branch | Status | Scope |
-|---|---|---|---|
-| 1 | `phase/1-foundation` | ✅ **Done** | Project setup, navigation, theme, local DB |
-| 2 | `phase/2-capture` | ⏳ Next | Camera scan, photo import, PDF upload, OCR |
-| 3 | `phase/3-organize` | — | Folders, tags, search, comments |
-| 4 | `phase/4-reminders` | — | Manual reminders, expiry alerts, health score |
-| 5 | `phase/5-export` | — | PDF export, ZIP, share sheet, biometric lock |
-| 6 | `phase/6-pro-cloud` | — | Cloud sync, auth, email-to-vault, multi-device |
-| 7 | `phase/7-pro-ai` | — | AI naming, categorization, expiry detection, NL search |
-| 8 | `phase/8-pro-sharing` | — | Shared vaults, secure links, accountant export |
-| 9 | `phase/9-analytics` | — | Spending analytics, enhanced health score |
-| 10 | `phase/10-polish` | — | Animations, onboarding, widgets, App Store prep |
+| Phase | Status | Scope |
+|---|---|---|
+| 1 — Foundation | ✅ Done | Project setup, navigation, theme, local DB |
+| 2 — Capture | ✅ Done | Camera scan, photo import, PDF upload, OCR stubs |
+| 3 — Organize | ✅ Done | Folders, tags, search, document viewer |
+| 4 — Viewer · Crop · Export | ✅ Done | Native PDF viewer, gesture crop, ZIP export, EAS dev builds |
+| 5 — Organization & Bulk | — | Multi-select, bulk move/delete, tag editor, filter chips |
+| 6 — OCR & Search | — | OCR retry, metadata extraction, smarter search |
+| 7 — Backup & Sync | — | Encrypted backup, restore, cloud sync architecture |
+| 8 — Security | — | Biometric lock, redaction, privacy hardening |
+| 9 — Polish | — | Performance, accessibility, skeleton loaders |
+| 10 — Launch | — | Onboarding, store assets, analytics |
 
 ---
 
