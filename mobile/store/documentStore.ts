@@ -1,169 +1,185 @@
 /**
- * documentStore.ts — Zustand store for documents, folders, tags
+ * documentStore.ts — Zustand store for documents + folders
  *
- * Phase 1: loadDocuments, loadFolders, loadTags, addDocument, editDocument,
- *           removeDocument, addFolder, removeFolder, addTag, removeTag,
- *           setFilters, search
- *
- * Phase 2 additions:
- *   - addDocument() now accepts a full Document and persists immediately
- *   - updateDocument() partial-patch API for post-OCR updates
- *   - removeDocument() now also calls deleteDocumentFiles() for file cleanup
- *   - searchQuery + activeCategory state for filter chips on Vault screen
+ * Phase 3 additions:
+ *   - Folder CRUD (addFolder, updateFolder, deleteFolder)
+ *   - moveDocumentToFolder
+ *   - search() — full-text search across title + OCR + category + tags
+ *   - getFolderDocuments(folderId)
+ *   - getDocument(id) selector
  */
 
 import { create } from 'zustand';
-import {
-  listDocuments, insertDocument, updateDocument, deleteDocument,
-  listFolders, insertFolder, deleteFolder,
-  listTags, insertTag, deleteTag,
-  searchDocuments,
-} from '@/services/db';
+import { persist, createJSONStorage } from 'zustand/middleware';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { nanoid } from 'nanoid/non-secure';
+import type { Document, Folder, SearchResult, DocumentCategory } from '@/types/document';
 import { deleteDocumentFiles } from '@/services/fileStorage';
-import type { Document, DocumentFolder, DocumentTag, SearchFilters } from '@/types/document';
 
 interface DocumentState {
-  documents:      Document[];
-  folders:        DocumentFolder[];
-  tags:           DocumentTag[];
-  isLoading:      boolean;
-  error:          string | null;
-  filters:        SearchFilters;
-  searchQuery:    string;
-  activeCategory: Document['category'] | null;
+  documents: Document[];
+  folders: Folder[];
 
-  // Document CRUD
-  loadDocuments:    (filters?: SearchFilters) => Promise<void>;
-  addDocument:      (doc: Document) => Promise<void>;
-  updateDocument:   (id: string, patch: Partial<Document>) => Promise<void>;
-  editDocument:     (doc: Partial<Document> & { id: string }) => Promise<void>;
-  removeDocument:   (id: string) => Promise<void>;
+  // ─── Document actions ────────────────────────────────────────
+  addDocument: (doc: Omit<Document, 'createdAt' | 'updatedAt'>) => Promise<void>;
+  updateDocument: (id: string, patch: Partial<Document>) => void;
+  deleteDocument: (id: string) => Promise<void>;
+  toggleFavorite: (id: string) => void;
+  moveDocumentToFolder: (documentId: string, folderId: string | null) => void;
 
-  // Folder CRUD
-  loadFolders:      () => Promise<void>;
-  addFolder:        (folder: DocumentFolder) => Promise<void>;
-  removeFolder:     (id: string) => Promise<void>;
+  // ─── Folder actions ──────────────────────────────────────────
+  addFolder: (name: string, color?: string) => Folder;
+  updateFolder: (id: string, patch: Partial<Pick<Folder, 'name' | 'color'>>) => void;
+  deleteFolder: (id: string, moveDocumentsToRoot?: boolean) => Promise<void>;
 
-  // Tag CRUD
-  loadTags:         () => Promise<void>;
-  addTag:           (tag: DocumentTag) => Promise<void>;
-  removeTag:        (id: string) => Promise<void>;
-
-  // Filters
-  setFilters:       (filters: SearchFilters) => void;
-  search:           (query: string) => Promise<void>;
-  setSearchQuery:   (q: string) => void;
-  setActiveCategory:(cat: Document['category'] | null) => void;
+  // ─── Selectors ───────────────────────────────────────────────
+  getDocument: (id: string) => Document | undefined;
+  getFolderDocuments: (folderId: string | null) => Document[];
+  search: (query: string) => SearchResult[];
 }
 
-export const useDocumentStore = create<DocumentState>((set, get) => ({
-  documents:      [],
-  folders:        [],
-  tags:           [],
-  isLoading:      false,
-  error:          null,
-  filters:        {},
-  searchQuery:    '',
-  activeCategory: null,
+/** Build a plain-text snippet around the first occurrence of `term` in `text` */
+function buildSnippet(text: string, term: string, windowChars = 120): string {
+  const lower = text.toLowerCase();
+  const idx = lower.indexOf(term.toLowerCase());
+  if (idx === -1) return text.slice(0, windowChars);
+  const start = Math.max(0, idx - 40);
+  const end = Math.min(text.length, idx + term.length + 80);
+  const raw = text.slice(start, end);
+  const re = new RegExp(`(${term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+  return (start > 0 ? '…' : '') + raw.replace(re, '<mark>$1</mark>') + (end < text.length ? '…' : '');
+}
 
-  loadDocuments: async (filters) => {
-    set({ isLoading: true, error: null });
-    try {
-      const f = filters ?? get().filters;
-      let docs: Document[];
-      if (f.query && f.query.trim().length > 0) {
-        docs = await searchDocuments(f.query.trim());
-      } else {
-        docs = await listDocuments(f.folderId, f.category, 100, 0);
-      }
-      const sortBy  = f.sortBy  ?? 'createdAt';
-      const sortDir = f.sortDir ?? 'desc';
-      docs.sort((a, b) => {
-        const aVal = a[sortBy] as number | string;
-        const bVal = b[sortBy] as number | string;
-        if (aVal < bVal) return sortDir === 'asc' ? -1 : 1;
-        if (aVal > bVal) return sortDir === 'asc' ? 1 : -1;
-        return 0;
-      });
-      if (f.isFavorite) docs = docs.filter(d => d.isFavorite);
-      set({ documents: docs, isLoading: false });
-    } catch (e) {
-      set({ error: String(e), isLoading: false });
+export const useDocumentStore = create<DocumentState>()(
+  persist(
+    (set, get) => ({
+      documents: [],
+      folders: [],
+
+      // ─── Document actions ──────────────────────────────────────
+      addDocument: async (doc) => {
+        const now = new Date().toISOString();
+        const full: Document = { ...doc, createdAt: now, updatedAt: now };
+        set(s => ({ documents: [full, ...s.documents] }));
+      },
+
+      updateDocument: (id, patch) => {
+        set(s => ({
+          documents: s.documents.map(d =>
+            d.id === id ? { ...d, ...patch, updatedAt: new Date().toISOString() } : d
+          ),
+        }));
+      },
+
+      deleteDocument: async (id) => {
+        const doc = get().documents.find(d => d.id === id);
+        set(s => ({ documents: s.documents.filter(d => d.id !== id) }));
+        if (doc) {
+          await deleteDocumentFiles(id).catch(() => {/* best-effort */});
+        }
+      },
+
+      toggleFavorite: (id) => {
+        set(s => ({
+          documents: s.documents.map(d =>
+            d.id === id
+              ? { ...d, isFavorite: !d.isFavorite, updatedAt: new Date().toISOString() }
+              : d
+          ),
+        }));
+      },
+
+      moveDocumentToFolder: (documentId, folderId) => {
+        set(s => ({
+          documents: s.documents.map(d =>
+            d.id === documentId
+              ? { ...d, folderId, updatedAt: new Date().toISOString() }
+              : d
+          ),
+        }));
+      },
+
+      // ─── Folder actions ────────────────────────────────────────
+      addFolder: (name, color = '#F59E0B') => {
+        const now = new Date().toISOString();
+        const folder: Folder = { id: nanoid(), name, color, createdAt: now, updatedAt: now };
+        set(s => ({ folders: [...s.folders, folder] }));
+        return folder;
+      },
+
+      updateFolder: (id, patch) => {
+        set(s => ({
+          folders: s.folders.map(f =>
+            f.id === id ? { ...f, ...patch, updatedAt: new Date().toISOString() } : f
+          ),
+        }));
+      },
+
+      deleteFolder: async (id, moveDocumentsToRoot = true) => {
+        if (moveDocumentsToRoot) {
+          set(s => ({
+            folders: s.folders.filter(f => f.id !== id),
+            documents: s.documents.map(d =>
+              d.folderId === id ? { ...d, folderId: null, updatedAt: new Date().toISOString() } : d
+            ),
+          }));
+        } else {
+          // delete folder + all its documents
+          const toDelete = get().documents.filter(d => d.folderId === id);
+          set(s => ({
+            folders: s.folders.filter(f => f.id !== id),
+            documents: s.documents.filter(d => d.folderId !== id),
+          }));
+          await Promise.all(toDelete.map(d => deleteDocumentFiles(d.id).catch(() => {})));
+        }
+      },
+
+      // ─── Selectors ─────────────────────────────────────────────
+      getDocument: (id) => get().documents.find(d => d.id === id),
+
+      getFolderDocuments: (folderId) =>
+        get().documents.filter(d => d.folderId === folderId),
+
+      search: (query) => {
+        const q = query.trim().toLowerCase();
+        if (!q) return [];
+        const results: SearchResult[] = [];
+
+        for (const doc of get().documents) {
+          const matchedFields: SearchResult['matchedFields'] = [];
+          let snippet: string | null = null;
+
+          if (doc.title.toLowerCase().includes(q)) {
+            matchedFields.push('title');
+          }
+          if (doc.category.toLowerCase().includes(q)) {
+            matchedFields.push('category');
+          }
+          if (doc.tags.some(t => t.toLowerCase().includes(q))) {
+            matchedFields.push('tags');
+          }
+          if (doc.ocrText && doc.ocrText.toLowerCase().includes(q)) {
+            matchedFields.push('ocrText');
+            snippet = buildSnippet(doc.ocrText, q);
+          }
+
+          if (matchedFields.length > 0) {
+            results.push({ document: doc, snippet, matchedFields });
+          }
+        }
+
+        // Sort: title matches first, then recency
+        return results.sort((a, b) => {
+          const aTitle = a.matchedFields.includes('title') ? 0 : 1;
+          const bTitle = b.matchedFields.includes('title') ? 0 : 1;
+          if (aTitle !== bTitle) return aTitle - bTitle;
+          return b.document.updatedAt.localeCompare(a.document.updatedAt);
+        });
+      },
+    }),
+    {
+      name: 'papertrail-documents-v2',
+      storage: createJSONStorage(() => AsyncStorage),
     }
-  },
-
-  addDocument: async (doc: Document) => {
-    await insertDocument(doc);
-<<<<<<< HEAD
-    // Optimistic prepend + reload for sort consistency
-=======
->>>>>>> main
-    set(s => ({ documents: [doc, ...s.documents] }));
-  },
-
-  updateDocument: async (id: string, patch: Partial<Document>) => {
-    await updateDocument({ id, ...patch } as Partial<Document> & { id: string });
-    set(s => ({
-      documents: s.documents.map(d =>
-        d.id === id ? { ...d, ...patch, updatedAt: new Date().toISOString() } : d
-      ),
-    }));
-  },
-
-  editDocument: async (doc) => {
-    await updateDocument(doc);
-    await get().loadDocuments();
-  },
-
-  removeDocument: async (id: string) => {
-    await deleteDocument(id);
-<<<<<<< HEAD
-    await deleteDocumentFiles(id).catch(() => {}); // best-effort file cleanup
-=======
-    await deleteDocumentFiles(id).catch(() => {});
->>>>>>> main
-    set(s => ({ documents: s.documents.filter(d => d.id !== id) }));
-  },
-
-  loadFolders: async () => {
-    const folders = await listFolders();
-    set({ folders });
-  },
-
-  addFolder: async (folder) => {
-    await insertFolder(folder);
-    await get().loadFolders();
-  },
-
-  removeFolder: async (id) => {
-    await deleteFolder(id);
-    set(s => ({ folders: s.folders.filter(f => f.id !== id) }));
-  },
-
-  loadTags: async () => {
-    const tags = await listTags();
-    set({ tags });
-  },
-
-  addTag: async (tag) => {
-    await insertTag(tag);
-    await get().loadTags();
-  },
-
-  removeTag: async (id) => {
-    await deleteTag(id);
-    set(s => ({ tags: s.tags.filter(t => t.id !== id) }));
-  },
-
-  setFilters: (filters) => {
-    set({ filters });
-    get().loadDocuments(filters);
-  },
-
-  search: async (query) => {
-    get().setFilters({ ...get().filters, query });
-  },
-
-  setSearchQuery:    (q)   => set({ searchQuery: q }),
-  setActiveCategory: (cat) => set({ activeCategory: cat }),
-}));
+  )
+);

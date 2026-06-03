@@ -1,135 +1,281 @@
-import React, { useState } from 'react';
-import {
-  View, Text, FlatList, StyleSheet,
-  Pressable, Alert, TextInput, Modal,
-} from 'react-native';
-import { useRouter } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useDocumentStore } from '@/store';
-import { EmptyState } from '@/components/EmptyState';
-import { Colors, Typography, Spacing, Radius, Shadows } from '@/theme';
-import { DocumentFolder } from '@/types';
+/**
+ * folders.tsx — Folder management tab
+ *
+ * Displays all user-created folders with document counts.
+ * Tapping a folder opens FolderDetailScreen (inline navigation).
+ * Long-press a folder to rename or delete.
+ * FAB to create a new folder.
+ */
 
-function genId() {
-  return Math.random().toString(36).slice(2) + Date.now().toString(36);
-}
+import React, { useState, useCallback } from 'react';
+import {
+  View,
+  Text,
+  FlatList,
+  Pressable,
+  StyleSheet,
+  Alert,
+  Modal,
+  TextInput,
+  ScrollView,
+} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { router } from 'expo-router';
+import { useDocumentStore } from '@/store/documentStore';
+import { DocumentCard } from '@/components/DocumentCard';
+import { C, T, R, S } from '@/theme/tokens';
+import type { Folder } from '@/types/document';
+
+const FOLDER_COLORS = [
+  '#F59E0B', '#EF4444', '#10B981', '#3B82F6',
+  '#8B5CF6', '#EC4899', '#06B6D4', '#84CC16',
+];
 
 export default function FoldersScreen() {
-  const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { folders, addFolder, removeFolder } = useDocumentStore();
-  const [showModal, setShowModal] = useState(false);
-  const [folderName, setFolderName] = useState('');
+  const folders = useDocumentStore(s => s.folders);
+  const documents = useDocumentStore(s => s.documents);
+  const addFolder = useDocumentStore(s => s.addFolder);
+  const updateFolder = useDocumentStore(s => s.updateFolder);
+  const deleteFolder = useDocumentStore(s => s.deleteFolder);
+  const getFolderDocuments = useDocumentStore(s => s.getFolderDocuments);
 
-  const handleCreate = async () => {
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [editingFolder, setEditingFolder] = useState<Folder | null>(null);
+  const [folderName, setFolderName] = useState('');
+  const [selectedColor, setSelectedColor] = useState(FOLDER_COLORS[0]);
+  const [activeFolder, setActiveFolder] = useState<Folder | null>(null);
+
+  const unfiledCount = documents.filter(d => d.folderId === null).length;
+
+  const openCreate = () => {
+    setFolderName('');
+    setSelectedColor(FOLDER_COLORS[0]);
+    setEditingFolder(null);
+    setShowCreateModal(true);
+  };
+
+  const openEdit = (folder: Folder) => {
+    setFolderName(folder.name);
+    setSelectedColor(folder.color);
+    setEditingFolder(folder);
+    setShowCreateModal(true);
+  };
+
+  const handleSaveFolder = () => {
     const name = folderName.trim();
     if (!name) return;
-    const now = Date.now();
-    const folder: DocumentFolder = {
-      id: genId(), name, createdAt: now, updatedAt: now,
-    };
-    await addFolder(folder);
-    setFolderName('');
-    setShowModal(false);
+    if (editingFolder) {
+      updateFolder(editingFolder.id, { name, color: selectedColor });
+    } else {
+      addFolder(name, selectedColor);
+    }
+    setShowCreateModal(false);
   };
 
-  const handleDelete = (folder: DocumentFolder) => {
+  const handleDeleteFolder = useCallback((folder: Folder) => {
+    const docCount = getFolderDocuments(folder.id).length;
     Alert.alert(
       'Delete Folder',
-      `Delete "${folder.name}"? Documents inside will move to root.`,
+      docCount > 0
+        ? `"${folder.name}" contains ${docCount} document${docCount === 1 ? '' : 's'}. They will be moved to Unfiled.`
+        : `Delete "${folder.name}"?`,
       [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Delete', style: 'destructive', onPress: () => removeFolder(folder.id) },
-      ],
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => deleteFolder(folder.id, true),
+        },
+      ]
     );
-  };
+  }, [getFolderDocuments, deleteFolder]);
+
+  const handleLongPress = useCallback((folder: Folder) => {
+    Alert.alert(folder.name, undefined, [
+      { text: 'Rename', onPress: () => openEdit(folder) },
+      { text: 'Delete', style: 'destructive', onPress: () => handleDeleteFolder(folder) },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
+  }, [handleDeleteFolder]);
+
+  // If a folder is open, show its contents
+  if (activeFolder) {
+    const folderDocs = getFolderDocuments(activeFolder.id);
+    return (
+      <View style={[styles.container, { paddingTop: insets.top }]}>
+        <View style={styles.header}>
+          <Pressable
+            style={styles.backBtn}
+            onPress={() => setActiveFolder(null)}
+            hitSlop={8}
+          >
+            <Text style={styles.backBtnText}>‹ Folders</Text>
+          </Pressable>
+          <View style={styles.headerTitleRow}>
+            <Text style={[styles.folderDot, { color: activeFolder.color }]}>●</Text>
+            <Text style={styles.headerTitle}>{activeFolder.name}</Text>
+          </View>
+          <View style={{ width: 80 }} />
+        </View>
+
+        {folderDocs.length === 0 ? (
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyEmoji}>📂</Text>
+            <Text style={styles.emptyTitle}>Empty folder</Text>
+            <Text style={styles.emptyBody}>
+              Move documents here from the home screen by tapping ••• on any document.
+            </Text>
+          </View>
+        ) : (
+          <FlatList
+            data={folderDocs}
+            keyExtractor={d => d.id}
+            contentContainerStyle={{ padding: S[4], paddingBottom: insets.bottom + S[8] }}
+            renderItem={({ item }) => (
+              <Pressable
+                onPress={() => router.push({ pathname: '/viewer/[id]', params: { id: item.id } })}
+                style={({ pressed }) => [styles.docItem, pressed && { opacity: 0.7 }]}
+              >
+                <DocumentCard document={item} compact />
+              </Pressable>
+            )}
+          />
+        )}
+      </View>
+    );
+  }
 
   return (
-    <View style={styles.container}>
-      <View style={[styles.header, { paddingTop: insets.top + Spacing['4'] }]}>
-        <Text style={styles.title}>Folders</Text>
-        <Pressable
-          style={styles.newBtn}
-          onPress={() => setShowModal(true)}
-          hitSlop={8}
-        >
-          <Text style={styles.newBtnText}>+ New</Text>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
+      {/* Header */}
+      <View style={styles.header}>
+        <Text style={styles.screenTitle}>Folders</Text>
+        <Pressable style={styles.newFolderBtn} onPress={openCreate}>
+          <Text style={styles.newFolderBtnText}>+ New</Text>
         </Pressable>
       </View>
 
-      <FlatList
-        data={folders}
-        keyExtractor={(f) => f.id}
+      <ScrollView
         contentContainerStyle={[
-          styles.list,
-          folders.length === 0 && styles.listEmpty,
+          styles.listContent,
+          { paddingBottom: insets.bottom + S[8] },
         ]}
-        renderItem={({ item }) => (
-          <Pressable
-            style={({ pressed }) => [styles.folderRow, pressed && styles.pressed]}
-            onPress={() => router.push(`/folder/${item.id}`)}
-            onLongPress={() => handleDelete(item)}
-          >
-            <Text style={styles.folderIcon}>📁</Text>
-            <View style={styles.folderMeta}>
-              <Text style={styles.folderName}>{item.name}</Text>
-              <Text style={styles.folderHint}>Hold to delete</Text>
-            </View>
-            <Text style={styles.chevron}>›</Text>
-          </Pressable>
-        )}
-        ListEmptyComponent={
-          <EmptyState
-            icon="folder"
-            title="No folders yet"
-            subtitle="Organize your documents into folders for quick access"
-            actionLabel="Create folder"
-            onAction={() => setShowModal(true)}
-          />
-        }
-        showsVerticalScrollIndicator={false}
-      />
+      >
+        {/* Unfiled */}
+        <Pressable
+          style={styles.folderRow}
+          onPress={() => router.push('/(tabs)/')}
+        >
+          <View style={[styles.folderIcon, { backgroundColor: C.ink3 }]}>
+            <Text style={styles.folderEmoji}>📋</Text>
+          </View>
+          <View style={styles.folderInfo}>
+            <Text style={styles.folderName}>Unfiled</Text>
+            <Text style={styles.folderCount}>
+              {unfiledCount} document{unfiledCount === 1 ? '' : 's'}
+            </Text>
+          </View>
+          <Text style={styles.folderChevron}>›</Text>
+        </Pressable>
 
-      {/* New Folder Modal */}
+        {folders.length === 0 ? (
+          <View style={styles.noFolders}>
+            <Text style={styles.noFoldersText}>
+              Tap + New to create your first folder.
+            </Text>
+          </View>
+        ) : (
+          folders.map(folder => {
+            const count = getFolderDocuments(folder.id).length;
+            return (
+              <Pressable
+                key={folder.id}
+                style={({ pressed }) => [styles.folderRow, pressed && { opacity: 0.75 }]}
+                onPress={() => setActiveFolder(folder)}
+                onLongPress={() => handleLongPress(folder)}
+                delayLongPress={400}
+              >
+                <View style={[styles.folderIcon, { backgroundColor: folder.color + '22' }]}>
+                  <Text style={[styles.folderIconText, { color: folder.color }]}>📁</Text>
+                </View>
+                <View style={styles.folderInfo}>
+                  <Text style={styles.folderName}>{folder.name}</Text>
+                  <Text style={styles.folderCount}>
+                    {count} document{count === 1 ? '' : 's'}
+                  </Text>
+                </View>
+                <Text style={styles.folderChevron}>›</Text>
+              </Pressable>
+            );
+          })
+        )}
+      </ScrollView>
+
+      {/* Create / Edit Modal */}
       <Modal
-        visible={showModal}
+        visible={showCreateModal}
         transparent
-        animationType="fade"
-        onRequestClose={() => setShowModal(false)}
+        animationType="slide"
+        onRequestClose={() => setShowCreateModal(false)}
       >
         <Pressable
-          style={styles.backdrop}
-          onPress={() => setShowModal(false)}
+          style={styles.modalBackdrop}
+          onPress={() => setShowCreateModal(false)}
         >
-          <Pressable style={styles.modalBox}>
-            <Text style={styles.modalTitle}>New Folder</Text>
+          <Pressable
+            style={[styles.modalSheet, { paddingBottom: insets.bottom + S[4] }]}
+            onPress={() => {}}
+          >
+            <View style={styles.sheetHandle} />
+            <Text style={styles.sheetTitle}>
+              {editingFolder ? 'Rename Folder' : 'New Folder'}
+            </Text>
+
             <TextInput
-              style={styles.input}
-              placeholder="Folder name"
-              placeholderTextColor={Colors.textFaint}
+              style={styles.folderNameInput}
               value={folderName}
               onChangeText={setFolderName}
+              placeholder="Folder name…"
+              placeholderTextColor={C.ash}
               autoFocus
-              onSubmitEditing={handleCreate}
+              maxLength={40}
               returnKeyType="done"
-              maxLength={60}
+              onSubmitEditing={handleSaveFolder}
             />
-            <View style={styles.modalActions}>
-              <Pressable
-                style={[styles.modalBtn, styles.modalBtnCancel]}
-                onPress={() => { setShowModal(false); setFolderName(''); }}
-              >
-                <Text style={styles.modalBtnCancelText}>Cancel</Text>
-              </Pressable>
-              <Pressable
-                style={[styles.modalBtn, styles.modalBtnCreate,
-                  !folderName.trim() && styles.modalBtnDisabled]}
-                onPress={handleCreate}
-                disabled={!folderName.trim()}
-              >
-                <Text style={styles.modalBtnCreateText}>Create</Text>
-              </Pressable>
+
+            {/* Color picker */}
+            <Text style={styles.colorLabel}>Color</Text>
+            <View style={styles.colorGrid}>
+              {FOLDER_COLORS.map(color => (
+                <Pressable
+                  key={color}
+                  style={[
+                    styles.colorSwatch,
+                    { backgroundColor: color },
+                    selectedColor === color && styles.colorSwatchSelected,
+                  ]}
+                  onPress={() => setSelectedColor(color)}
+                >
+                  {selectedColor === color && (
+                    <Text style={styles.colorCheck}>✓</Text>
+                  )}
+                </Pressable>
+              ))}
             </View>
+
+            <Pressable
+              style={[
+                styles.saveBtn,
+                !folderName.trim() && styles.saveBtnDisabled,
+              ]}
+              onPress={handleSaveFolder}
+              disabled={!folderName.trim()}
+            >
+              <Text style={styles.saveBtnText}>
+                {editingFolder ? 'Save Changes' : 'Create Folder'}
+              </Text>
+            </Pressable>
           </Pressable>
         </Pressable>
       </Modal>
@@ -138,90 +284,137 @@ export default function FoldersScreen() {
 }
 
 const styles = StyleSheet.create({
-  container:   { flex: 1, backgroundColor: Colors.bg },
+  container: { flex: 1, backgroundColor: C.ink1 },
   header: {
-    flexDirection:    'row',
-    alignItems:       'flex-end',
-    justifyContent:   'space-between',
-    paddingHorizontal: Spacing['6'],
-    paddingBottom:    Spacing['4'],
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: S[4],
+    paddingVertical: S[4],
+    borderBottomWidth: 1,
+    borderBottomColor: C.ink3,
   },
-  title: {
-    fontSize:   Typography.xxl,
-    fontWeight: Typography.bold,
-    color:      Colors.text,
-    letterSpacing: -0.5,
-  },
-  newBtn: {
-    paddingHorizontal: Spacing['4'],
-    paddingVertical:   Spacing['2'],
-    borderRadius:      Radius.full,
-    backgroundColor:   Colors.primary,
-    minHeight:         36,
-    justifyContent:    'center',
-  },
-  newBtnText:  { fontSize: Typography.sm, fontWeight: Typography.semibold, color: Colors.textInverse },
-  list:        { paddingHorizontal: Spacing['4'], paddingBottom: 40 },
-  listEmpty:   { flex: 1, justifyContent: 'center' },
-  folderRow: {
-    flexDirection:  'row',
-    alignItems:     'center',
-    backgroundColor: Colors.surface,
-    borderRadius:   Radius.lg,
-    padding:        Spacing['4'],
-    marginBottom:   Spacing['3'],
-    gap:            Spacing['3'],
-    ...Shadows.sm,
-  },
-  pressed:     { opacity: 0.75 },
-  folderIcon:  { fontSize: 28 },
-  folderMeta:  { flex: 1 },
-  folderName:  { fontSize: Typography.base, fontWeight: Typography.semibold, color: Colors.text },
-  folderHint:  { fontSize: Typography.xs, color: Colors.textFaint, marginTop: 2 },
-  chevron:     { fontSize: Typography.xl, color: Colors.textFaint },
-  backdrop: {
-    flex:            1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    justifyContent:  'center',
-    alignItems:      'center',
-    padding:         Spacing['6'],
-  },
-  modalBox: {
-    width:           '100%',
-    backgroundColor: Colors.surface2,
-    borderRadius:    Radius.xl,
-    padding:         Spacing['6'],
-    gap:             Spacing['4'],
-    ...Shadows.lg,
-  },
-  modalTitle: {
-    fontSize:   Typography.xl,
-    fontWeight: Typography.bold,
-    color:      Colors.text,
-  },
-  input: {
-    backgroundColor:  Colors.surfaceOffset,
-    borderRadius:     Radius.md,
-    paddingHorizontal: Spacing['4'],
-    paddingVertical:  Spacing['3'],
-    fontSize:         Typography.base,
-    color:            Colors.text,
-    borderWidth:      1,
-    borderColor:      Colors.border,
-    minHeight:        48,
-  },
-  modalActions:       { flexDirection: 'row', gap: Spacing['3'] },
-  modalBtn: {
-    flex:           1,
-    paddingVertical: Spacing['3'],
-    borderRadius:   Radius.md,
-    alignItems:     'center',
-    minHeight:      48,
+  screenTitle: { fontSize: T.xl, fontWeight: '700', color: C.cream },
+  newFolderBtn: {
+    backgroundColor: C.amberDim,
+    borderRadius: R.full,
+    paddingHorizontal: S[4],
+    paddingVertical: S[2],
+    minHeight: 36,
     justifyContent: 'center',
   },
-  modalBtnCancel:     { backgroundColor: Colors.surfaceDynamic },
-  modalBtnCreate:     { backgroundColor: Colors.primary },
-  modalBtnDisabled:   { opacity: 0.4 },
-  modalBtnCancelText: { fontSize: Typography.base, fontWeight: Typography.medium, color: Colors.textMuted },
-  modalBtnCreateText: { fontSize: Typography.base, fontWeight: Typography.semibold, color: Colors.textInverse },
+  newFolderBtnText: { fontSize: T.sm, color: C.amber, fontWeight: '600' },
+  backBtn: { minHeight: 44, justifyContent: 'center', paddingRight: S[4] },
+  backBtnText: { fontSize: T.base, color: C.amber, fontWeight: '500' },
+  headerTitleRow: { flexDirection: 'row', alignItems: 'center', gap: S[2] },
+  headerTitle: { fontSize: T.lg, fontWeight: '700', color: C.cream },
+  folderDot: { fontSize: 10 },
+  listContent: { padding: S[4], gap: S[2] },
+  folderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: C.ink2,
+    borderRadius: R.lg,
+    padding: S[4],
+    minHeight: 72,
+    gap: S[3],
+  },
+  folderIcon: {
+    width: 48, height: 48,
+    borderRadius: R.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  folderEmoji: { fontSize: 24 },
+  folderIconText: { fontSize: 24 },
+  folderInfo: { flex: 1 },
+  folderName: { fontSize: T.base, fontWeight: '600', color: C.cream },
+  folderCount: { fontSize: T.sm, color: C.ash, marginTop: 2 },
+  folderChevron: { fontSize: T.xl, color: C.ink4 },
+  noFolders: {
+    paddingVertical: S[8],
+    alignItems: 'center',
+  },
+  noFoldersText: { fontSize: T.base, color: C.ash, textAlign: 'center' },
+  emptyState: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: S[8],
+    gap: S[3],
+  },
+  emptyEmoji: { fontSize: 48, marginBottom: S[2] },
+  emptyTitle: { fontSize: T.lg, fontWeight: '700', color: C.cream, textAlign: 'center' },
+  emptyBody: { fontSize: T.base, color: C.ash, textAlign: 'center', lineHeight: 22 },
+  docItem: { marginBottom: S[3] },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    justifyContent: 'flex-end',
+  },
+  modalSheet: {
+    backgroundColor: C.ink2,
+    borderTopLeftRadius: R.xl,
+    borderTopRightRadius: R.xl,
+    paddingTop: S[3],
+    paddingHorizontal: S[4],
+  },
+  sheetHandle: {
+    width: 40, height: 4,
+    borderRadius: R.full,
+    backgroundColor: C.ink4,
+    alignSelf: 'center',
+    marginBottom: S[4],
+  },
+  sheetTitle: {
+    fontSize: T.lg, fontWeight: '600',
+    color: C.cream,
+    textAlign: 'center',
+    marginBottom: S[4],
+  },
+  folderNameInput: {
+    backgroundColor: C.ink3,
+    borderRadius: R.md,
+    paddingHorizontal: S[4],
+    paddingVertical: S[3],
+    fontSize: T.base,
+    color: C.cream,
+    minHeight: 48,
+    marginBottom: S[4],
+  },
+  colorLabel: {
+    fontSize: T.sm,
+    fontWeight: '600',
+    color: C.ash,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: S[2],
+  },
+  colorGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: S[3],
+    marginBottom: S[5],
+  },
+  colorSwatch: {
+    width: 36, height: 36,
+    borderRadius: R.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  colorSwatchSelected: {
+    borderWidth: 3,
+    borderColor: C.cream,
+  },
+  colorCheck: { fontSize: T.sm, color: C.cream, fontWeight: '700' },
+  saveBtn: {
+    backgroundColor: C.amber,
+    borderRadius: R.lg,
+    paddingVertical: S[4],
+    alignItems: 'center',
+    minHeight: 52,
+    justifyContent: 'center',
+  },
+  saveBtnDisabled: { opacity: 0.4 },
+  saveBtnText: { fontSize: T.base, fontWeight: '700', color: C.ink1 },
 });

@@ -1,48 +1,39 @@
+/**
+ * (tabs)/_layout.tsx — Phase 3 tab bar
+ *
+ * Tabs: Home | Search | Folders | Settings
+ * (Capture is a modal, not a tab)
+ */
+
 import { Tabs } from 'expo-router';
-import { Platform } from 'react-native';
-import { Colors, Typography, Spacing } from '@/theme';
-import { TabIcon } from '@/components/TabIcon';
+import { C, T } from '@/theme/tokens';
 
 export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
+        headerShown: false,
         tabBarStyle: {
-          backgroundColor:  Colors.surface,
-          borderTopColor:   Colors.divider,
-          borderTopWidth:   1,
-          paddingBottom:    Platform.OS === 'ios' ? Spacing['4'] : Spacing['2'],
-          paddingTop:       Spacing['2'],
-          height:           Platform.OS === 'ios' ? 84 : 64,
+          backgroundColor: C.ink2,
+          borderTopColor: C.ink3,
+          borderTopWidth: 1,
+          height: 60,
+          paddingBottom: 8,
         },
-        tabBarActiveTintColor:   Colors.primary,
-        tabBarInactiveTintColor: Colors.textFaint,
+        tabBarActiveTintColor: C.amber,
+        tabBarInactiveTintColor: C.ash,
         tabBarLabelStyle: {
-          fontSize:   Typography.xs,
-          fontWeight: Typography.medium,
-          marginTop:  2,
+          fontSize: T.xs,
+          fontWeight: '500',
         },
-        headerStyle:      { backgroundColor: Colors.bg },
-        headerTintColor:  Colors.text,
-        headerTitleStyle: { color: Colors.text, fontWeight: '600' },
-        headerShadowVisible: false,
       }}
     >
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Vault',
-          tabBarIcon: ({ color, focused }) => (
-            <TabIcon name="vault" color={color} focused={focused} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="folders"
-        options={{
-          title: 'Folders',
-          tabBarIcon: ({ color, focused }) => (
-            <TabIcon name="folders" color={color} focused={focused} />
+          title: 'Home',
+          tabBarIcon: ({ color }) => (
+            <TabIcon emoji="🏠" color={color} />
           ),
         }}
       />
@@ -50,8 +41,17 @@ export default function TabLayout() {
         name="search"
         options={{
           title: 'Search',
-          tabBarIcon: ({ color, focused }) => (
-            <TabIcon name="search" color={color} focused={focused} />
+          tabBarIcon: ({ color }) => (
+            <TabIcon emoji="🔍" color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="folders"
+        options={{
+          title: 'Folders',
+          tabBarIcon: ({ color }) => (
+            <TabIcon emoji="📁" color={color} />
           ),
         }}
       />
@@ -59,11 +59,16 @@ export default function TabLayout() {
         name="settings"
         options={{
           title: 'Settings',
-          tabBarIcon: ({ color, focused }) => (
-            <TabIcon name="settings" color={color} focused={focused} />
+          tabBarIcon: ({ color }) => (
+            <TabIcon emoji="⚙️" color={color} />
           ),
         }}
       />
     </Tabs>
   );
+}
+
+import { Text } from 'react-native';
+function TabIcon({ emoji, color }: { emoji: string; color: string }) {
+  return <Text style={{ fontSize: 22, color }}>{emoji}</Text>;
 }
