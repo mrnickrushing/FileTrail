@@ -1,12 +1,14 @@
 /**
- * viewer/[id].tsx — Full document viewer
+ * viewer/[id].tsx — Full document viewer (Phase 4)
  *
- * Displays a document in full-screen with:
- *   - Pinch-to-zoom for images (via react-native-gesture-handler + reanimated)
- *   - PDF rendering via expo-print WebView embed
- *   - Header with title, favorite toggle, share, delete actions
- *   - OCR text panel (expandable bottom sheet)
- *   - Edit title / category inline
+ * Images: pinch-to-zoom via ScrollView.
+ * PDFs:   react-native-pdf with page navigation + zoom, wrapped in a
+ *         try/require so the file compiles in Expo Go.  When the native
+ *         module isn't linked (Expo Go) a clear "requires development build"
+ *         notice is shown instead of crashing.
+ *
+ * Header: title edit, favorite toggle, share (expo-sharing), delete.
+ * Footer: expandable OCR text panel.
  */
 
 import React, { useState, useCallback, useRef } from 'react';
@@ -18,19 +20,35 @@ import {
   Pressable,
   StyleSheet,
   Alert,
-  Share,
   TextInput,
   ActivityIndicator,
   Dimensions,
   Modal,
+  Platform,
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Constants from 'expo-constants';
 import { useDocumentStore } from '@/store/documentStore';
+import { shareDocument } from '@/services/exportService';
 import { C, T, R, S } from '@/theme/tokens';
 import type { DocumentCategory } from '@/types/document';
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
+
+// Attempt to load react-native-pdf.  The require() will throw in Expo Go
+// because the native module is missing.  We catch and set to null.
+let RNPdf: React.ComponentType<any> | null = null;
+try {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  RNPdf = require('react-native-pdf').default;
+} catch {
+  RNPdf = null;
+}
+
+const IS_EXPO_GO =
+  Constants.executionEnvironment === 'storeClient' ||
+  (Constants as any).appOwnership === 'expo';
 
 const CATEGORY_LABELS: Record<DocumentCategory, string> = {
   receipt: '🧾 Receipt',
@@ -60,6 +78,13 @@ export default function DocumentViewerScreen() {
   const [showOCR, setShowOCR] = useState(false);
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isSharing, setIsSharing] = useState(false);
+
+  // PDF-specific state
+  const [pdfPage, setPdfPage] = useState(1);
+  const [pdfTotal, setPdfTotal] = useState(document?.pageCount ?? 1);
+  const [pdfError, setPdfError] = useState<string | null>(null);
+
   const titleInputRef = useRef<TextInput>(null);
 
   const handleSaveTitle = useCallback(() => {
@@ -74,15 +99,16 @@ export default function DocumentViewerScreen() {
   }, [document, editTitle, updateDocument]);
 
   const handleShare = useCallback(async () => {
-    if (!document) return;
+    if (!document || isSharing) return;
+    setIsSharing(true);
     try {
-      await Share.share({
-        title: document.title,
-        url: document.fileUri,
-        message: `${document.title} — shared from PaperTrail`,
-      });
-    } catch {/* user cancelled */}
-  }, [document]);
+      await shareDocument(document);
+    } catch (err: any) {
+      Alert.alert('Share Failed', err?.message ?? 'Could not share this document.');
+    } finally {
+      setIsSharing(false);
+    }
+  }, [document, isSharing]);
 
   const handleDelete = useCallback(() => {
     if (!document) return;
@@ -100,7 +126,7 @@ export default function DocumentViewerScreen() {
             router.replace('/(tabs)/');
           },
         },
-      ]
+      ],
     );
   }, [document, deleteDocument]);
 
@@ -122,17 +148,12 @@ export default function DocumentViewerScreen() {
   }
 
   const isPDF = document.mimeType.includes('pdf');
-  const isImage = !isPDF;
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       {/* ── Header ── */}
       <View style={styles.header}>
-        <Pressable
-          style={styles.headerBtn}
-          onPress={() => router.back()}
-          hitSlop={8}
-        >
+        <Pressable style={styles.headerBtn} onPress={() => router.back()} hitSlop={8}>
           <Text style={styles.headerBtnText}>‹ Back</Text>
         </Pressable>
 
@@ -147,7 +168,10 @@ export default function DocumentViewerScreen() {
             </Text>
           </Pressable>
           <Pressable style={styles.headerIconBtn} onPress={handleShare} hitSlop={8}>
-            <Text style={styles.headerIcon}>↑</Text>
+            {isSharing
+              ? <ActivityIndicator size="small" color={C.ash} />
+              : <Text style={styles.headerIcon}>↑</Text>
+            }
           </Pressable>
           <Pressable style={styles.headerIconBtn} onPress={handleDelete} hitSlop={8}>
             <Text style={[styles.headerIcon, { color: C.danger }]}>🗑</Text>
@@ -163,7 +187,7 @@ export default function DocumentViewerScreen() {
       >
         {/* Document preview */}
         <View style={styles.previewCard}>
-          {isImage ? (
+          {!isPDF ? (
             <ScrollView
               maximumZoomScale={4}
               minimumZoomScale={1}
@@ -179,21 +203,18 @@ export default function DocumentViewerScreen() {
               />
             </ScrollView>
           ) : (
-            <View style={styles.pdfPlaceholder}>
-              {document.thumbnailUri ? (
-                <Image
-                  source={{ uri: document.thumbnailUri }}
-                  style={styles.pdfThumb}
-                  resizeMode="cover"
-                />
-              ) : (
-                <Text style={styles.pdfIcon}>📄</Text>
-              )}
-              <Text style={styles.pdfLabel}>PDF Document</Text>
-              <Text style={styles.pdfMeta}>
-                {document.pageCount} {document.pageCount === 1 ? 'page' : 'pages'}
-              </Text>
-            </View>
+            <PDFViewer
+              uri={document.fileUri}
+              page={pdfPage}
+              totalPages={pdfTotal}
+              error={pdfError}
+              onPageChange={setPdfPage}
+              onLoadComplete={(total) => {
+                setPdfTotal(total);
+                updateDocument(document.id, { pageCount: total });
+              }}
+              onError={(msg) => setPdfError(msg)}
+            />
           )}
         </View>
 
@@ -237,12 +258,13 @@ export default function DocumentViewerScreen() {
             <Text style={styles.categoryChevron}>›</Text>
           </Pressable>
 
-          {/* Meta */}
+          {/* Meta chips */}
           <View style={styles.metaRow}>
             <MetaChip label={formatBytes(document.fileSizeBytes)} />
             <MetaChip label={new Date(document.createdAt).toLocaleDateString('en-US', {
-              month: 'short', day: 'numeric', year: 'numeric'
+              month: 'short', day: 'numeric', year: 'numeric',
             })} />
+            {isPDF && <MetaChip label={`${pdfTotal} ${pdfTotal === 1 ? 'page' : 'pages'}`} />}
             {document.isFavorite && <MetaChip label="★ Favorited" amber />}
           </View>
         </View>
@@ -294,7 +316,10 @@ export default function DocumentViewerScreen() {
             {CATEGORIES.map(cat => (
               <Pressable
                 key={cat}
-                style={[styles.categoryOption, document.category === cat && styles.categoryOptionSelected]}
+                style={[
+                  styles.categoryOption,
+                  document.category === cat && styles.categoryOptionSelected,
+                ]}
                 onPress={() => handleCategorySelect(cat)}
               >
                 <Text style={[
@@ -321,6 +346,107 @@ export default function DocumentViewerScreen() {
   );
 }
 
+// ─── PDF Viewer sub-component ──────────────────────────────────────────────────
+
+interface PDFViewerProps {
+  uri: string;
+  page: number;
+  totalPages: number;
+  error: string | null;
+  onPageChange: (page: number) => void;
+  onLoadComplete: (total: number) => void;
+  onError: (msg: string) => void;
+}
+
+function PDFViewer({
+  uri, page, totalPages, error, onPageChange, onLoadComplete, onError,
+}: PDFViewerProps) {
+  const [loading, setLoading] = useState(true);
+
+  // Show friendly notice in Expo Go or if the module didn't load.
+  if (IS_EXPO_GO || !RNPdf) {
+    return (
+      <View style={pdfStyles.placeholder}>
+        <Text style={pdfStyles.icon}>📄</Text>
+        <Text style={pdfStyles.title}>PDF Viewer</Text>
+        <Text style={pdfStyles.subtitle}>
+          Native PDF viewing requires a development build.{'\n'}
+          Run{' '}
+          <Text style={pdfStyles.code}>eas build --profile development</Text>
+          {'\n'}then install the build on your device.
+        </Text>
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View style={pdfStyles.placeholder}>
+        <Text style={pdfStyles.icon}>⚠️</Text>
+        <Text style={pdfStyles.title}>Could not open PDF</Text>
+        <Text style={pdfStyles.subtitle}>{error}</Text>
+      </View>
+    );
+  }
+
+  const Pdf = RNPdf!;
+
+  return (
+    <View style={pdfStyles.container}>
+      {loading && (
+        <View style={pdfStyles.loadingOverlay}>
+          <ActivityIndicator size="large" color={C.amber} />
+        </View>
+      )}
+
+      <Pdf
+        source={{ uri, cache: true }}
+        page={page}
+        style={pdfStyles.pdf}
+        enablePaging
+        horizontal={false}
+        onLoadComplete={(numberOfPages: number) => {
+          setLoading(false);
+          onLoadComplete(numberOfPages);
+        }}
+        onPageChanged={(p: number) => onPageChange(p)}
+        onError={(err: any) => {
+          setLoading(false);
+          onError(err?.message ?? 'Unknown error');
+        }}
+        trustAllCerts={false}
+      />
+
+      {/* Page controls */}
+      {totalPages > 1 && (
+        <View style={pdfStyles.pageBar}>
+          <Pressable
+            style={[pdfStyles.pageBtn, page <= 1 && pdfStyles.pageBtnDisabled]}
+            onPress={() => onPageChange(Math.max(1, page - 1))}
+            disabled={page <= 1}
+            hitSlop={8}
+          >
+            <Text style={pdfStyles.pageBtnText}>‹</Text>
+          </Pressable>
+          <Text style={pdfStyles.pageLabel}>
+            {page} / {totalPages}
+          </Text>
+          <Pressable
+            style={[pdfStyles.pageBtn, page >= totalPages && pdfStyles.pageBtnDisabled]}
+            onPress={() => onPageChange(Math.min(totalPages, page + 1))}
+            disabled={page >= totalPages}
+            hitSlop={8}
+          >
+            <Text style={pdfStyles.pageBtnText}>›</Text>
+          </Pressable>
+        </View>
+      )}
+    </View>
+  );
+}
+
+// ── Shared helper components ───────────────────────────────────────────────────
+
 function MetaChip({ label, amber }: { label: string; amber?: boolean }) {
   return (
     <View style={[styles.metaChip, amber && styles.metaChipAmber]}>
@@ -332,11 +458,71 @@ function MetaChip({ label, amber }: { label: string; amber?: boolean }) {
 }
 
 function formatBytes(bytes: number): string {
-  if (bytes === 0) return '—';
+  if (!bytes) return '—';
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
+
+// ── Styles ────────────────────────────────────────────────────────────────────
+
+const PDF_HEIGHT = SCREEN_H * 0.55;
+
+const pdfStyles = StyleSheet.create({
+  container: {
+    width: '100%',
+    height: PDF_HEIGHT,
+  },
+  pdf: {
+    flex: 1,
+    width: '100%',
+  },
+  loadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: C.ink2,
+    zIndex: 1,
+  },
+  placeholder: {
+    height: 240,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: S[6],
+    gap: S[3],
+  },
+  icon: { fontSize: 48 },
+  title: { fontSize: T.base, color: C.ash, fontWeight: '600', textAlign: 'center' },
+  subtitle: {
+    fontSize: T.sm,
+    color: C.ink4,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  code: {
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+    color: C.amber,
+  },
+  pageBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: S[2],
+    gap: S[4],
+    backgroundColor: 'rgba(0,0,0,0.45)',
+  },
+  pageBtn: {
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: C.ink3,
+    borderRadius: R.md,
+  },
+  pageBtnDisabled: { opacity: 0.35 },
+  pageBtnText: { fontSize: T.xl, color: C.cream, lineHeight: T.xl + 4 },
+  pageLabel: { fontSize: T.sm, color: C.ash, minWidth: 60, textAlign: 'center' },
+});
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: C.ink1 },
@@ -377,16 +563,6 @@ const styles = StyleSheet.create({
     width: SCREEN_W - S[8],
     height: SCREEN_H * 0.5,
   },
-  pdfPlaceholder: {
-    height: 220,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: S[2],
-  },
-  pdfThumb: { width: 160, height: 160, borderRadius: R.md },
-  pdfIcon: { fontSize: 56 },
-  pdfLabel: { fontSize: T.base, color: C.ash, fontWeight: '500' },
-  pdfMeta: { fontSize: T.sm, color: C.ink4 },
   metaSection: { paddingHorizontal: S[4], gap: S[3] },
   titleRow: {
     flexDirection: 'row',
@@ -494,9 +670,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  notFound: { flex: 1, backgroundColor: C.ink1, alignItems: 'center', justifyContent: 'center', gap: S[4] },
+  notFound: {
+    flex: 1, backgroundColor: C.ink1,
+    alignItems: 'center', justifyContent: 'center', gap: S[4],
+  },
   notFoundText: { fontSize: T.lg, color: C.ash },
   backLink: { minHeight: 44, justifyContent: 'center' },
   backLinkText: { fontSize: T.base, color: C.amber },
-  danger: C.danger,
 });

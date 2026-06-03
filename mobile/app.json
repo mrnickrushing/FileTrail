@@ -38,9 +38,18 @@
       "expo-router",
       "expo-sqlite",
       "expo-local-authentication",
+      "expo-dev-client",
       [
         "expo-camera",
         { "cameraPermission": "PaperTrail uses your camera to scan documents." }
+      ],
+      [
+        "@config-plugins/react-native-pdf",
+        {}
+      ],
+      [
+        "@config-plugins/react-native-blob-util",
+        {}
       ]
     ],
     "scheme": "papertrail",
