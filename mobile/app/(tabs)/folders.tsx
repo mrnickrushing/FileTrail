@@ -24,6 +24,7 @@ import { router } from 'expo-router';
 import { useDocumentStore } from '@/store/documentStore';
 import { DocumentCard } from '@/components/DocumentCard';
 import { FAB } from '@/components/FAB';
+import { SkeletonList } from '@/components/SkeletonLoader';
 import { C, T, R, S } from '@/theme/tokens';
 import type { Folder } from '@/types/document';
 
@@ -36,6 +37,7 @@ export default function FoldersScreen() {
   const insets = useSafeAreaInsets();
   const folders = useDocumentStore(s => s.folders);
   const documents = useDocumentStore(s => s.documents);
+  const isLoading = useDocumentStore(s => s.isLoading);
   const addFolder = useDocumentStore(s => s.addFolder);
   const updateFolder = useDocumentStore(s => s.updateFolder);
   const deleteFolder = useDocumentStore(s => s.deleteFolder);
@@ -156,6 +158,10 @@ export default function FoldersScreen() {
           <Text style={styles.newFolderBtnText}>+ New</Text>
         </Pressable>
       </View>
+
+      {isLoading && folders.length === 0 ? (
+        <SkeletonList count={4} />
+      ) : null}
 
       <ScrollView
         contentContainerStyle={[
