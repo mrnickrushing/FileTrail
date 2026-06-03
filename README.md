@@ -198,6 +198,8 @@ All queries use parameterized statements. No raw string interpolation.
 
 ## Development Phases
 
+See [`docs/roadmap.md`](docs/roadmap.md) for the original planning document (written after Phase 3).
+
 | Phase | Status | Scope |
 |---|---|---|
 | 1 — Foundation | ✅ Done | Project setup, navigation, theme, local DB |
