@@ -208,7 +208,7 @@ All queries use parameterized statements. No raw string interpolation.
 | 6 — OCR & Search | ✅ Done | OCR retry, metadata extraction, smarter search |
 | 7 — Backup & Sync | ✅ Done | Encrypted backup, restore, cloud sync architecture |
 | 8 — Security | ✅ Done | Biometric lock, redaction, privacy hardening |
-| 9 — Polish | — | Performance, accessibility, skeleton loaders |
+| 9 — Polish | ✅ Done | Performance, accessibility, skeleton loaders |
 | 10 — Launch | — | Onboarding, store assets, analytics |
 
 ---

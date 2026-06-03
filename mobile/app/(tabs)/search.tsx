@@ -9,7 +9,7 @@
  *   - Metadata chips: inferred date, vendor, amounts from OCR
  */
 
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useCallback, useEffect, useRef, memo } from 'react';
 import {
   View,
   Text,
@@ -30,6 +30,7 @@ import {
   removeRecentSearch,
   clearSearchHistory,
 } from '@/services/searchHistory';
+import { useDebounce } from '@/utils/useDebounce';
 import { C, T, R, S } from '@/theme/tokens';
 import type { SearchResult } from '@/types/document';
 
@@ -44,8 +45,8 @@ export default function SearchScreen() {
   const [isSearching, setIsSearching] = useState(false);
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const [sortByDate, setSortByDate] = useState(false);
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const inputRef = useRef<TextInput>(null);
+  const debouncedQuery = useDebounce(query, 150);
 
   useEffect(() => {
     getRecentSearches().then(setRecentSearches);
@@ -66,10 +67,8 @@ export default function SearchScreen() {
   }, [searchFn]);
 
   useEffect(() => {
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => runSearch(query), 150);
-    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
-  }, [query, runSearch]);
+    runSearch(debouncedQuery);
+  }, [debouncedQuery, runSearch]);
 
   const commitSearch = useCallback(async (q: string) => {
     if (!q.trim()) return;

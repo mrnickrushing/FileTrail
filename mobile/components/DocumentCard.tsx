@@ -69,9 +69,19 @@ export function DocumentCard({
     day: 'numeric',
   });
 
+  const a11yLabel = `${document.title}, ${CATEGORY_LABELS[document.category]}${document.isFavorite ? ', favorited' : ''}${isSelected ? ', selected' : ''}`;
+
   if (compact) {
     return (
-      <Pressable style={styles.compactCard} onPress={onPress} onLongPress={onLongPress}>
+      <Pressable
+        style={styles.compactCard}
+        onPress={onPress}
+        onLongPress={onLongPress}
+        accessible
+        accessibilityLabel={a11yLabel}
+        accessibilityRole="button"
+        accessibilityState={{ selected: isSelected }}
+      >
         {selectionMode && (
           <View style={[styles.checkbox, isSelected && styles.checkboxSelected]}>
             {isSelected && <Text style={styles.checkmark}>✓</Text>}
@@ -113,6 +123,11 @@ export function DocumentCard({
       style={[styles.card, isSelected && styles.cardSelected]}
       onPress={onPress}
       onLongPress={onLongPress}
+      accessible
+      accessibilityLabel={a11yLabel}
+      accessibilityRole="button"
+      accessibilityState={{ selected: isSelected }}
+      accessibilityHint={selectionMode ? 'Double tap to toggle selection' : 'Double tap to open document'}
     >
       {selectionMode && (
         <View style={styles.checkboxContainer}>

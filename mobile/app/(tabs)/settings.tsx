@@ -29,8 +29,8 @@ import { createBackup, restoreBackup } from '@/services/backupService';
 import { getBiometricCapability, authenticate } from '@/services/biometricService';
 import { C, T, R, S } from '@/theme/tokens';
 
-const APP_VERSION = '0.8.0';
-const BUILD = 'Phase 8 — Biometric Lock · Privacy';
+const APP_VERSION = '0.9.0';
+const BUILD = 'Phase 9 — Skeleton Loaders · Accessibility · Performance';
 
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
