@@ -31,6 +31,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Constants from 'expo-constants';
 import { useDocumentStore } from '@/store/documentStore';
 import { shareDocument } from '@/services/exportService';
+import { TagEditor } from '@/components/TagEditor';
 import { C, T, R, S } from '@/theme/tokens';
 import type { DocumentCategory } from '@/types/document';
 
@@ -70,6 +71,8 @@ export default function DocumentViewerScreen() {
 
   const document = useDocumentStore(s => s.getDocument(id));
   const updateDocument = useDocumentStore(s => s.updateDocument);
+  const updateDocumentTags = useDocumentStore(s => s.updateDocumentTags);
+  const getAllTags = useDocumentStore(s => s.getAllTags);
   const deleteDocument = useDocumentStore(s => s.deleteDocument);
   const toggleFavorite = useDocumentStore(s => s.toggleFavorite);
 
@@ -77,6 +80,7 @@ export default function DocumentViewerScreen() {
   const [editTitle, setEditTitle] = useState(document?.title ?? '');
   const [showOCR, setShowOCR] = useState(false);
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
+  const [showTagEditor, setShowTagEditor] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
 
@@ -267,6 +271,26 @@ export default function DocumentViewerScreen() {
             {isPDF && <MetaChip label={`${pdfTotal} ${pdfTotal === 1 ? 'page' : 'pages'}`} />}
             {document.isFavorite && <MetaChip label="★ Favorited" amber />}
           </View>
+
+          {/* Tags */}
+          <Pressable style={styles.tagsRow} onPress={() => setShowTagEditor(true)}>
+            {document.tags.length > 0 ? (
+              <>
+                {document.tags.map(tag => (
+                  <View key={tag} style={styles.tagChip}>
+                    <Text style={styles.tagChipText}>#{tag}</Text>
+                  </View>
+                ))}
+                <View style={styles.tagAddChip}>
+                  <Text style={styles.tagAddText}>✎</Text>
+                </View>
+              </>
+            ) : (
+              <View style={styles.tagAddChip}>
+                <Text style={styles.tagAddText}>+ Add tags</Text>
+              </View>
+            )}
+          </Pressable>
         </View>
 
         {/* ── OCR Panel ── */}
@@ -295,6 +319,18 @@ export default function DocumentViewerScreen() {
           </View>
         )}
       </ScrollView>
+
+      {/* ── Tag Editor ── */}
+      <TagEditor
+        visible={showTagEditor}
+        initialTags={document.tags}
+        allTags={getAllTags()}
+        onConfirm={(tags) => {
+          updateDocumentTags(document.id, tags);
+          setShowTagEditor(false);
+        }}
+        onCancel={() => setShowTagEditor(false)}
+      />
 
       {/* ── Category Picker Modal ── */}
       <Modal
@@ -599,6 +635,29 @@ const styles = StyleSheet.create({
   categoryLabel: { flex: 1, fontSize: T.base, color: C.cream },
   categoryChevron: { fontSize: T.lg, color: C.ash },
   metaRow: { flexDirection: 'row', flexWrap: 'wrap', gap: S[2] },
+  tagsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: S[2],
+    paddingTop: S[1],
+  },
+  tagChip: {
+    backgroundColor: C.amberDim,
+    borderRadius: R.full,
+    paddingHorizontal: S[3],
+    paddingVertical: S[1],
+  },
+  tagChipText: { fontSize: T.xs, color: C.amber, fontWeight: '600' },
+  tagAddChip: {
+    backgroundColor: C.ink3,
+    borderRadius: R.full,
+    paddingHorizontal: S[3],
+    paddingVertical: S[1],
+    borderWidth: 1,
+    borderColor: C.ink4,
+    borderStyle: 'dashed',
+  },
+  tagAddText: { fontSize: T.xs, color: C.ash },
   metaChip: {
     backgroundColor: C.ink3,
     borderRadius: R.full,

@@ -32,6 +32,13 @@ interface DocumentState {
   toggleFavorite: (id: string) => void;
   moveDocumentToFolder: (documentId: string, folderId: string | null) => void;
 
+  // Bulk document actions
+  bulkDelete: (ids: string[]) => Promise<void>;
+  bulkMove: (ids: string[], folderId: string | null) => void;
+  bulkSetTags: (ids: string[], tags: string[]) => void;
+  updateDocumentTags: (id: string, tags: string[]) => void;
+  getAllTags: () => string[];
+
   // Folder actions
   addFolder: (name: string, color?: string) => Folder;
   updateFolder: (id: string, patch: Partial<Pick<Folder, 'name' | 'color'>>) => void;
@@ -135,6 +142,44 @@ export const useDocumentStore = create<DocumentState>()(
             doc.id === id ? { ...doc, isFavorite: !doc.isFavorite, updatedAt: nowIso() } : doc
           ),
         }));
+      },
+
+      bulkDelete: async (ids) => {
+        const docs = get().documents.filter((d) => ids.includes(d.id));
+        set((s) => ({ documents: s.documents.filter((d) => !ids.includes(d.id)) }));
+        await Promise.all(docs.map((d) => deleteDocumentFiles(d.id).catch(() => undefined)));
+      },
+
+      bulkMove: (ids, folderId) => {
+        set((s) => ({
+          documents: s.documents.map((doc) =>
+            ids.includes(doc.id) ? { ...doc, folderId, updatedAt: nowIso() } : doc
+          ),
+        }));
+      },
+
+      bulkSetTags: (ids, tags) => {
+        set((s) => ({
+          documents: s.documents.map((doc) =>
+            ids.includes(doc.id) ? { ...doc, tags, updatedAt: nowIso() } : doc
+          ),
+        }));
+      },
+
+      updateDocumentTags: (id, tags) => {
+        set((s) => ({
+          documents: s.documents.map((doc) =>
+            doc.id === id ? { ...doc, tags, updatedAt: nowIso() } : doc
+          ),
+        }));
+      },
+
+      getAllTags: () => {
+        const tagSet = new Set<string>();
+        for (const doc of get().documents) {
+          for (const tag of doc.tags) tagSet.add(tag);
+        }
+        return Array.from(tagSet).sort();
       },
 
       moveDocumentToFolder: (documentId, folderId) => {

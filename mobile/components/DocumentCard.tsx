@@ -47,6 +47,9 @@ interface DocumentCardProps {
   compact?: boolean;
   onPress?: () => void;
   onLongPress?: () => void;
+  /** Multi-select state */
+  selectionMode?: boolean;
+  isSelected?: boolean;
 }
 
 export function DocumentCard({
@@ -54,6 +57,8 @@ export function DocumentCard({
   compact = false,
   onPress,
   onLongPress,
+  selectionMode = false,
+  isSelected = false,
 }: DocumentCardProps) {
   const accentColor = CATEGORY_COLORS[document.category];
   const isUpcoming = false; // documents don't have event dates
@@ -67,6 +72,11 @@ export function DocumentCard({
   if (compact) {
     return (
       <Pressable style={styles.compactCard} onPress={onPress} onLongPress={onLongPress}>
+        {selectionMode && (
+          <View style={[styles.checkbox, isSelected && styles.checkboxSelected]}>
+            {isSelected && <Text style={styles.checkmark}>✓</Text>}
+          </View>
+        )}
         {/* Thumbnail or category color block */}
         <View style={styles.compactThumb}>
           {document.thumbnailUri ? (
@@ -99,7 +109,18 @@ export function DocumentCard({
   }
 
   return (
-    <Pressable style={styles.card} onPress={onPress} onLongPress={onLongPress}>
+    <Pressable
+      style={[styles.card, isSelected && styles.cardSelected]}
+      onPress={onPress}
+      onLongPress={onLongPress}
+    >
+      {selectionMode && (
+        <View style={styles.checkboxContainer}>
+          <View style={[styles.checkbox, isSelected && styles.checkboxSelected]}>
+            {isSelected && <Text style={styles.checkmark}>✓</Text>}
+          </View>
+        </View>
+      )}
       {/* Category accent — uses borderLeftWidth instead of absolute positioned strip
           to avoid overflow:hidden clipping the corner radius */}
       <View style={[styles.accentBar, { backgroundColor: accentColor }]} />
@@ -160,12 +181,38 @@ const styles = StyleSheet.create({
     backgroundColor: C.ink2,
     borderRadius: R.lg,
     flexDirection: 'row',
-    overflow: 'visible', // no longer clipped — accent bar uses borderLeftWidth
+    overflow: 'visible',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.12,
     shadowRadius: 6,
     elevation: 3,
+  },
+  cardSelected: {
+    borderWidth: 1.5,
+    borderColor: C.amber,
+  },
+  checkboxContainer: {
+    justifyContent: 'center',
+    paddingLeft: S[3],
+  },
+  checkbox: {
+    width: 22,
+    height: 22,
+    borderRadius: R.full,
+    borderWidth: 2,
+    borderColor: C.ink4,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkboxSelected: {
+    backgroundColor: C.amber,
+    borderColor: C.amber,
+  },
+  checkmark: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: C.ink1,
   },
   accentBar: {
     width: 3,
