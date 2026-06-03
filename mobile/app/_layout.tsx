@@ -25,15 +25,15 @@ export default function RootLayout() {
     SplashScreen.hideAsync();
     processOCRQueue();
     track('app_opened');
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-    // Show onboarding on first launch
+  useEffect(() => {
     if (!hasOnboarded) {
       router.replace('/onboarding');
     }
+  }, [hasOnboarded]);
 
-    // Lock when app goes to background
-    if (biometricEnabled) setLocked(true);
-
+  useEffect(() => {
     const sub = AppState.addEventListener('change', (next) => {
       if (
         biometricEnabled &&
@@ -44,9 +44,8 @@ export default function RootLayout() {
       }
       appStateRef.current = next;
     });
-
     return () => sub.remove();
-  }, [biometricEnabled, hasOnboarded]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [biometricEnabled, setLocked]);
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>

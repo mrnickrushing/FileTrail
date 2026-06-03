@@ -45,7 +45,6 @@ export default function VaultScreen() {
     loadDocuments,
     filters,
     setFilters,
-    getAllTags,
     bulkDelete,
     bulkMove,
     bulkSetTags,
@@ -53,7 +52,12 @@ export default function VaultScreen() {
 
   // ── Filter logic ──────────────────────────────────────────────────────────
 
-  const allTags = useMemo(() => getAllTags(), [getAllTags, documents]);
+  // Derive tags directly from documents so useMemo dep is stable
+  const allTags = useMemo(() => {
+    const tagSet = new Set<string>();
+    for (const doc of documents) for (const tag of doc.tags) tagSet.add(tag);
+    return Array.from(tagSet).sort();
+  }, [documents]);
 
   const visibleDocuments = useMemo(() => {
     let docs = [...documents];
@@ -62,7 +66,8 @@ export default function VaultScreen() {
     if (filters.tags?.length) {
       docs = docs.filter((d) => filters.tags!.every((tag) => d.tags.includes(tag)));
     }
-    return docs.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    // Sort by ISO date string descending — localeCompare is correct for ISO 8601
+    return docs.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
   }, [documents, filters]);
 
   // ── Multi-select state ─────────────────────────────────────────────────────

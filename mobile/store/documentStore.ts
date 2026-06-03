@@ -63,12 +63,14 @@ function nowIso(): string {
 
 function buildSnippet(text: string, term: string, windowChars = 120): string {
   const lower = text.toLowerCase();
-  const idx = lower.indexOf(term.toLowerCase());
+  const termLower = term.toLowerCase();
+  const idx = lower.indexOf(termLower);
   if (idx === -1) return text.slice(0, windowChars);
   const start = Math.max(0, idx - 40);
   const end = Math.min(text.length, idx + term.length + 80);
   const raw = text.slice(start, end);
   const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  // gi flag to highlight ALL occurrences in the snippet window
   const re = new RegExp(`(${escaped})`, 'gi');
   return `${start > 0 ? '…' : ''}${raw.replace(re, '<mark>$1</mark>')}${end < text.length ? '…' : ''}`;
 }
@@ -79,7 +81,7 @@ function applyFilters(documents: Document[], filters: SearchFilters): Document[]
   if (filters.category) {
     docs = docs.filter((doc) => doc.category === filters.category);
   }
-  if (filters.folderId !== undefined) {
+  if ('folderId' in filters && filters.folderId !== undefined) {
     docs = docs.filter((doc) => doc.folderId === filters.folderId);
   }
   if (filters.isFavorite) {
@@ -119,8 +121,9 @@ export const useDocumentStore = create<DocumentState>()(
         const now = nowIso();
         const full: Document = { ...doc, createdAt: now, updatedAt: now };
         set((s) => ({ documents: [full, ...s.documents] }));
-        // Auto-enqueue OCR for image documents
-        if (!doc.mimeType.includes('pdf') && doc.ocrStatus === 'pending') {
+        // Auto-enqueue OCR for image documents only (not PDFs)
+        const isImage = /^image\/(jpeg|png|heic|heif|webp|gif|tiff)/.test(doc.mimeType);
+        if (isImage && doc.ocrStatus === 'pending') {
           enqueueOCR(doc.id, doc.fileUri);
         }
       },
@@ -145,6 +148,7 @@ export const useDocumentStore = create<DocumentState>()(
       },
 
       processOCRQueue: () => {
+        // Only enqueue docs that are pending (not already processing or done)
         const pending = get().documents.filter((d) => d.ocrStatus === 'pending');
         for (const doc of pending) enqueueOCR(doc.id, doc.fileUri);
       },
@@ -208,6 +212,7 @@ export const useDocumentStore = create<DocumentState>()(
         return Array.from(tagSet).sort();
       },
 
+
       moveDocumentToFolder: (documentId, folderId) => {
         set((s) => ({
           documents: s.documents.map((doc) =>
@@ -216,7 +221,7 @@ export const useDocumentStore = create<DocumentState>()(
         }));
       },
 
-      addFolder: (name, color = '#F59E0B') => {
+      addFolder: (name, color = '#F59E0B' /* C.amber */) => {
         const now = nowIso();
         const folder: Folder = { id: nanoid(), name, color, createdAt: now, updatedAt: now };
         set((s) => ({ folders: [...s.folders, folder] }));
