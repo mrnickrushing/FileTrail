@@ -19,9 +19,13 @@ type QueueEntry = { id: string; uri: string };
 let queue: QueueEntry[] = [];
 let running = false;
 
-/** Enqueue a document for OCR. Safe to call multiple times — deduplicates. */
+/** Enqueue a document for OCR. Safe to call multiple times — deduplicates by id and running status. */
 export function enqueueOCR(id: string, uri: string): void {
   if (queue.some((e) => e.id === id)) return;
+  // Also skip if this doc is already being processed (e.g. on app reopen)
+  const store = useDocumentStore.getState();
+  const doc = store.documents.find((d) => d.id === id);
+  if (doc?.ocrStatus === 'processing') return;
   queue.push({ id, uri });
   if (!running) processNext();
 }
