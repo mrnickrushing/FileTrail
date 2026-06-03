@@ -22,6 +22,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
+import { useIsFocused } from '@react-navigation/native';
 import { useDocumentStore } from '@/store/documentStore';
 import { DocumentCard } from '@/components/DocumentCard';
 import {
@@ -40,6 +41,7 @@ export default function SearchScreen() {
   const retryOCR = useDocumentStore(s => s.retryOCR);
   const totalDocs = useDocumentStore(s => s.documents.length);
 
+  const isFocused = useIsFocused();
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -51,6 +53,14 @@ export default function SearchScreen() {
   useEffect(() => {
     getRecentSearches().then(setRecentSearches);
   }, []);
+
+  // Auto-focus when tab becomes active
+  useEffect(() => {
+    if (isFocused) {
+      const t = setTimeout(() => inputRef.current?.focus(), 100);
+      return () => clearTimeout(t);
+    }
+  }, [isFocused]);
 
   const runSearch = useCallback((q: string) => {
     if (!q.trim()) {
@@ -187,7 +197,7 @@ export default function SearchScreen() {
           data={sortedResults}
           keyExtractor={item => item.document.id}
           renderItem={renderItem}
-          contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + S[8] }]}
+          contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + 100 }]}
           keyboardDismissMode="on-drag"
           keyboardShouldPersistTaps="handled"
           ListHeaderComponent={
@@ -225,8 +235,36 @@ function RecentSearchesPanel({
   onRemove: (q: string) => void;
   onClear: () => void;
 }) {
-  if (recent.length === 0) {
-    return (
+  return (
+    <View style={styles.recentPanel}>
+      {recent.length > 0 ? (
+        <>
+          <View style={styles.recentHeader}>
+            <Text style={styles.recentTitle}>Recent Searches</Text>
+            <Pressable onPress={onClear} hitSlop={8}>
+              <Text style={styles.clearText}>Clear all</Text>
+            </Pressable>
+          </View>
+          {/* Horizontal pill chips for recent searches */}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.recentChips}
+          >
+            {recent.map(q => (
+              <View key={q} style={styles.recentChip}>
+                <Pressable onPress={() => onPick(q)} style={styles.recentChipLabel}>
+                  <Text style={styles.recentChipText}>🕐 {q}</Text>
+                </Pressable>
+                <Pressable onPress={() => onRemove(q)} hitSlop={6} style={styles.recentChipRemove}>
+                  <Text style={styles.recentChipRemoveText}>×</Text>
+                </Pressable>
+              </View>
+            ))}
+          </ScrollView>
+        </>
+      ) : null}
+
       <View style={styles.emptyState}>
         <Text style={styles.emptyEmoji}>🔍</Text>
         <Text style={styles.emptyTitle}>Search your documents</Text>
@@ -236,27 +274,6 @@ function RecentSearchesPanel({
             : 'Add documents first, then search across their titles and text content.'}
         </Text>
       </View>
-    );
-  }
-  return (
-    <View style={styles.recentPanel}>
-      <View style={styles.recentHeader}>
-        <Text style={styles.recentTitle}>Recent</Text>
-        <Pressable onPress={onClear} hitSlop={8}>
-          <Text style={styles.clearText}>Clear</Text>
-        </Pressable>
-      </View>
-      {recent.map(q => (
-        <View key={q} style={styles.recentRow}>
-          <Pressable style={styles.recentQuery} onPress={() => onPick(q)}>
-            <Text style={styles.recentIcon}>🕐</Text>
-            <Text style={styles.recentText}>{q}</Text>
-          </Pressable>
-          <Pressable onPress={() => onRemove(q)} hitSlop={8}>
-            <Text style={styles.recentRemove}>×</Text>
-          </Pressable>
-        </View>
-      ))}
     </View>
   );
 }
@@ -342,12 +359,13 @@ const styles = StyleSheet.create({
     paddingVertical: S[1] + 2,
   },
   suggestionText: { fontSize: T.sm, color: C.ash },
-  recentPanel: { paddingHorizontal: S[4], paddingTop: S[4] },
+  recentPanel: { paddingTop: S[4] },
   recentHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: S[3],
+    paddingHorizontal: S[4],
   },
   recentTitle: {
     fontSize: T.xs,
@@ -357,17 +375,27 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   clearText: { fontSize: T.sm, color: C.amber },
-  recentRow: {
+  recentChips: {
+    paddingHorizontal: S[4],
+    paddingBottom: S[3],
+    gap: S[2],
+    flexDirection: 'row',
+  },
+  recentChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: S[3],
-    borderBottomWidth: 1,
-    borderBottomColor: C.ink3,
+    backgroundColor: C.ink2,
+    borderRadius: R.full,
+    borderWidth: 1,
+    borderColor: C.ink3,
+    paddingLeft: S[3],
+    paddingRight: S[2],
+    height: 36,
   },
-  recentQuery: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: S[3] },
-  recentIcon: { fontSize: 16 },
-  recentText: { fontSize: T.base, color: C.cream },
-  recentRemove: { fontSize: 20, color: C.ash, paddingHorizontal: S[2] },
+  recentChipLabel: { paddingRight: S[1] },
+  recentChipText: { fontSize: T.sm, color: C.ash },
+  recentChipRemove: { paddingHorizontal: S[1] },
+  recentChipRemoveText: { fontSize: 16, color: C.ink4, fontWeight: '600' },
   list: { paddingHorizontal: S[4], paddingTop: S[3] },
   resultsHeader: {
     flexDirection: 'row',
