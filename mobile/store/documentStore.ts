@@ -94,6 +94,10 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
 
   addDocument: async (doc: Document) => {
     await insertDocument(doc);
+<<<<<<< HEAD
+    // Optimistic prepend + reload for sort consistency
+=======
+>>>>>>> main
     set(s => ({ documents: [doc, ...s.documents] }));
   },
 
@@ -113,7 +117,11 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
 
   removeDocument: async (id: string) => {
     await deleteDocument(id);
+<<<<<<< HEAD
+    await deleteDocumentFiles(id).catch(() => {}); // best-effort file cleanup
+=======
     await deleteDocumentFiles(id).catch(() => {});
+>>>>>>> main
     set(s => ({ documents: s.documents.filter(d => d.id !== id) }));
   },
 

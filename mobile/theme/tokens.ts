@@ -121,8 +121,11 @@ export const duration = {
 export const HIT_SLOP = { top: 8, bottom: 8, left: 8, right: 8 };
 export const MIN_TOUCH = 44;
 
+<<<<<<< HEAD
+=======
 // ─── Shorthand aliases used in Phase 2+ components ──────────────────────────
 
+>>>>>>> main
 export const C = {
   ink1:     Colors.bg,
   ink2:     Colors.surface,
