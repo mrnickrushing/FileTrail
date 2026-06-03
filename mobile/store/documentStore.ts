@@ -1,42 +1,70 @@
+/**
+ * documentStore.ts — Zustand store for documents, folders, tags
+ *
+ * Phase 1: loadDocuments, loadFolders, loadTags, addDocument, editDocument,
+ *           removeDocument, addFolder, removeFolder, addTag, removeTag,
+ *           setFilters, search
+ *
+ * Phase 2 additions:
+ *   - addDocument() now accepts a full Document and persists immediately
+ *   - updateDocument() partial-patch API for post-OCR updates
+ *   - removeDocument() now also calls deleteDocumentFiles() for file cleanup
+ *   - searchQuery + activeCategory state for filter chips on Vault screen
+ */
+
 import { create } from 'zustand';
-import { Document, DocumentFolder, DocumentTag, SearchFilters } from '@/types';
 import {
   listDocuments, insertDocument, updateDocument, deleteDocument,
   listFolders, insertFolder, deleteFolder,
   listTags, insertTag, deleteTag,
   searchDocuments,
 } from '@/services/db';
+import { deleteDocumentFiles } from '@/services/fileStorage';
+import type { Document, DocumentFolder, DocumentTag, SearchFilters } from '@/types/document';
 
 interface DocumentState {
-  documents:    Document[];
-  folders:      DocumentFolder[];
-  tags:         DocumentTag[];
-  isLoading:    boolean;
-  error:        string | null;
-  filters:      SearchFilters;
+  documents:      Document[];
+  folders:        DocumentFolder[];
+  tags:           DocumentTag[];
+  isLoading:      boolean;
+  error:          string | null;
+  filters:        SearchFilters;
+  searchQuery:    string;
+  activeCategory: Document['category'] | null;
 
-  // Actions
-  loadDocuments:  (filters?: SearchFilters) => Promise<void>;
-  loadFolders:    () => Promise<void>;
-  loadTags:       () => Promise<void>;
-  addDocument:    (doc: Document) => Promise<void>;
-  editDocument:   (doc: Partial<Document> & { id: string }) => Promise<void>;
-  removeDocument: (id: string) => Promise<void>;
-  addFolder:      (folder: DocumentFolder) => Promise<void>;
-  removeFolder:   (id: string) => Promise<void>;
-  addTag:         (tag: DocumentTag) => Promise<void>;
-  removeTag:      (id: string) => Promise<void>;
-  setFilters:     (filters: SearchFilters) => void;
-  search:         (query: string) => Promise<void>;
+  // Document CRUD
+  loadDocuments:    (filters?: SearchFilters) => Promise<void>;
+  addDocument:      (doc: Document) => Promise<void>;
+  updateDocument:   (id: string, patch: Partial<Document>) => Promise<void>;
+  editDocument:     (doc: Partial<Document> & { id: string }) => Promise<void>;
+  removeDocument:   (id: string) => Promise<void>;
+
+  // Folder CRUD
+  loadFolders:      () => Promise<void>;
+  addFolder:        (folder: DocumentFolder) => Promise<void>;
+  removeFolder:     (id: string) => Promise<void>;
+
+  // Tag CRUD
+  loadTags:         () => Promise<void>;
+  addTag:           (tag: DocumentTag) => Promise<void>;
+  removeTag:        (id: string) => Promise<void>;
+
+  // Filters
+  setFilters:       (filters: SearchFilters) => void;
+  search:           (query: string) => Promise<void>;
+  setSearchQuery:   (q: string) => void;
+  setActiveCategory:(cat: Document['category'] | null) => void;
 }
 
 export const useDocumentStore = create<DocumentState>((set, get) => ({
-  documents: [],
-  folders:   [],
-  tags:      [],
-  isLoading: false,
-  error:     null,
-  filters:   {},
+  documents:      [],
+  folders:        [],
+  tags:           [],
+  isLoading:      false,
+  error:          null,
+  filters:        {},
+  searchQuery:    '',
+  activeCategory: null,
 
   loadDocuments: async (filters) => {
     set({ isLoading: true, error: null });
@@ -48,7 +76,6 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
       } else {
         docs = await listDocuments(f.folderId, f.category, 100, 0);
       }
-      // Client-side sort
       const sortBy  = f.sortBy  ?? 'createdAt';
       const sortDir = f.sortDir ?? 'desc';
       docs.sort((a, b) => {
@@ -58,26 +85,25 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
         if (aVal > bVal) return sortDir === 'asc' ? 1 : -1;
         return 0;
       });
-      if (f.isFavorite) docs = docs.filter((d) => d.isFavorite);
+      if (f.isFavorite) docs = docs.filter(d => d.isFavorite);
       set({ documents: docs, isLoading: false });
     } catch (e) {
       set({ error: String(e), isLoading: false });
     }
   },
 
-  loadFolders: async () => {
-    const folders = await listFolders();
-    set({ folders });
-  },
-
-  loadTags: async () => {
-    const tags = await listTags();
-    set({ tags });
-  },
-
-  addDocument: async (doc) => {
+  addDocument: async (doc: Document) => {
     await insertDocument(doc);
-    await get().loadDocuments();
+    set(s => ({ documents: [doc, ...s.documents] }));
+  },
+
+  updateDocument: async (id: string, patch: Partial<Document>) => {
+    await updateDocument({ id, ...patch } as Partial<Document> & { id: string });
+    set(s => ({
+      documents: s.documents.map(d =>
+        d.id === id ? { ...d, ...patch, updatedAt: new Date().toISOString() } : d
+      ),
+    }));
   },
 
   editDocument: async (doc) => {
@@ -85,9 +111,15 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
     await get().loadDocuments();
   },
 
-  removeDocument: async (id) => {
+  removeDocument: async (id: string) => {
     await deleteDocument(id);
-    set((s) => ({ documents: s.documents.filter((d) => d.id !== id) }));
+    await deleteDocumentFiles(id).catch(() => {});
+    set(s => ({ documents: s.documents.filter(d => d.id !== id) }));
+  },
+
+  loadFolders: async () => {
+    const folders = await listFolders();
+    set({ folders });
   },
 
   addFolder: async (folder) => {
@@ -97,7 +129,12 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
 
   removeFolder: async (id) => {
     await deleteFolder(id);
-    set((s) => ({ folders: s.folders.filter((f) => f.id !== id) }));
+    set(s => ({ folders: s.folders.filter(f => f.id !== id) }));
+  },
+
+  loadTags: async () => {
+    const tags = await listTags();
+    set({ tags });
   },
 
   addTag: async (tag) => {
@@ -107,7 +144,7 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
 
   removeTag: async (id) => {
     await deleteTag(id);
-    set((s) => ({ tags: s.tags.filter((t) => t.id !== id) }));
+    set(s => ({ tags: s.tags.filter(t => t.id !== id) }));
   },
 
   setFilters: (filters) => {
@@ -118,4 +155,7 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
   search: async (query) => {
     get().setFilters({ ...get().filters, query });
   },
+
+  setSearchQuery:    (q)   => set({ searchQuery: q }),
+  setActiveCategory: (cat) => set({ activeCategory: cat }),
 }));
