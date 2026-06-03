@@ -73,7 +73,13 @@ export default function DocumentDetailScreen() {
         )}
         <MetaRow
           label="OCR"
-          value={doc.ocrStatus === 'done' ? '✓ Complete' : doc.ocrStatus}
+          value={
+            doc.ocrStatus === 'done'
+              ? 'Complete'
+              : doc.ocrStatus === 'unavailable'
+                ? 'Unavailable in this build'
+                : doc.ocrStatus
+          }
         />
 
       </View>

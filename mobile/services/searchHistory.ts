@@ -22,7 +22,9 @@ async function load(): Promise<string[]> {
 async function save(entries: string[]): Promise<void> {
   try {
     await AsyncStorage.setItem(KEY, JSON.stringify(entries));
-  } catch {}
+  } catch {
+    // Search history is non-critical.
+  }
 }
 
 /** Returns the stored recent queries, newest first. */

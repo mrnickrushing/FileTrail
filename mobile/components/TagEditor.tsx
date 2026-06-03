@@ -42,7 +42,7 @@ export function TagEditor({
       setTags(initialTags);
       setInput('');
     }
-  }, [visible]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [visible, initialTags]);
 
   const addTag = useCallback((tag: string) => {
     const clean = tag.trim().toLowerCase().replace(/\s+/g, '-');

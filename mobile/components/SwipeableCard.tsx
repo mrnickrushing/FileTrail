@@ -15,12 +15,10 @@ import {
   Animated,
   PanResponder,
   StyleSheet,
-  Dimensions,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { C, R, S, T } from '@/theme/tokens';
 
-const SCREEN_W = Dimensions.get('window').width;
 const ACTION_THRESHOLD = 72; // px drag needed to trigger action
 const SNAP_DISTANCE = 80;    // px the card travels before snapping back
 

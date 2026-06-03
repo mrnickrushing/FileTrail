@@ -9,7 +9,7 @@
  *   - Metadata chips: inferred date, vendor, amounts from OCR
  */
 
-import React, { useState, useCallback, useEffect, useRef, memo, useMemo } from 'react';
+import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -34,6 +34,10 @@ import {
 import { useDebounce } from '@/utils/useDebounce';
 import { C, T, R, S } from '@/theme/tokens';
 import type { SearchResult } from '@/types/document';
+
+type SearchListItem =
+  | { type: 'header'; label: string; key: string }
+  | { type: 'result'; result: SearchResult; key: string };
 
 export default function SearchScreen() {
   const insets = useSafeAreaInsets();
@@ -121,6 +125,12 @@ export default function SearchScreen() {
   const suggestions = hasQuery
     ? recentSearches.filter(r => r.toLowerCase().includes(query.toLowerCase()) && r !== query)
     : [];
+  const listData: SearchListItem[] = [
+    ...(titleMatches.length > 0 ? [{ type: 'header' as const, label: `Title · Tag · Category (${titleMatches.length})`, key: 'h1' }] : []),
+    ...titleMatches.map(r => ({ type: 'result' as const, result: r, key: r.document.id })),
+    ...(textMatches.length > 0 ? [{ type: 'header' as const, label: `Extracted Text (${textMatches.length})`, key: 'h2' }] : []),
+    ...textMatches.map(r => ({ type: 'result' as const, result: r, key: r.document.id })),
+  ];
 
   const renderItem = useCallback(({ item }: { item: SearchResult }) => (
     <Pressable
@@ -206,12 +216,7 @@ export default function SearchScreen() {
         <NoResults query={query} />
       ) : (
         <FlatList
-          data={[
-            ...(titleMatches.length > 0 ? [{ type: 'header', label: `Title · Tag · Category (${titleMatches.length})`, key: 'h1' }] : []),
-            ...titleMatches.map(r => ({ type: 'result', result: r, key: r.document.id })),
-            ...(textMatches.length > 0 ? [{ type: 'header', label: `Extracted Text (${textMatches.length})`, key: 'h2' }] : []),
-            ...textMatches.map(r => ({ type: 'result', result: r, key: r.document.id })),
-          ] as any[]}
+          data={listData}
           keyExtractor={item => item.key}
           renderItem={({ item }) => {
             if (item.type === 'header') {

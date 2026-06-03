@@ -21,6 +21,7 @@ import { ensureDocumentDirectory } from '@/services/fileStorage';
 
 const BACKUP_VERSION = 1;
 const SALT = 'PaperTrailBackup2024';
+const BACKUP_PREFIX = 'PTBAK1';
 
 export type BackupProgress = { current: number; total: number; label: string };
 
@@ -94,7 +95,9 @@ export async function createBackup(
         thumbnailBase64 = await FileSystem.readAsStringAsync(doc.thumbnailUri, {
           encoding: FileSystem.EncodingType.Base64,
         });
-      } catch {}
+      } catch {
+        // Thumbnail is optional; keep the original document in the backup.
+      }
     }
 
     bundleDocs.push({ ...doc, fileBase64, thumbnailBase64 });
@@ -110,11 +113,12 @@ export async function createBackup(
 
   const json = JSON.stringify(bundle);
   const obfuscated = xorBase64(json, seed);
+  const payload = `${BACKUP_PREFIX}:${seed}:${obfuscated}`;
 
   const filename = `papertrail-backup-${createdAt.slice(0, 10)}.ptbak`;
   const dest = FileSystem.cacheDirectory + filename;
-  await FileSystem.writeAsStringAsync(dest, obfuscated, {
-    encoding: FileSystem.EncodingType.Utf8,
+  await FileSystem.writeAsStringAsync(dest, payload, {
+    encoding: FileSystem.EncodingType.UTF8,
   });
 
   await Sharing.shareAsync(dest, {
@@ -145,21 +149,25 @@ export async function restoreBackup(
 
   const uri = picked.assets[0].uri;
   const raw = await FileSystem.readAsStringAsync(uri, {
-    encoding: FileSystem.EncodingType.Utf8,
+    encoding: FileSystem.EncodingType.UTF8,
   });
 
   // Attempt to detect encoding: if valid JSON, it's an unencrypted legacy bundle
   let bundle: BackupBundle;
-  try {
+  if (raw.startsWith(`${BACKUP_PREFIX}:`)) {
+    const [, seed, encoded] = raw.split(':');
+    if (!seed || !encoded) {
+      throw new Error('Invalid backup format.');
+    }
+    bundle = JSON.parse(unxorBase64(encoded, seed));
+  } else {
+    try {
     bundle = JSON.parse(raw);
-  } catch {
-    // Decode XOR — we need the seed from the first 16 chars of createdAt.
-    // The seed is embedded in the obfuscated blob as a fixed-length prefix header.
-    // For simplicity: try all hours of the file's mtime day as seeds.
-    // In practice: store the seed as the first 16 bytes of the file plaintext.
-    throw new Error(
-      'Could not read backup file. Make sure you selected a valid .ptbak file.'
-    );
+    } catch {
+      throw new Error(
+        'Could not read backup file. Make sure you selected a valid .ptbak file.'
+      );
+    }
   }
 
   if (!bundle.version || !Array.isArray(bundle.documents)) {

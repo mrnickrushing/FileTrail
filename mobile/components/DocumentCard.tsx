@@ -3,7 +3,7 @@
  *
  * Changes:
  *   - Category dot replaces side accent bar
- *   - OCR status badge: pulsing dot (processing), ⚠ (failed), hidden (done/none)
+ *   - OCR status badge: pulsing dot (processing), ! (failed), hidden (done/unavailable)
  *   - Compact mode preserved for search results
  *   - Animated checkbox spring on selection mode enter
  */

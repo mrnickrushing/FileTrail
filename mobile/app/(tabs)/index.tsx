@@ -5,7 +5,6 @@ import {
   FlatList,
   StyleSheet,
   Pressable,
-  ActivityIndicator,
   RefreshControl,
   ScrollView,
   Alert,
@@ -28,6 +27,7 @@ import { EmptyState } from '@/components/EmptyState';
 import { SwipeableCard } from '@/components/SwipeableCard';
 import { Colors, Typography, Spacing } from '@/theme';
 import { C, T, S, R } from '@/theme/tokens';
+import type { SearchFilters } from '@/types/document';
 
 // Enable LayoutAnimation on Android
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -375,7 +375,7 @@ export default function VaultScreen() {
 // ── Filter bar ────────────────────────────────────────────────────────────────
 
 interface FilterBarProps {
-  filters: ReturnType<typeof useDocumentStore>['filters'];
+  filters: SearchFilters;
   allTags: string[];
   onCategoryChange: (cat: (typeof CATEGORIES)[number]['key']) => void;
   onToggleFavorite: () => void;

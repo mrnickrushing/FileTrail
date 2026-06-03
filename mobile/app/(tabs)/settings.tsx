@@ -33,6 +33,10 @@ import { C, T, R, S } from '@/theme/tokens';
 const APP_VERSION = '1.0.0';
 const BUILD = 'All phases complete 🎉';
 
+function errorMessage(err: unknown, fallback: string): string {
+  return err instanceof Error ? err.message : fallback;
+}
+
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
   const documents = useDocumentStore(s => s.documents);
@@ -110,8 +114,8 @@ export default function SettingsScreen() {
       await exportAllAsZip(documents, ({ current, total, filename }) => {
         setExportProgress(`Packing ${current}/${total}: ${filename}`);
       });
-    } catch (err: any) {
-      Alert.alert('Export Failed', err?.message ?? 'Something went wrong.');
+    } catch (err: unknown) {
+      Alert.alert('Export Failed', errorMessage(err, 'Something went wrong.'));
     } finally {
       setIsExporting(false);
       setExportProgress(null);
@@ -129,8 +133,8 @@ export default function SettingsScreen() {
       await createBackup(documents, folders, ({ current, total, label }) => {
         setBackupProgress(`Reading ${current}/${total}: ${label}`);
       });
-    } catch (err: any) {
-      Alert.alert('Backup Failed', err?.message ?? 'Something went wrong.');
+    } catch (err: unknown) {
+      Alert.alert('Backup Failed', errorMessage(err, 'Something went wrong.'));
     } finally {
       setIsBackingUp(false);
       setBackupProgress(null);
@@ -169,8 +173,8 @@ export default function SettingsScreen() {
                 'Restore Complete',
                 `Restored ${newDocs.length} document${newDocs.length === 1 ? '' : 's'}${result.skipped > 0 ? ` (${result.skipped} skipped — files missing from backup)` : ''}.`,
               );
-            } catch (err: any) {
-              Alert.alert('Restore Failed', err?.message ?? 'Could not read backup file.');
+            } catch (err: unknown) {
+              Alert.alert('Restore Failed', errorMessage(err, 'Could not read backup file.'));
             } finally {
               setIsRestoring(false);
               setRestoreProgress(null);

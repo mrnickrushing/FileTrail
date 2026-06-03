@@ -47,12 +47,16 @@ export function disableAnalytics(): void {
 /** Fire an event. No-op when disabled or in dev. */
 export function track(event: AnalyticsEvent, props?: AnalyticsProperties): void {
   if (!_enabled) return;
+  void event;
+  void props;
   // In production: AnalyticsProvider.track(event, props);
   // For now: intentional no-op stub
 }
 
 /** Identify user (Pro tier). No-op in free build. */
-export function identify(_userId: string, _traits?: AnalyticsProperties): void {
+export function identify(userId: string, traits?: AnalyticsProperties): void {
+  void userId;
+  void traits;
   // Pro tier: AnalyticsProvider.identify(userId, traits);
 }
 
