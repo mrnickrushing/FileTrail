@@ -160,7 +160,7 @@ export default function SearchScreen() {
             clearButtonMode="while-editing"
           />
           {isSearching && (
-            <ActivityIndicator size="small" color={C.ash} style={{ marginRight: S[2] }} />
+            <ActivityIndicator size="small" color={C.amber} style={{ marginRight: S[2] }} />
           )}
         </View>
         {hasQuery && (

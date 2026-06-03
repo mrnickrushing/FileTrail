@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { AppState } from 'react-native';
+import { AppState, useColorScheme } from 'react-native';
 import { Stack, router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -14,6 +14,7 @@ import { track } from '@/services/analytics';
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
+  const colorScheme = useColorScheme();
   const processOCRQueue = useDocumentStore(s => s.processOCRQueue);
   const biometricEnabled = useAppStore(s => s.biometricEnabled);
   const isLocked = useAppStore(s => s.isLocked);
@@ -50,7 +51,7 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <StatusBar style="light" />
+        <StatusBar style={colorScheme === 'light' ? 'dark' : 'light'} />
         <Stack
           screenOptions={{
             headerStyle:      { backgroundColor: Colors.bg },
