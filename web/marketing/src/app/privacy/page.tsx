@@ -21,7 +21,7 @@ export default function PrivacyPolicy() {
         <p>PaperTrail stores your documents <strong>on your device</strong>. We do not collect, read, or sell your documents. If you don't enable cloud sync, your data never leaves your phone. Full stop.</p>
 
         <h2>1. Who we are</h2>
-        <p>PaperTrail is developed and operated by Rushing Technologies. For privacy-related questions, contact us at <a href="mailto:nickrushing@rushingtechnologies.com">nickrushing@rushingtechnologies.com</a>.</p>
+        <p>PaperTrail is developed and operated by Rushing Technologies. For privacy-related questions, contact us at <a href="mailto:support@rushingtechnologies.com">support@rushingtechnologies.com</a>.</p>
 
         <h2>2. Data stored locally on your device</h2>
         <p>The following is stored exclusively on your device and never transmitted to our servers unless you explicitly enable cloud sync:</p>
@@ -76,7 +76,7 @@ export default function PrivacyPolicy() {
           <li>The right to export your data in a portable format</li>
           <li>The right to opt out of analytics</li>
         </ul>
-        <p>To exercise any of these rights, contact us at <a href="mailto:nickrushing@rushingtechnologies.com">nickrushing@rushingtechnologies.com</a>.</p>
+        <p>To exercise any of these rights, contact us at <a href="mailto:support@rushingtechnologies.com">support@rushingtechnologies.com</a>.</p>
 
         <h2>11. Children's privacy</h2>
         <p>PaperTrail is not directed at children under 13. We do not knowingly collect personal information from children. If you believe a child has provided us with personal information, please contact us and we will delete it promptly.</p>
@@ -88,7 +88,7 @@ export default function PrivacyPolicy() {
         <p>We may update this policy from time to time. We will notify you of material changes through the app or by email if you have an account. Continued use of the app after changes constitutes acceptance of the updated policy.</p>
 
         <h2>14. Contact</h2>
-        <p>Questions about this privacy policy? Contact Rushing Technologies at <a href="mailto:nickrushing@rushingtechnologies.com">nickrushing@rushingtechnologies.com</a>.</p>
+        <p>Questions about this privacy policy? Contact Rushing Technologies at <a href="mailto:support@rushingtechnologies.com">support@rushingtechnologies.com</a>.</p>
       </div>
     </div>
   );
