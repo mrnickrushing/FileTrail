@@ -24,6 +24,8 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useDocumentStore } from '@/store/documentStore';
 import { useAppStore } from '@/store/appStore';
+import { useProStore } from '@/store/proStore';
+import { PaywallModal } from '@/components/PaywallModal';
 import { deleteDocumentFiles } from '@/services/fileStorage';
 import { exportAllAsZip } from '@/services/exportService';
 import { createBackup, restoreBackup } from '@/services/backupService';
@@ -44,6 +46,10 @@ export default function SettingsScreen() {
   const folders = useDocumentStore(s => s.folders);
   const biometricEnabled = useAppStore(s => s.biometricEnabled);
   const setBiometricEnabled = useAppStore(s => s.setBiometricEnabled);
+
+  const isPro = useProStore(s => s.isPro);
+  const checkPro = useProStore(s => s.checkPro);
+  const [showPaywall, setShowPaywall] = useState(false);
 
   const [biometricLabel, setBiometricLabel] = useState('Biometric Lock');
   const [biometricAvailable, setBiometricAvailable] = useState(false);
@@ -132,6 +138,10 @@ export default function SettingsScreen() {
   };
 
   const handleBackup = async () => {
+    if (!isPro) {
+      setShowPaywall(true);
+      return;
+    }
     if (documents.length === 0) {
       Alert.alert('Nothing to Back Up', 'Add some documents first.');
       return;
@@ -151,6 +161,10 @@ export default function SettingsScreen() {
   };
 
   const handleRestore = async () => {
+    if (!isPro) {
+      setShowPaywall(true);
+      return;
+    }
     Alert.alert(
       'Restore Backup',
       'This will add documents from the backup to your vault. Existing documents are not deleted.',
@@ -342,6 +356,15 @@ export default function SettingsScreen() {
             : 'FileTrail stores all your documents privately on your device.\nNothing is uploaded to any server.'}
         </Text>
       </ScrollView>
+
+      <PaywallModal
+        visible={showPaywall}
+        onClose={() => setShowPaywall(false)}
+        onSuccess={() => {
+          setShowPaywall(false);
+          void checkPro();
+        }}
+      />
     </View>
   );
 }
