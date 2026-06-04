@@ -131,7 +131,7 @@ workflows:
       - name: Set up code signing settings
         script: |
           xcode-project use-profiles \
-            --workspace "$CM_BUILD_DIR/mobile/ios/$XCODE_SCHEME.xcworkspace"
+            --project "$CM_BUILD_DIR/mobile/ios/$XCODE_SCHEME.xcodeproj"
       - name: Build and sign IPA
         script: |
           xcode-project build-ipa \
