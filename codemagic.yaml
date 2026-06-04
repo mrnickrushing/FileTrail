@@ -125,13 +125,11 @@ workflows:
             --create
       - name: Add certs to keychain
         script: keychain add-certificates
-      - name: Prebuild iOS
+      - name: Prebuild iOS and install CocoaPods
         script: |
           cd mobile
           npx expo prebuild --platform ios --non-interactive --clean
-      - name: Install CocoaPods dependencies
-        script: |
-          cd mobile/ios
+          cd ios
           pod install
       - name: Set up code signing settings
         script: |
