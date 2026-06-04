@@ -107,6 +107,7 @@ workflows:
       vars:
         BUNDLE_ID: com.papertraill.app
         XCODE_SCHEME: FileTrail
+        EXPO_PUBLIC_API_URL: https://papertrail-backend.up.railway.app
       groups:
         - ios_credentials
     scripts:

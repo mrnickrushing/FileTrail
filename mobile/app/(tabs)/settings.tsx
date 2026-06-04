@@ -31,8 +31,8 @@ import { getBiometricCapability, authenticate } from '@/services/biometricServic
 import { isBackendConfigured } from '@/services/api';
 import { C, T, R, S } from '@/theme/tokens';
 
-const APP_VERSION = '1.0.0';
-const BUILD = 'All phases complete 🎉';
+const APP_VERSION = '1.0.7';
+const BUILD = '2026.06';
 
 function errorMessage(err: unknown, fallback: string): string {
   return err instanceof Error ? err.message : fallback;
