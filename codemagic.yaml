@@ -128,7 +128,7 @@ workflows:
       - name: Prebuild iOS and install CocoaPods
         script: |
           cd mobile
-          npx expo prebuild --platform ios --non-interactive --clean
+          CI=1 npx expo prebuild --platform ios --clean
           cd ios
           pod install
       - name: Set up code signing settings
