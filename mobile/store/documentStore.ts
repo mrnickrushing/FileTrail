@@ -264,7 +264,7 @@ export const useDocumentStore = create<DocumentState>()(
         const doc = get().documents.find((d) => d.id === id);
         if (!doc) return;
         // Don't re-enqueue if already queued or processing
-        if (doc.ocrStatus === 'processing') return;
+        if (doc.ocrStatus === 'pending' || doc.ocrStatus === 'processing') return;
         set((s) => ({
           documents: s.documents.map((d) =>
             d.id === id ? { ...d, ocrStatus: 'pending', ocrText: undefined } : d
@@ -390,9 +390,18 @@ export const useDocumentStore = create<DocumentState>()(
 
       bulkSetTags: (ids, tags) => {
         set((s) => ({
-          documents: s.documents.map((doc) =>
-            ids.includes(doc.id) ? { ...doc, tags, updatedAt: nowIso() } : doc
-          ),
+          documents: (() => {
+            const selected = s.documents.filter((doc) => ids.includes(doc.id));
+            const sharedTags = selected.length === 0
+              ? []
+              : selected[0].tags.filter((tag) => selected.every((doc) => doc.tags.includes(tag)));
+            const removedSharedTags = sharedTags.filter((tag) => !tags.includes(tag));
+            return s.documents.map((doc) => {
+              if (!ids.includes(doc.id)) return doc;
+              const preserved = doc.tags.filter((tag) => !removedSharedTags.includes(tag));
+              return { ...doc, tags: appendUnique(preserved, tags), updatedAt: nowIso() };
+            });
+          })(),
         }));
       },
 

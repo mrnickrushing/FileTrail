@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Feather } from '@expo/vector-icons';
 import { C, T, S, R } from '@/theme/tokens';
 
 interface BulkActionBarProps {
@@ -23,9 +24,9 @@ export function BulkActionBar({ count, onMove, onTag, onDelete, onCancel }: Bulk
         </Pressable>
       </View>
       <View style={styles.actions}>
-        <ActionButton label="Move" emoji="📁" onPress={onMove} />
-        <ActionButton label="Tag" emoji="🏷️" onPress={onTag} />
-        <ActionButton label="Delete" emoji="🗑️" onPress={onDelete} danger />
+        <ActionButton label="Move" icon="folder" onPress={onMove} />
+        <ActionButton label="Tag" icon="tag" onPress={onTag} />
+        <ActionButton label="Delete" icon="trash-2" onPress={onDelete} danger />
       </View>
     </View>
   );
@@ -33,12 +34,12 @@ export function BulkActionBar({ count, onMove, onTag, onDelete, onCancel }: Bulk
 
 function ActionButton({
   label,
-  emoji,
+  icon,
   onPress,
   danger = false,
 }: {
   label: string;
-  emoji: string;
+  icon: React.ComponentProps<typeof Feather>['name'];
   onPress: () => void;
   danger?: boolean;
 }) {
@@ -47,7 +48,7 @@ function ActionButton({
       style={({ pressed }) => [styles.btn, danger && styles.btnDanger, pressed && styles.btnPressed]}
       onPress={onPress}
     >
-      <Text style={styles.btnEmoji}>{emoji}</Text>
+      <Feather name={icon} size={20} color={danger ? '#EF4444' : C.ash} style={styles.btnIcon} />
       <Text style={[styles.btnLabel, danger && styles.btnLabelDanger]}>{label}</Text>
     </Pressable>
   );
@@ -104,8 +105,7 @@ const styles = StyleSheet.create({
   btnPressed: {
     opacity: 0.65,
   },
-  btnEmoji: {
-    fontSize: 20,
+  btnIcon: {
     marginBottom: 2,
   },
   btnLabel: {

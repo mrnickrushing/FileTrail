@@ -17,6 +17,7 @@ import {
   StyleSheet,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
+import { Feather } from '@expo/vector-icons';
 import { C, R, S, T } from '@/theme/tokens';
 
 const ACTION_THRESHOLD = 72; // px drag needed to trigger action
@@ -94,14 +95,14 @@ export function SwipeableCard({ children, onDelete, onFavorite, isFavorite, disa
     <View style={styles.container}>
       {/* Left underlay (delete) */}
       <Animated.View style={[styles.underlay, styles.underlayLeft, { backgroundColor: leftBg }]}>
-        <Text style={styles.underlayIcon}>🗑</Text>
+        <Feather name="trash-2" size={20} color={C.ink1} />
         <Text style={styles.underlayLabel}>Delete</Text>
       </Animated.View>
 
       {/* Right underlay (favorite) */}
       <Animated.View style={[styles.underlay, styles.underlayRight, { backgroundColor: rightBg }]}>
         <Text style={styles.underlayLabel}>{isFavorite ? 'Unfave' : 'Fave'}</Text>
-        <Text style={styles.underlayIcon}>{isFavorite ? '★' : '☆'}</Text>
+        <Feather name="star" size={20} color={C.ink1} />
       </Animated.View>
 
       <Animated.View
@@ -133,7 +134,6 @@ const styles = StyleSheet.create({
   underlayRight: {
     justifyContent: 'flex-start',
   },
-  underlayIcon: { fontSize: 20 },
   underlayLabel: {
     fontSize: T.sm,
     fontWeight: '700',

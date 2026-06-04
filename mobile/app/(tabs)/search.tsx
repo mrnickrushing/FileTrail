@@ -23,6 +23,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useIsFocused } from '@react-navigation/native';
+import { Feather } from '@expo/vector-icons';
 import { useDocumentStore } from '@/store/documentStore';
 import { DocumentCard } from '@/components/DocumentCard';
 import {
@@ -52,15 +53,17 @@ export default function SearchScreen() {
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const [sortByDate, setSortByDate] = useState(false);
   const inputRef = useRef<TextInput>(null);
+  const hasAutoFocusedRef = useRef(false);
   const debouncedQuery = useDebounce(query, 150);
 
   useEffect(() => {
     getRecentSearches().then(setRecentSearches);
   }, []);
 
-  // Auto-focus when tab becomes active
+  // Auto-focus once on first visit; later tab switches should not steal the keyboard.
   useEffect(() => {
-    if (isFocused) {
+    if (isFocused && !hasAutoFocusedRef.current) {
+      hasAutoFocusedRef.current = true;
       const t = setTimeout(() => inputRef.current?.focus(), 100);
       return () => clearTimeout(t);
     }
@@ -132,7 +135,7 @@ export default function SearchScreen() {
     ...textMatches.map(r => ({ type: 'result' as const, result: r, key: r.document.id })),
   ];
 
-  const renderItem = useCallback(({ item }: { item: SearchResult }) => (
+  const renderSearchResult = useCallback((item: SearchResult) => (
     <Pressable
       onPress={() => {
         commitSearch(query);
@@ -167,7 +170,7 @@ export default function SearchScreen() {
       {/* Search bar */}
       <View style={styles.searchBarRow}>
         <View style={styles.searchBar}>
-          <Text style={styles.searchIcon}>🔍</Text>
+          <Feather name="search" size={18} color={C.ash} style={styles.searchIcon} />
           <TextInput
             ref={inputRef}
             style={styles.searchInput}
@@ -222,7 +225,7 @@ export default function SearchScreen() {
             if (item.type === 'header') {
               return <Text style={styles.groupHeader}>{item.label}</Text>;
             }
-            return renderItem({ item: item.result });
+            return renderSearchResult(item.result);
           }}
           contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + 100 }]}
           keyboardDismissMode="on-drag"
@@ -234,9 +237,12 @@ export default function SearchScreen() {
                   {results.length} {results.length === 1 ? 'result' : 'results'}
                 </Text>
                 <Pressable onPress={() => setSortByDate(v => !v)} hitSlop={8}>
-                  <Text style={[styles.sortToggle, sortByDate && styles.sortToggleActive]}>
-                    {sortByDate ? '📅 Date' : '⭐ Relevance'}
-                  </Text>
+                  <View style={styles.sortToggle}>
+                    <Feather name={sortByDate ? 'calendar' : 'star'} size={13} color={sortByDate ? C.amber : C.ash} />
+                    <Text style={[styles.sortToggleText, sortByDate && styles.sortToggleTextActive]}>
+                      {sortByDate ? 'Date' : 'Relevance'}
+                    </Text>
+                  </View>
                 </Pressable>
               </View>
             ) : null
@@ -281,7 +287,8 @@ function RecentSearchesPanel({
             {recent.map(q => (
               <View key={q} style={styles.recentChip}>
                 <Pressable onPress={() => onPick(q)} style={styles.recentChipLabel}>
-                  <Text style={styles.recentChipText}>🕐 {q}</Text>
+                  <Feather name="clock" size={13} color={C.ash} />
+                  <Text style={styles.recentChipText}>{q}</Text>
                 </Pressable>
                 <Pressable onPress={() => onRemove(q)} hitSlop={6} style={styles.recentChipRemove}>
                   <Text style={styles.recentChipRemoveText}>×</Text>
@@ -293,7 +300,9 @@ function RecentSearchesPanel({
       ) : null}
 
       <View style={styles.emptyState}>
-        <Text style={styles.emptyEmoji}>🔍</Text>
+        <View style={styles.emptyIconWrap}>
+          <Feather name="search" size={42} color={C.amber} />
+        </View>
         <Text style={styles.emptyTitle}>Search your documents</Text>
         <Text style={styles.emptyBody}>
           {totalDocs > 0
@@ -308,7 +317,9 @@ function RecentSearchesPanel({
 function NoResults({ query }: { query: string }) {
   return (
     <View style={styles.emptyState}>
-      <Text style={styles.emptyEmoji}>📭</Text>
+      <View style={styles.emptyIconWrap}>
+        <Feather name="inbox" size={42} color={C.amber} />
+      </View>
       <Text style={styles.emptyTitle}>No results</Text>
       <Text style={styles.emptyBody}>
         Nothing matched "{query}". Try a different word or check your spelling.
@@ -368,7 +379,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: S[3],
     height: 48,
   },
-  searchIcon: { fontSize: 16, marginRight: S[2] },
+  searchIcon: { marginRight: S[2] },
   searchInput: { flex: 1, fontSize: T.base, color: C.cream, height: '100%' },
   cancelBtn: { paddingVertical: S[2] },
   cancelText: { fontSize: T.base, color: C.amber },
@@ -419,7 +430,12 @@ const styles = StyleSheet.create({
     paddingRight: S[2],
     height: 36,
   },
-  recentChipLabel: { paddingRight: S[1] },
+  recentChipLabel: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: S[1],
+    paddingRight: S[1],
+  },
   recentChipText: { fontSize: T.sm, color: C.ash },
   recentChipRemove: { paddingHorizontal: S[1] },
   recentChipRemoveText: { fontSize: 16, color: C.ink4, fontWeight: '600' },
@@ -436,8 +452,13 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 0.6,
   },
-  sortToggle: { fontSize: T.sm, color: C.ash },
-  sortToggleActive: { color: C.amber, fontWeight: '600' },
+  sortToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: S[1],
+  },
+  sortToggleText: { fontSize: T.sm, color: C.ash },
+  sortToggleTextActive: { color: C.amber, fontWeight: '600' },
   groupHeader: {
     fontSize: T.xs,
     color: C.ash,
@@ -483,7 +504,17 @@ const styles = StyleSheet.create({
     flex: 1, alignItems: 'center', justifyContent: 'center',
     paddingHorizontal: S[8], gap: S[3],
   },
-  emptyEmoji: { fontSize: 48, marginBottom: S[2] },
+  emptyIconWrap: {
+    width: 88,
+    height: 88,
+    borderRadius: R.xl,
+    backgroundColor: C.ink2,
+    borderWidth: 1,
+    borderColor: C.ink3,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: S[2],
+  },
   emptyTitle: { fontSize: T.lg, fontWeight: '700', color: C.cream, textAlign: 'center' },
   emptyBody: { fontSize: T.base, color: C.ash, textAlign: 'center', lineHeight: 22 },
 });

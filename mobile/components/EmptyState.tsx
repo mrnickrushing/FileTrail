@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { Feather } from '@expo/vector-icons';
 import { C, T, S, R } from '@/theme/tokens';
 
 interface Props {
@@ -12,17 +13,17 @@ interface Props {
   showFABHint?: boolean;
 }
 
-const ICON_MAP: Record<string, string> = {
-  'file-text': '🗂️',
-  'folder':    '📁',
-  'search':    '🔍',
+const ICON_MAP: Record<string, React.ComponentProps<typeof Feather>['name']> = {
+  'file-text': 'file-text',
+  'folder': 'folder',
+  'search': 'search',
 };
 
 export function EmptyState({ icon, title, subtitle, actionLabel, onAction, showFABHint }: Props) {
   return (
     <View style={styles.container}>
       <View style={styles.iconWrap}>
-        <Text style={styles.icon}>{ICON_MAP[icon] ?? '📄'}</Text>
+        <Feather name={ICON_MAP[icon] ?? 'file'} size={42} color={C.amber} />
       </View>
       <Text style={styles.title}>{title}</Text>
       {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
@@ -60,7 +61,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: S[2],
   },
-  icon: { fontSize: 44 },
   title: {
     fontSize: T.lg,
     fontWeight: '600',

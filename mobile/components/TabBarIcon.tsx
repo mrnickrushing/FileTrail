@@ -1,10 +1,11 @@
-import { Text } from 'react-native';
+import React from 'react';
+import { Feather } from '@expo/vector-icons';
 
-const ICON_MAP: Record<string, string> = {
-  'house':           '⌂',
-  'folder':          '⊞',
-  'magnifyingglass': '⌕',
-  'gearshape':       '⚙',
+const ICON_MAP: Record<string, React.ComponentProps<typeof Feather>['name']> = {
+  house: 'archive',
+  folder: 'folder',
+  magnifyingglass: 'search',
+  gearshape: 'settings',
 };
 
 interface Props {
@@ -14,9 +15,5 @@ interface Props {
 }
 
 export function TabBarIcon({ name, color, size }: Props) {
-  return (
-    <Text style={{ fontSize: size - 2, color, lineHeight: size + 4 }}>
-      {ICON_MAP[name] ?? '●'}
-    </Text>
-  );
+  return <Feather name={ICON_MAP[name] ?? 'circle'} color={color} size={size} />;
 }

@@ -21,8 +21,10 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
+import { Feather } from '@expo/vector-icons';
 import { useDocumentStore } from '@/store/documentStore';
 import { DocumentCard } from '@/components/DocumentCard';
+import { EmptyState } from '@/components/EmptyState';
 import { FAB } from '@/components/FAB';
 import { SkeletonList } from '@/components/SkeletonLoader';
 import { C, T, R, S } from '@/theme/tokens';
@@ -33,10 +35,15 @@ const FOLDER_COLORS = [
   '#8B5CF6', '#EC4899', '#06B6D4', '#84CC16',
 ];
 
+type ActiveFolder = {
+  id: string | null;
+  name: string;
+  color: string;
+};
+
 export default function FoldersScreen() {
   const insets = useSafeAreaInsets();
   const folders = useDocumentStore(s => s.folders);
-  const documents = useDocumentStore(s => s.documents);
   const isLoading = useDocumentStore(s => s.isLoading);
   const addFolder = useDocumentStore(s => s.addFolder);
   const updateFolder = useDocumentStore(s => s.updateFolder);
@@ -46,13 +53,15 @@ export default function FoldersScreen() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingFolder, setEditingFolder] = useState<Folder | null>(null);
   const [folderName, setFolderName] = useState('');
+  const [folderError, setFolderError] = useState('');
   const [selectedColor, setSelectedColor] = useState(FOLDER_COLORS[0]);
-  const [activeFolder, setActiveFolder] = useState<Folder | null>(null);
+  const [activeFolder, setActiveFolder] = useState<ActiveFolder | null>(null);
 
-  const unfiledCount = documents.filter(d => d.folderId === null).length;
+  const unfiledCount = getFolderDocuments(null).length;
 
   const openCreate = () => {
     setFolderName('');
+    setFolderError('');
     setSelectedColor(FOLDER_COLORS[0]);
     setEditingFolder(null);
     setShowCreateModal(true);
@@ -60,6 +69,7 @@ export default function FoldersScreen() {
 
   const openEdit = (folder: Folder) => {
     setFolderName(folder.name);
+    setFolderError('');
     setSelectedColor(folder.color);
     setEditingFolder(folder);
     setShowCreateModal(true);
@@ -67,12 +77,16 @@ export default function FoldersScreen() {
 
   const handleSaveFolder = () => {
     const name = folderName.trim();
-    if (!name) return;
+    if (!name) {
+      setFolderError('Folder name is required.');
+      return;
+    }
     if (editingFolder) {
       updateFolder(editingFolder.id, { name, color: selectedColor });
     } else {
       addFolder(name, selectedColor);
     }
+    setFolderError('');
     setShowCreateModal(false);
   };
 
@@ -123,13 +137,15 @@ export default function FoldersScreen() {
         </View>
 
         {folderDocs.length === 0 ? (
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyEmoji}>📂</Text>
-            <Text style={styles.emptyTitle}>Empty folder</Text>
-            <Text style={styles.emptyBody}>
-              Move documents here from the home screen with bulk select.
-            </Text>
-          </View>
+          <EmptyState
+            icon="folder"
+            title={activeFolder.id === null ? 'No unfiled documents' : 'Empty folder'}
+            subtitle={
+              activeFolder.id === null
+                ? 'Documents assigned to a folder will not appear here.'
+                : 'Move documents here from the home screen with bulk select.'
+            }
+          />
         ) : (
           <FlatList
             data={folderDocs}
@@ -172,16 +188,19 @@ export default function FoldersScreen() {
         {/* Unfiled */}
         <Pressable
           style={styles.folderRow}
-          onPress={() => router.push('/(tabs)/')}
+          onPress={() => setActiveFolder({ id: null, name: 'Unfiled', color: C.ash })}
         >
           <View style={[styles.folderIcon, { backgroundColor: C.ink3 }]}>
-            <Text style={styles.folderEmoji}>📋</Text>
+            <Feather name="inbox" size={24} color={C.ash} />
           </View>
           <View style={styles.folderInfo}>
             <Text style={styles.folderName}>Unfiled</Text>
             <Text style={styles.folderCount}>
               {unfiledCount} document{unfiledCount === 1 ? '' : 's'}
             </Text>
+          </View>
+          <View style={styles.countBadge}>
+            <Text style={styles.countBadgeText}>{unfiledCount}</Text>
           </View>
           <Text style={styles.folderChevron}>›</Text>
         </Pressable>
@@ -204,7 +223,7 @@ export default function FoldersScreen() {
                 delayLongPress={400}
               >
                 <View style={[styles.folderIcon, { backgroundColor: folder.color + '22' }]}>
-                  <Text style={[styles.folderIconText, { color: folder.color }]}>📁</Text>
+                  <Feather name="folder" size={24} color={folder.color} />
                 </View>
                 <View style={styles.folderInfo}>
                   <Text style={styles.folderName}>{folder.name}</Text>
@@ -244,7 +263,10 @@ export default function FoldersScreen() {
             <TextInput
               style={styles.folderNameInput}
               value={folderName}
-              onChangeText={setFolderName}
+              onChangeText={(value) => {
+                setFolderName(value);
+                if (folderError && value.trim()) setFolderError('');
+              }}
               placeholder="Folder name…"
               placeholderTextColor={C.ash}
               autoFocus
@@ -252,6 +274,7 @@ export default function FoldersScreen() {
               returnKeyType="done"
               onSubmitEditing={handleSaveFolder}
             />
+            {folderError ? <Text style={styles.fieldError}>{folderError}</Text> : null}
 
             {/* Color picker */}
             <Text style={styles.colorLabel}>Color</Text>
@@ -267,7 +290,7 @@ export default function FoldersScreen() {
                   onPress={() => setSelectedColor(color)}
                 >
                   {selectedColor === color && (
-                    <Text style={styles.colorCheck}>✓</Text>
+                    <Feather name="check" size={16} color={C.cream} />
                   )}
                 </Pressable>
               ))}
@@ -334,27 +357,25 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  folderEmoji: { fontSize: 24 },
-  folderIconText: { fontSize: 24 },
   folderInfo: { flex: 1 },
   folderName: { fontSize: T.base, fontWeight: '600', color: C.cream },
   folderCount: { fontSize: T.sm, color: C.ash, marginTop: 2 },
+  countBadge: {
+    minWidth: 32,
+    height: 28,
+    borderRadius: R.full,
+    paddingHorizontal: S[2],
+    backgroundColor: C.ink3,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  countBadgeText: { fontSize: T.xs, color: C.cream, fontWeight: '700' },
   folderChevron: { fontSize: T.xl, color: C.ink4 },
   noFolders: {
     paddingVertical: S[8],
     alignItems: 'center',
   },
   noFoldersText: { fontSize: T.base, color: C.ash, textAlign: 'center' },
-  emptyState: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: S[8],
-    gap: S[3],
-  },
-  emptyEmoji: { fontSize: 48, marginBottom: S[2] },
-  emptyTitle: { fontSize: T.lg, fontWeight: '700', color: C.cream, textAlign: 'center' },
-  emptyBody: { fontSize: T.base, color: C.ash, textAlign: 'center', lineHeight: 22 },
   docItem: { marginBottom: S[3] },
   modalBackdrop: {
     flex: 1,
@@ -389,7 +410,12 @@ const styles = StyleSheet.create({
     fontSize: T.base,
     color: C.cream,
     minHeight: 48,
-    marginBottom: S[4],
+    marginBottom: S[2],
+  },
+  fieldError: {
+    color: '#F87171',
+    fontSize: T.sm,
+    marginBottom: S[3],
   },
   colorLabel: {
     fontSize: T.sm,

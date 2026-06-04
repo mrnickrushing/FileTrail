@@ -1,4 +1,5 @@
 import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { Feather } from '@expo/vector-icons';
 import { Colors, T, S, Font, Radius } from '@/theme';
 import { Folder } from '@/types/document';
 
@@ -16,7 +17,7 @@ export function FolderCard({ folder, docCount, onPress }: Props) {
       android_ripple={{ color: Colors.surfaceDynamic }}
     >
       <View style={[styles.icon, { backgroundColor: `${folder.color}22` }]}>
-        <Text style={[styles.iconText, { color: folder.color }]}>📁</Text>
+        <Feather name="folder" size={22} color={folder.color} />
       </View>
       <View style={styles.body}>
         <Text style={styles.name}>{folder.name}</Text>
@@ -45,7 +46,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  iconText: { fontSize: T.lg },
   body: { flex: 1 },
   name: { fontSize: T.base, fontWeight: Font.semibold, color: Colors.text },
   count: { fontSize: T.sm, color: Colors.textMuted, marginTop: 2 },

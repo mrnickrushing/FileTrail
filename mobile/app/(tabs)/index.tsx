@@ -15,8 +15,8 @@ import {
 import { Redirect, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
-import { useDocumentStore } from '@/store';
-import { useAppStore } from '@/store/appStore';
+import { Feather } from '@expo/vector-icons';
+import { useAppStore, useDocumentStore } from '@/store';
 import { DocumentCard } from '@/components/DocumentCard';
 import { BulkActionBar } from '@/components/BulkActionBar';
 import { TagEditor } from '@/components/TagEditor';
@@ -43,6 +43,20 @@ const CATEGORIES = [
   { key: 'medical',   label: 'Medical' },
   { key: 'tax',       label: 'Tax' },
 ] as const;
+
+const SORT_LABELS: Record<ReturnType<typeof useAppStore.getState>['sortBy'], string> = {
+  updatedAt: 'Modified',
+  createdAt: 'Added',
+  title: 'Name',
+  category: 'Type',
+};
+
+const SORT_ICONS: Record<ReturnType<typeof useAppStore.getState>['sortBy'], React.ComponentProps<typeof Feather>['name']> = {
+  updatedAt: 'clock',
+  createdAt: 'calendar',
+  title: 'type',
+  category: 'tag',
+};
 
 export default function VaultScreen() {
   const router = useRouter();
@@ -86,9 +100,11 @@ export default function VaultScreen() {
       docs = docs.filter((d) => filters.tags!.every((tag) => d.tags.includes(tag)));
     }
     docs.sort((a, b) => {
-      const aVal = a[sortBy] ?? '';
-      const bVal = b[sortBy] ?? '';
-      const cmp = String(aVal).localeCompare(String(bVal));
+      const cmp = sortBy === 'updatedAt' || sortBy === 'createdAt'
+        ? new Date(a[sortBy]).getTime() - new Date(b[sortBy]).getTime()
+        : String(a[sortBy] ?? '').localeCompare(String(b[sortBy] ?? ''), undefined, {
+            sensitivity: 'base',
+          });
       return sortDir === 'asc' ? cmp : -cmp;
     });
     return docs;
@@ -228,11 +244,8 @@ export default function VaultScreen() {
                 accessibilityLabel={`Sort by ${sortBy}`}
                 accessibilityRole="button"
               >
-                <Text style={styles.headerControlText}>
-                  {sortBy === 'updatedAt' ? '↕ Modified' :
-                   sortBy === 'createdAt' ? '↕ Added' :
-                   sortBy === 'title'     ? '↕ Name' : '↕ Type'}
-                </Text>
+                <Feather name={SORT_ICONS[sortBy]} size={14} color={C.ash} />
+                <Text style={styles.headerControlText}>{SORT_LABELS[sortBy]}</Text>
               </Pressable>
               <Pressable
                 style={styles.headerControlBtn}
@@ -244,7 +257,7 @@ export default function VaultScreen() {
                 accessibilityLabel={sortDir === 'desc' ? 'Sort descending' : 'Sort ascending'}
                 accessibilityRole="button"
               >
-                <Text style={styles.headerControlText}>{sortDir === 'desc' ? '↓' : '↑'}</Text>
+                <Feather name={sortDir === 'desc' ? 'arrow-down' : 'arrow-up'} size={15} color={C.ash} />
               </Pressable>
               <Pressable
                 style={styles.headerControlBtn}
@@ -257,7 +270,7 @@ export default function VaultScreen() {
                 accessibilityLabel={viewMode === 'card' ? 'Switch to list view' : 'Switch to card view'}
                 accessibilityRole="button"
               >
-                <Text style={styles.headerControlText}>{viewMode === 'card' ? '☰' : '⊞'}</Text>
+                <Feather name={viewMode === 'card' ? 'list' : 'grid'} size={15} color={C.ash} />
               </Pressable>
             </View>
           </>
@@ -412,7 +425,7 @@ function FilterBar({ filters, allTags, onCategoryChange, onToggleFavorite, onTog
             accessibilityLabel={`${c.label} filter${isActive ? ', active' : ''}`}
           >
             <Text style={[styles.chipText, isActive && styles.chipTextActive]}>
-              {isActive && c.key !== undefined ? '✓ ' : ''}{c.label}
+              {c.label}
             </Text>
           </Pressable>
         );
@@ -431,7 +444,7 @@ function FilterBar({ filters, allTags, onCategoryChange, onToggleFavorite, onTog
         accessibilityLabel={`Favorites filter${favoriteActive ? ', active' : ''}`}
       >
         <Text style={[styles.chipText, favoriteActive && styles.chipTextActive]}>
-          {favoriteActive ? '★ Favorites ×' : '☆ Favorites'}
+          {favoriteActive ? 'Favorites ×' : 'Favorites'}
         </Text>
       </Pressable>
 
@@ -488,6 +501,9 @@ const styles = StyleSheet.create({
     gap: S[1],
   },
   headerControlBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
     paddingHorizontal: S[2],
     paddingVertical: S[1],
     borderRadius: R.md,
@@ -496,7 +512,6 @@ const styles = StyleSheet.create({
     borderColor: C.ink3,
     minHeight: 32,
     justifyContent: 'center',
-    alignItems: 'center',
   },
   headerControlText: {
     fontSize: T.xs,

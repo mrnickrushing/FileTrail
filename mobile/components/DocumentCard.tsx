@@ -16,6 +16,7 @@ import {
   Pressable,
   StyleSheet,
 } from 'react-native';
+import { Feather } from '@expo/vector-icons';
 import { C, T, R, S } from '@/theme/tokens';
 import type { Document, DocumentCategory } from '@/types/document';
 
@@ -79,7 +80,7 @@ export function DocumentCard({
       >
         {selectionMode && (
           <View style={[styles.checkbox, isSelected && styles.checkboxSelected]}>
-            {isSelected && <Text style={styles.checkmark}>✓</Text>}
+            {isSelected && <Feather name="check" size={14} color={C.ink1} />}
           </View>
         )}
         <View style={styles.compactThumb}>
@@ -87,9 +88,7 @@ export function DocumentCard({
             <Image source={{ uri: document.thumbnailUri }} style={styles.compactThumbImage} resizeMode="cover" />
           ) : (
             <View style={[styles.compactThumbPlaceholder, { backgroundColor: accentColor + '33' }]}>
-              <Text style={styles.compactThumbEmoji}>
-                {document.mimeType.includes('pdf') ? '📄' : '🖼️'}
-              </Text>
+              <Feather name={document.mimeType.includes('pdf') ? 'file-text' : 'image'} size={18} color={accentColor} />
             </View>
           )}
         </View>
@@ -100,7 +99,7 @@ export function DocumentCard({
             <Text style={styles.compactMetaText}>{CATEGORY_LABELS[document.category]} · {dateStr}</Text>
           </View>
         </View>
-        {document.isFavorite && <Text style={styles.favStar}>★</Text>}
+        {document.isFavorite && <Feather name="star" size={16} color={C.amber} />}
       </Pressable>
     );
   }
@@ -125,7 +124,7 @@ export function DocumentCard({
         <View style={styles.leftCol}>
           {selectionMode ? (
             <View style={[styles.checkbox, isSelected && styles.checkboxSelected]}>
-              {isSelected && <Text style={styles.checkmark}>✓</Text>}
+              {isSelected && <Feather name="check" size={14} color={C.ink1} />}
             </View>
           ) : (
             <View style={[styles.categoryDotLarge, { backgroundColor: accentColor }]} />
@@ -142,7 +141,7 @@ export function DocumentCard({
               </View>
             )}
             {document.ocrStatus === 'failed' && (
-              <Text style={styles.ocrFailed}>⚠</Text>
+              <Feather name="alert-triangle" size={16} color={C.danger} style={styles.ocrFailedIcon} />
             )}
           </View>
 
@@ -157,7 +156,8 @@ export function DocumentCard({
           <View style={styles.footerRow}>
             {document.isFavorite && (
               <View style={styles.favPill}>
-                <Text style={styles.favPillText}>★ Saved</Text>
+                <Feather name="star" size={11} color={C.amber} />
+                <Text style={styles.favPillText}>Saved</Text>
               </View>
             )}
             {document.tags.slice(0, 2).map((tag) => (
@@ -180,9 +180,7 @@ export function DocumentCard({
             <Image source={{ uri: document.thumbnailUri }} style={styles.thumb} resizeMode="cover" />
           ) : (
             <View style={[styles.thumbPlaceholder, { backgroundColor: accentColor + '22' }]}>
-              <Text style={styles.thumbPlaceholderEmoji}>
-                {document.mimeType.includes('pdf') ? '📄' : '🖼️'}
-              </Text>
+              <Feather name={document.mimeType.includes('pdf') ? 'file-text' : 'image'} size={24} color={accentColor} />
             </View>
           )}
         </View>
@@ -247,11 +245,6 @@ const styles = StyleSheet.create({
     backgroundColor: C.amber,
     borderColor: C.amber,
   },
-  checkmark: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: C.ink1,
-  },
   info: { flex: 1 },
   titleRow: {
     flexDirection: 'row',
@@ -281,9 +274,7 @@ const styles = StyleSheet.create({
     borderRadius: R.full,
     backgroundColor: C.amber,
   },
-  ocrFailed: {
-    fontSize: T.sm,
-    color: C.danger,
+  ocrFailedIcon: {
     marginTop: 2,
   },
   metaRow: {
@@ -315,6 +306,9 @@ const styles = StyleSheet.create({
     borderRadius: R.full,
     paddingHorizontal: S[2],
     paddingVertical: 2,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
   },
   favPillText: { fontSize: T.xs, color: C.amber, fontWeight: '600' },
   tagPill: {
@@ -339,7 +333,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  thumbPlaceholderEmoji: { fontSize: 28 },
 
   // ── Compact ──────────────────────────────────────────────────
   compactCard: {
@@ -359,7 +352,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  compactThumbEmoji: { fontSize: 22 },
   compactInfo: { flex: 1 },
   compactTitle: {
     fontSize: T.base,
@@ -378,5 +370,4 @@ const styles = StyleSheet.create({
     borderRadius: R.full,
   },
   compactMetaText: { fontSize: T.sm, color: C.ash },
-  favStar: { fontSize: T.base, color: C.amber },
 });

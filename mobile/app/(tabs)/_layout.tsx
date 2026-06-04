@@ -5,9 +5,10 @@
  * elevated above content with shadow. Safe-area aware bottom inset.
  */
 
-import { Platform, View, Text, StyleSheet } from 'react-native';
+import { Platform, View, StyleSheet } from 'react-native';
 import { Tabs } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Feather } from '@expo/vector-icons';
 import { C, T, R, S } from '@/theme/tokens';
 
 const TAB_HEIGHT = 62;
@@ -56,7 +57,7 @@ export default function TabLayout() {
         options={{
           title: 'Vault',
           tabBarIcon: ({ color, focused }) => (
-            <TabIcon label="🗂" color={color} focused={focused} />
+            <TabIcon name="archive" color={color} focused={focused} />
           ),
         }}
       />
@@ -65,7 +66,7 @@ export default function TabLayout() {
         options={{
           title: 'Search',
           tabBarIcon: ({ color, focused }) => (
-            <TabIcon label="🔍" color={color} focused={focused} />
+            <TabIcon name="search" color={color} focused={focused} />
           ),
         }}
       />
@@ -74,7 +75,7 @@ export default function TabLayout() {
         options={{
           title: 'Folders',
           tabBarIcon: ({ color, focused }) => (
-            <TabIcon label="📁" color={color} focused={focused} />
+            <TabIcon name="folder" color={color} focused={focused} />
           ),
         }}
       />
@@ -83,7 +84,7 @@ export default function TabLayout() {
         options={{
           title: 'Settings',
           tabBarIcon: ({ color, focused }) => (
-            <TabIcon label="⚙️" color={color} focused={focused} />
+            <TabIcon name="settings" color={color} focused={focused} />
           ),
         }}
       />
@@ -91,10 +92,18 @@ export default function TabLayout() {
   );
 }
 
-function TabIcon({ label, focused }: { label: string; color: string; focused: boolean }) {
+function TabIcon({
+  name,
+  color,
+  focused,
+}: {
+  name: React.ComponentProps<typeof Feather>['name'];
+  color: string;
+  focused: boolean;
+}) {
   return (
     <View style={[styles.iconWrap, focused && styles.iconWrapActive]}>
-      <Text style={{ fontSize: 18 }}>{label}</Text>
+      <Feather name={name} size={18} color={color} />
     </View>
   );
 }
