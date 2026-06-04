@@ -68,6 +68,10 @@ export default function FoldersScreen() {
   const unfiledCount = getFolderDocuments(null).length;
 
   const openCreate = () => {
+    if (!isPro) {
+      setShowPaywall(true);
+      return;
+    }
     setFolderName('');
     setFolderError('');
     setSelectedColor(FOLDER_COLORS[0]);
@@ -247,6 +251,15 @@ export default function FoldersScreen() {
       </ScrollView>
 
       <FAB onPress={openCreate} />
+
+      <PaywallModal
+        visible={showPaywall}
+        onClose={() => setShowPaywall(false)}
+        onSuccess={() => {
+          setShowPaywall(false);
+          void checkPro();
+        }}
+      />
 
       {/* Create / Edit Modal */}
       <Modal
