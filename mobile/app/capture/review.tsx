@@ -31,6 +31,8 @@ import { useLocalSearchParams, router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { nanoid } from 'nanoid/non-secure';
 import { useAppStore, useDocumentStore } from '@/store';
+import { useProStore, FREE_DOCUMENT_LIMIT } from '@/store/proStore';
+import { PaywallModal } from '@/components/PaywallModal';
 import { saveDocumentFile, generateThumbnail, getFileSize, getExtension } from '@/services/fileStorage';
 import { extractText, isOCRAvailable } from '@/services/ocr';
 import { isPDFLike } from '@/services/pdfService';
@@ -72,7 +74,10 @@ export default function DocumentReviewScreen() {
   }>();
 
   const addDocument = useDocumentStore(s => s.addDocument);
+  const documents = useDocumentStore(s => s.documents);
   const autoOcr = useAppStore(s => s.autoOcr);
+  const isPro = useProStore(s => s.isPro);
+  const checkPro = useProStore(s => s.checkPro);
 
   const [title, setTitle] = useState(() => generateTitle(params.source, params.mimeType));
   const [category, setCategory] = useState<DocumentCategory>('other');
@@ -80,6 +85,7 @@ export default function DocumentReviewScreen() {
   const [ocrStatus, setOCRStatus] = useState<'idle' | 'processing' | 'done' | 'unavailable'>('idle');
   const [aiStatus, setAiStatus] = useState<'idle' | 'processing' | 'done'>('idle');
   const [isSaving, setIsSaving] = useState(false);
+  const [showPaywall, setShowPaywall] = useState(false);
   const isMounted = useRef(true);
 
   useEffect(() => {
@@ -89,8 +95,31 @@ export default function DocumentReviewScreen() {
 
   // Auto-run OCR then AI suggestions
   useEffect(() => {
-    if (!params.uri || isPDFLike(params.uri, params.mimeType)) {
+    const isPdf = !params.uri || isPDFLike(params.uri, params.mimeType);
+    if (isPdf) {
       setOCRStatus('unavailable');
+      // For PDFs: call AI from filename alone if pro and backend configured
+      if (isPro && isBackendConfigured() && (params.name || params.uri)) {
+        setAiStatus('processing');
+        apiRequest<{
+          suggestedTitle: string;
+          category: DocumentCategory;
+          tags: string[];
+          source: string;
+        }>('/v1/ai/suggest-document', {
+          method: 'POST',
+          body: { filename: params.name, mimeType: params.mimeType },
+        })
+          .then((suggestion) => {
+            if (!isMounted.current) return;
+            if (suggestion.suggestedTitle) setTitle(suggestion.suggestedTitle);
+            if (suggestion.category) setCategory(suggestion.category);
+            setAiStatus('done');
+          })
+          .catch(() => {
+            if (isMounted.current) setAiStatus('idle');
+          });
+      }
       return;
     }
     if (!autoOcr || !isOCRAvailable()) {
@@ -106,8 +135,8 @@ export default function DocumentReviewScreen() {
         setOCRText(text);
         setOCRStatus('done');
 
-        // Call backend AI to suggest title + category + tags
-        if (text && isBackendConfigured()) {
+        // Call backend AI to suggest title + category + tags (pro only)
+        if (isPro && text && isBackendConfigured()) {
           setAiStatus('processing');
           try {
             const suggestion = await apiRequest<{
@@ -132,10 +161,17 @@ export default function DocumentReviewScreen() {
         if (!isMounted.current) return;
         setOCRStatus('unavailable');
       });
-  }, [params.mimeType, params.uri, autoOcr]);
+  }, [params.mimeType, params.uri, params.name, autoOcr, isPro]);
 
   const handleSave = useCallback(async () => {
     if (!params.uri || isSaving) return;
+
+    // Gate: free users limited to FREE_DOCUMENT_LIMIT documents
+    if (documents.length >= FREE_DOCUMENT_LIMIT && !isPro) {
+      setShowPaywall(true);
+      return;
+    }
+
     setIsSaving(true);
 
     try {
@@ -187,7 +223,7 @@ export default function DocumentReviewScreen() {
     } finally {
       if (isMounted.current) setIsSaving(false);
     }
-  }, [params, title, category, ocrText, ocrStatus, addDocument, isSaving]);
+  }, [params, title, category, ocrText, ocrStatus, addDocument, isSaving, documents.length, isPro]);
 
   const isImage = !isPDFLike(params.uri ?? '', params.mimeType);
 
@@ -265,7 +301,19 @@ export default function DocumentReviewScreen() {
               </Text>
             </>
           )}
-          {ocrStatus === 'unavailable' && (
+          {ocrStatus === 'unavailable' && aiStatus === 'processing' && (
+            <>
+              <ActivityIndicator size="small" color={C.amber} style={{ marginRight: S[2] }} />
+              <Text style={styles.ocrText}>AI analysing…</Text>
+            </>
+          )}
+          {ocrStatus === 'unavailable' && aiStatus === 'done' && (
+            <>
+              <Text style={styles.ocrDot}>✦</Text>
+              <Text style={styles.ocrText}>AI filled title & category</Text>
+            </>
+          )}
+          {ocrStatus === 'unavailable' && aiStatus === 'idle' && (
             <Text style={styles.ocrMuted}>OCR available in full build</Text>
           )}
         </View>
@@ -325,6 +373,14 @@ export default function DocumentReviewScreen() {
           )}
         </Pressable>
       </ScrollView>
+      <PaywallModal
+        visible={showPaywall}
+        onClose={() => setShowPaywall(false)}
+        onSuccess={() => {
+          setShowPaywall(false);
+          void checkPro();
+        }}
+      />
     </KeyboardAvoidingView>
   );
 }
