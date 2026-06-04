@@ -8,29 +8,29 @@ workflows:
     scripts:
       - name: Backend install and verify
         script: |
+          npm run install:backend
           cd backend
-          npm ci
           npm run typecheck
           npm run test:build
           npm audit --audit-level=high
       - name: Mobile install and verify
         script: |
+          npm run install:mobile
           cd mobile
-          npm ci
           npx expo install --check
           npm run typecheck
           npm run lint
           npm audit --audit-level=high
       - name: Admin web install and build
         script: |
+          npm run install:admin
           cd web/admin
-          npm ci
           npm run build
           npm audit --audit-level=high
       - name: Marketing web install and build
         script: |
+          npm run install:marketing
           cd web/marketing
-          npm ci
           npm run build
           npm audit --audit-level=high
 
@@ -44,8 +44,7 @@ workflows:
     scripts:
       - name: Install mobile dependencies
         script: |
-          cd mobile
-          npm ci
+          npm run install:mobile
       - name: Generate native Android project
         script: |
           cd mobile
@@ -74,8 +73,7 @@ workflows:
     scripts:
       - name: Install mobile dependencies
         script: |
-          cd mobile
-          npm ci
+          npm run install:mobile
       - name: Generate native iOS project
         script: |
           cd mobile
