@@ -169,7 +169,7 @@ export default function DocumentReviewScreen() {
           { paddingTop: insets.top + S[4], paddingBottom: insets.bottom + S[16] },
         ]}
         keyboardShouldPersistTaps="handled"
-        automaticallyAdjustKeyboardInsets
+        automaticallyAdjustKeyboardInsets={Platform.OS !== 'ios'}
       >
         {/* Header */}
         <View style={styles.header}>
