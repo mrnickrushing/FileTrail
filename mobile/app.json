@@ -19,7 +19,8 @@
       "infoPlist": {
         "NSCameraUsageDescription": "FileTrail uses your camera to scan documents.",
         "NSPhotoLibraryUsageDescription": "FileTrail accesses your photos to import documents.",
-        "NSFaceIDUsageDescription": "FileTrail uses Face ID to protect your vault."
+        "NSFaceIDUsageDescription": "FileTrail uses Face ID to protect your vault.",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
