@@ -10,6 +10,8 @@ import { useDocumentStore } from '@/store/documentStore';
 import { useAppStore } from '@/store/appStore';
 import { LockScreen } from '@/components/LockScreen';
 import { track } from '@/services/analytics';
+import { initializePurchases } from '@/services/purchases';
+import { useProStore } from '@/store/proStore';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -46,6 +48,7 @@ export default function RootLayout() {
   const processOCRQueue = useDocumentStore(s => s.processOCRQueue);
   const syncWithBackend = useDocumentStore(s => s.syncWithBackend);
   const biometricEnabled = useAppStore(s => s.biometricEnabled);
+  const checkPro = useProStore(s => s.checkPro);
   const isLocked = useAppStore(s => s.isLocked);
   const setLocked = useAppStore(s => s.setLocked);
   const appStateRef = useRef(AppState.currentState);
@@ -55,11 +58,15 @@ export default function RootLayout() {
   processOCRQueueRef.current = processOCRQueue;
   const syncWithBackendRef = useRef(syncWithBackend);
   syncWithBackendRef.current = syncWithBackend;
+  const checkProRef = useRef(checkPro);
+  checkProRef.current = checkPro;
 
   useEffect(() => {
     SplashScreen.hideAsync();
     processOCRQueueRef.current();
     void syncWithBackendRef.current().catch(() => undefined);
+    initializePurchases();
+    void checkProRef.current();
     track('app_opened');
   }, []);
 
