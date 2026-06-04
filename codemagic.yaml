@@ -128,6 +128,7 @@ workflows:
       - name: Prebuild iOS and install CocoaPods
         script: |
           cd mobile
+          npx expo install --fix
           CI=1 npx expo prebuild --platform ios --clean
           cd ios
           pod install
