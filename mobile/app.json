@@ -2,7 +2,7 @@
   "expo": {
     "name": "FileTrail",
     "slug": "filetrail",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -42,16 +42,13 @@
       "expo-router",
       "expo-sqlite",
       "expo-local-authentication",
-      "expo-dev-client",
       [
         "expo-camera",
         {
           "cameraPermission": "FileTrail uses your camera to scan documents.",
           "recordAudioAndroid": false
         }
-      ],
-      "@config-plugins/react-native-pdf",
-      "@config-plugins/react-native-blob-util"
+      ]
     ],
     "scheme": "filetrail",
     "experiments": {
