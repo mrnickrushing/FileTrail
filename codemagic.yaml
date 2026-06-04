@@ -112,8 +112,7 @@ workflows:
     scripts:
       - name: Install dependencies
         script: |
-          cd mobile
-          npm ci
+          npm run install:mobile
       - name: Set up keychain
         script: keychain initialize
       - name: Fetch signing files
@@ -126,7 +125,6 @@ workflows:
       - name: Prebuild iOS and install CocoaPods
         script: |
           cd mobile
-          npx expo install --fix
           CI=1 npx expo prebuild --platform ios --clean
           cd ios
           pod install
@@ -170,8 +168,7 @@ workflows:
     scripts:
       - name: Install dependencies
         script: |
-          cd mobile
-          npm ci
+          npm run install:mobile
       - name: Set up Android signing
         script: |
           echo $CM_KEYSTORE | base64 --decode > /tmp/keystore.jks
