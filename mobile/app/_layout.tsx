@@ -1,5 +1,5 @@
-import { useEffect, useRef } from 'react';
-import { AppState, useColorScheme } from 'react-native';
+import React, { Component, type ReactNode, useEffect, useRef } from 'react';
+import { AppState, Text, View, useColorScheme } from 'react-native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -12,6 +12,34 @@ import { LockScreen } from '@/components/LockScreen';
 import { track } from '@/services/analytics';
 
 SplashScreen.preventAutoHideAsync();
+
+class RootErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
+  state = { error: null };
+
+  static getDerivedStateFromError(error: Error) {
+    return { error };
+  }
+
+  componentDidCatch(error: Error) {
+    console.warn('[RootErrorBoundary]', error);
+  }
+
+  render() {
+    if (this.state.error) {
+      return (
+        <View style={{ flex: 1, justifyContent: 'center', padding: 24, backgroundColor: Colors.bg }}>
+          <Text style={{ color: Colors.text, fontSize: 20, fontWeight: '700', marginBottom: 12 }}>
+            FileTrail could not finish loading.
+          </Text>
+          <Text style={{ color: Colors.textMuted, lineHeight: 22 }}>
+            Please fully close the app and open it again. Your documents are still stored on this device.
+          </Text>
+        </View>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
@@ -52,24 +80,26 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <StatusBar style={colorScheme === 'light' ? 'dark' : 'light'} />
-        <Stack
-          screenOptions={{
-            headerStyle:      { backgroundColor: Colors.bg },
-            headerTintColor:  Colors.text,
-            headerTitleStyle: { color: Colors.text, fontWeight: '600' },
-            headerShadowVisible: false,
-            contentStyle:     { backgroundColor: Colors.bg },
-            animation:        'slide_from_right',
-          }}
-        >
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          <Stack.Screen name="capture" options={{ headerShown: false, presentation: 'transparentModal' }} />
-          <Stack.Screen name="viewer/[id]" options={{ headerShown: false }} />
-          <Stack.Screen name="document/[id]" options={{ title: 'Document', headerBackTitle: 'Back' }} />
-          <Stack.Screen name="folder/[id]" options={{ title: 'Folder', headerBackTitle: 'Back' }} />
-          <Stack.Screen name="onboarding" options={{ headerShown: false, gestureEnabled: false }} />
-        </Stack>
+        <RootErrorBoundary>
+          <StatusBar style={colorScheme === 'light' ? 'dark' : 'light'} />
+          <Stack
+            screenOptions={{
+              headerStyle:      { backgroundColor: Colors.bg },
+              headerTintColor:  Colors.text,
+              headerTitleStyle: { color: Colors.text, fontWeight: '600' },
+              headerShadowVisible: false,
+              contentStyle:     { backgroundColor: Colors.bg },
+              animation:        'slide_from_right',
+            }}
+          >
+            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+            <Stack.Screen name="capture" options={{ headerShown: false, presentation: 'transparentModal' }} />
+            <Stack.Screen name="viewer/[id]" options={{ headerShown: false }} />
+            <Stack.Screen name="document/[id]" options={{ title: 'Document', headerBackTitle: 'Back' }} />
+            <Stack.Screen name="folder/[id]" options={{ title: 'Folder', headerBackTitle: 'Back' }} />
+            <Stack.Screen name="onboarding" options={{ headerShown: false, gestureEnabled: false }} />
+          </Stack>
+        </RootErrorBoundary>
 
         {biometricEnabled && isLocked && (
           <LockScreen onUnlocked={() => setLocked(false)} />

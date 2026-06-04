@@ -15,6 +15,24 @@ import { enqueueOCR, dequeueOCR } from '@/services/ocrQueue';
 import { syncMetadata, type Tombstone } from '@/services/syncService';
 import { Colors } from '@/theme';
 
+const DOCUMENT_CATEGORIES = new Set<Document['category']>([
+  'receipt',
+  'contract',
+  'id',
+  'warranty',
+  'medical',
+  'tax',
+  'other',
+]);
+
+const OCR_STATUSES = new Set<Document['ocrStatus']>([
+  'pending',
+  'processing',
+  'done',
+  'failed',
+  'unavailable',
+]);
+
 interface DocumentState {
   documents: Document[];
   folders: Folder[];
@@ -64,6 +82,93 @@ interface DocumentState {
 
 function nowIso(): string {
   return new Date().toISOString();
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+function stringValue(value: unknown, fallback: string): string {
+  return typeof value === 'string' && value.length > 0 ? value : fallback;
+}
+
+function numberValue(value: unknown, fallback: number): number {
+  return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
+}
+
+function stringArrayValue(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];
+}
+
+function dateValue(value: unknown): string {
+  const raw = typeof value === 'string' ? value : '';
+  return Number.isNaN(Date.parse(raw)) ? nowIso() : raw;
+}
+
+function sanitizeDocument(value: unknown): Document | null {
+  if (!isRecord(value)) return null;
+
+  const id = stringValue(value.id, '');
+  if (!id) return null;
+
+  const category = DOCUMENT_CATEGORIES.has(value.category as Document['category'])
+    ? value.category as Document['category']
+    : 'other';
+  const ocrStatus = OCR_STATUSES.has(value.ocrStatus as Document['ocrStatus'])
+    ? value.ocrStatus as Document['ocrStatus']
+    : 'unavailable';
+  const fileUri = stringValue(value.fileUri, '');
+
+  return {
+    id,
+    title: stringValue(value.title, 'Untitled document'),
+    category,
+    fileUri,
+    thumbnailUri: typeof value.thumbnailUri === 'string' ? value.thumbnailUri : null,
+    mimeType: stringValue(value.mimeType, 'application/octet-stream'),
+    fileSizeBytes: numberValue(value.fileSizeBytes, 0),
+    pageCount: Math.max(1, numberValue(value.pageCount, 1)),
+    ocrText: typeof value.ocrText === 'string' ? value.ocrText : undefined,
+    ocrStatus,
+    inferredDate: typeof value.inferredDate === 'string' ? value.inferredDate : undefined,
+    amounts: Array.isArray(value.amounts)
+      ? value.amounts.filter((item): item is number => typeof item === 'number' && Number.isFinite(item))
+      : undefined,
+    vendor: typeof value.vendor === 'string' ? value.vendor : undefined,
+    isFavorite: value.isFavorite === true,
+    folderId: typeof value.folderId === 'string' ? value.folderId : null,
+    tags: stringArrayValue(value.tags),
+    createdAt: dateValue(value.createdAt),
+    updatedAt: dateValue(value.updatedAt),
+  };
+}
+
+function sanitizeFolder(value: unknown): Folder | null {
+  if (!isRecord(value)) return null;
+  const id = stringValue(value.id, '');
+  if (!id) return null;
+  const createdAt = dateValue(value.createdAt);
+  return {
+    id,
+    name: stringValue(value.name, 'Folder'),
+    color: stringValue(value.color, Colors.primary),
+    createdAt,
+    updatedAt: dateValue(value.updatedAt ?? createdAt),
+  };
+}
+
+function sanitizePersistedState(value: unknown): Partial<DocumentState> {
+  if (!isRecord(value)) return {};
+  return {
+    documents: Array.isArray(value.documents)
+      ? value.documents.map(sanitizeDocument).filter((doc): doc is Document => doc !== null)
+      : [],
+    folders: Array.isArray(value.folders)
+      ? value.folders.map(sanitizeFolder).filter((folder): folder is Folder => folder !== null)
+      : [],
+    deletedDocumentIds: stringArrayValue(value.deletedDocumentIds),
+    deletedFolderIds: stringArrayValue(value.deletedFolderIds),
+  };
 }
 
 function buildSnippet(text: string, term: string, windowChars = 120): string {
@@ -395,6 +500,10 @@ export const useDocumentStore = create<DocumentState>()(
     {
       name: 'filetrail-documents-v2',
       storage: createJSONStorage(() => AsyncStorage),
+      merge: (persistedState, currentState) => ({
+        ...currentState,
+        ...sanitizePersistedState(persistedState),
+      }),
       partialize: (state) => ({
         documents: state.documents,
         folders: state.folders,
