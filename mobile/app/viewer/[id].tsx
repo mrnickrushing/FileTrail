@@ -2,10 +2,8 @@
  * viewer/[id].tsx — Full document viewer (Phase 4)
  *
  * Images: pinch-to-zoom via ScrollView.
- * PDFs:   react-native-pdf with page navigation + zoom, wrapped in a
- *         try/require so the file compiles in Expo Go.  When the native
- *         module isn't linked (Expo Go) a clear "requires development build"
- *         notice is shown instead of crashing.
+ * PDFs:   Placeholder viewer. Native PDF rendering was removed from the
+ *         production build until a stable Expo-compatible renderer is added.
  *
  * Header: title edit, favorite toggle, share (expo-sharing), delete.
  * Footer: expandable OCR text panel.
@@ -30,7 +28,6 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Constants from 'expo-constants';
 import { useDocumentStore } from '@/store/documentStore';
 import { shareDocument } from '@/services/exportService';
 import { TagEditor } from '@/components/TagEditor';
@@ -39,36 +36,9 @@ import type { DocumentCategory } from '@/types/document';
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 
-interface NativePdfProps {
-  source: { uri: string; cache: boolean };
-  page: number;
-  style: object;
-  enablePaging: boolean;
-  horizontal: boolean;
-  onLoadComplete: (numberOfPages: number) => void;
-  onPageChanged: (page: number) => void;
-  onError: (error: unknown) => void;
-  trustAllCerts: boolean;
-}
-
 function errorMessage(err: unknown, fallback: string): string {
   return err instanceof Error ? err.message : fallback;
 }
-
-// Attempt to load react-native-pdf.  The require() will throw in Expo Go
-// because the native module is missing.  We catch and set to null.
-let RNPdf: React.ComponentType<NativePdfProps> | null = null;
-try {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  RNPdf = (require('react-native-pdf') as { default: React.ComponentType<NativePdfProps> }).default;
-} catch {
-  RNPdf = null;
-}
-
-const expoConstants = Constants as typeof Constants & { appOwnership?: string };
-const IS_EXPO_GO =
-  Constants.executionEnvironment === 'storeClient' ||
-  expoConstants.appOwnership === 'expo';
 
 const CATEGORY_LABELS: Record<DocumentCategory, string> = {
   receipt: '🧾 Receipt',
@@ -109,8 +79,7 @@ export default function DocumentViewerScreen() {
 
   // PDF-specific state
   const [pdfPage, setPdfPage] = useState(1);
-  const [pdfTotal, setPdfTotal] = useState(document?.pageCount ?? 1);
-  const [pdfError, setPdfError] = useState<string | null>(null);
+  const [pdfTotal] = useState(document?.pageCount ?? 1);
 
   const titleInputRef = useRef<TextInput>(null);
 
@@ -270,13 +239,7 @@ export default function DocumentViewerScreen() {
               uri={document.fileUri}
               page={pdfPage}
               totalPages={pdfTotal}
-              error={pdfError}
               onPageChange={setPdfPage}
-              onLoadComplete={(total) => {
-                setPdfTotal(total);
-                updateDocument(document.id, { pageCount: total });
-              }}
-              onError={(msg) => setPdfError(msg)}
             />
           )}
         </View>
@@ -451,70 +414,23 @@ interface PDFViewerProps {
   uri: string;
   page: number;
   totalPages: number;
-  error: string | null;
   onPageChange: (page: number) => void;
-  onLoadComplete: (total: number) => void;
-  onError: (msg: string) => void;
 }
 
 function PDFViewer({
-  uri, page, totalPages, error, onPageChange, onLoadComplete, onError,
+  uri, page, totalPages, onPageChange,
 }: PDFViewerProps) {
-  const [loading, setLoading] = useState(true);
-
-  // Show friendly notice in Expo Go or if the module didn't load.
-  if (IS_EXPO_GO || !RNPdf) {
-    return (
-      <View style={pdfStyles.placeholder}>
-        <Text style={pdfStyles.icon}>📄</Text>
-        <Text style={pdfStyles.title}>PDF Viewer</Text>
-        <Text style={pdfStyles.subtitle}>
-          Native PDF viewing requires a development build.{'\n'}
-          Run{' '}
-          <Text style={pdfStyles.code}>eas build --profile development</Text>
-          {'\n'}then install the build on your device.
-        </Text>
-      </View>
-    );
-  }
-
-  if (error) {
-    return (
-      <View style={pdfStyles.placeholder}>
-        <Text style={pdfStyles.icon}>⚠️</Text>
-        <Text style={pdfStyles.title}>Could not open PDF</Text>
-        <Text style={pdfStyles.subtitle}>{error}</Text>
-      </View>
-    );
-  }
-
-  const Pdf = RNPdf!;
-
   return (
     <View style={pdfStyles.container}>
-      {loading && (
-        <View style={pdfStyles.loadingOverlay}>
-          <ActivityIndicator size="large" color={C.amber} />
-        </View>
-      )}
-
-      <Pdf
-        source={{ uri, cache: true }}
-        page={page}
-        style={pdfStyles.pdf}
-        enablePaging
-        horizontal={false}
-        onLoadComplete={(numberOfPages: number) => {
-          setLoading(false);
-          onLoadComplete(numberOfPages);
-        }}
-        onPageChanged={(p: number) => onPageChange(p)}
-        onError={(err: unknown) => {
-          setLoading(false);
-          onError(errorMessage(err, 'Unknown error'));
-        }}
-        trustAllCerts={false}
-      />
+      <View style={pdfStyles.placeholder}>
+        <Text style={pdfStyles.icon}>📄</Text>
+        <Text style={pdfStyles.title}>PDF saved</Text>
+        <Text style={pdfStyles.subtitle}>
+          PDF preview is temporarily disabled in this TestFlight build.
+          You can still share or export the file.
+        </Text>
+        <Text style={pdfStyles.code}>{uri}</Text>
+      </View>
 
       {/* Floating page counter overlay */}
       {totalPages > 1 && (

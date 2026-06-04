@@ -40,13 +40,12 @@
     },
     "plugins": [
       "expo-router",
-      "expo-sqlite",
       "expo-local-authentication",
       [
-        "expo-camera",
+        "expo-image-picker",
         {
           "cameraPermission": "FileTrail uses your camera to scan documents.",
-          "recordAudioAndroid": false
+          "photosPermission": "FileTrail accesses your photos to import documents."
         }
       ]
     ],
