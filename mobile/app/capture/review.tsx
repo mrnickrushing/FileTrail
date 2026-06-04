@@ -159,15 +159,17 @@ export default function DocumentReviewScreen() {
   return (
     <KeyboardAvoidingView
       style={{ flex: 1 }}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? insets.top : 0}
     >
       <ScrollView
         style={styles.container}
         contentContainerStyle={[
           styles.content,
-          { paddingTop: insets.top + S[4], paddingBottom: insets.bottom + S[12] },
+          { paddingTop: insets.top + S[4], paddingBottom: insets.bottom + S[16] },
         ]}
         keyboardShouldPersistTaps="handled"
+        automaticallyAdjustKeyboardInsets
       >
         {/* Header */}
         <View style={styles.header}>
