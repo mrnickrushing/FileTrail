@@ -54,6 +54,10 @@ export default function FoldersScreen() {
   const deleteFolder = useDocumentStore(s => s.deleteFolder);
   const getFolderDocuments = useDocumentStore(s => s.getFolderDocuments);
 
+  const isPro = useProStore(s => s.isPro);
+  const checkPro = useProStore(s => s.checkPro);
+
+  const [showPaywall, setShowPaywall] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingFolder, setEditingFolder] = useState<Folder | null>(null);
   const [folderName, setFolderName] = useState('');
