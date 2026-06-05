@@ -5,18 +5,16 @@
  * Calls purchasePro() on confirm and restorePurchases() on restore.
  */
 
-import React, { useState } from 'react';
+import React from 'react';
 import {
   Modal,
   View,
   Text,
   Pressable,
   StyleSheet,
-  ActivityIndicator,
   Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { purchasePro, restorePurchases } from '@/services/purchases';
 import { C, T, R, S } from '@/theme/tokens';
 
 const PRO_FEATURES = [
@@ -34,38 +32,22 @@ interface PaywallModalProps {
 
 export function PaywallModal({ visible, onClose, onSuccess }: PaywallModalProps) {
   const insets = useSafeAreaInsets();
-  const [isPurchasing, setIsPurchasing] = useState(false);
-  const [isRestoring, setIsRestoring] = useState(false);
 
   const handleUnlock = async () => {
-    setIsPurchasing(true);
-    try {
-      const success = await purchasePro();
-      if (success) {
-        onSuccess();
-      } else {
-        Alert.alert('Purchase Unavailable', 'Could not complete purchase. Please try again.');
-      }
-    } finally {
-      setIsPurchasing(false);
-    }
+    Alert.alert(
+      'Coming Soon',
+      'In-app purchases will be available in the next update. Thank you for your patience!',
+      [{ text: 'OK' }]
+    );
   };
 
   const handleRestore = async () => {
-    setIsRestoring(true);
-    try {
-      const hasPro = await restorePurchases();
-      if (hasPro) {
-        onSuccess();
-      } else {
-        Alert.alert('No Purchase Found', 'We could not find a previous Pro purchase to restore.');
-      }
-    } finally {
-      setIsRestoring(false);
-    }
+    Alert.alert(
+      'Coming Soon',
+      'Purchase restoration will be available once payments are live.',
+      [{ text: 'OK' }]
+    );
   };
-
-  const isLoading = isPurchasing || isRestoring;
 
   return (
     <Modal
@@ -79,7 +61,6 @@ export function PaywallModal({ visible, onClose, onSuccess }: PaywallModalProps)
         <Pressable
           style={styles.dismissBtn}
           onPress={onClose}
-          disabled={isLoading}
           hitSlop={8}
         >
           <Text style={styles.dismissText}>Maybe Later</Text>
@@ -108,27 +89,17 @@ export function PaywallModal({ visible, onClose, onSuccess }: PaywallModalProps)
         {/* Actions */}
         <View style={styles.actions}>
           <Pressable
-            style={[styles.unlockBtn, isLoading && styles.unlockBtnDisabled]}
+            style={styles.unlockBtn}
             onPress={handleUnlock}
-            disabled={isLoading}
           >
-            {isPurchasing ? (
-              <ActivityIndicator color={C.ink1} />
-            ) : (
-              <Text style={styles.unlockBtnText}>Unlock Pro</Text>
-            )}
+            <Text style={styles.unlockBtnText}>Unlock Pro — Coming Soon</Text>
           </Pressable>
 
           <Pressable
             style={styles.restoreBtn}
             onPress={handleRestore}
-            disabled={isLoading}
           >
-            {isRestoring ? (
-              <ActivityIndicator color={C.amber} size="small" />
-            ) : (
-              <Text style={styles.restoreText}>Restore Purchases</Text>
-            )}
+            <Text style={styles.restoreText}>Restore Purchases</Text>
           </Pressable>
         </View>
       </View>
