@@ -18,6 +18,7 @@ import {
   ScrollView,
   Alert,
   ActivityIndicator,
+  TextInput,
   Platform,
   Switch,
 } from 'react-native';
@@ -32,6 +33,7 @@ import { exportAllAsZip } from '@/services/exportService';
 import { createBackup, restoreBackup } from '@/services/backupService';
 import { getBiometricCapability, authenticate } from '@/services/biometricService';
 import { isBackendConfigured } from '@/services/api';
+import { isAdminBypassConfigured, validateAdminBypassCode } from '@/services/adminAccess';
 import { C, T, R, S } from '@/theme/tokens';
 
 const APP_VERSION = Constants.expoConfig?.version ?? 'Unknown';
@@ -54,7 +56,12 @@ export default function SettingsScreen() {
 
   const isPro = useProStore(s => s.isPro);
   const checkPro = useProStore(s => s.checkPro);
+  const hasAdminAccess = useProStore(s => s.hasAdminAccess);
+  const setAdminAccess = useProStore(s => s.setAdminAccess);
   const [showPaywall, setShowPaywall] = useState(false);
+  const [showAdminUnlock, setShowAdminUnlock] = useState(false);
+  const [adminCode, setAdminCode] = useState('');
+  const [adminError, setAdminError] = useState<string | null>(null);
 
   const [biometricLabel, setBiometricLabel] = useState('Biometric Lock');
   const [biometricAvailable, setBiometricAvailable] = useState(false);
@@ -66,6 +73,7 @@ export default function SettingsScreen() {
   const [isRestoring, setIsRestoring] = useState(false);
   const [restoreProgress, setRestoreProgress] = useState<string | null>(null);
   const backendConfigured = isBackendConfigured();
+  const adminBypassConfigured = isAdminBypassConfigured();
 
   useEffect(() => {
     getBiometricCapability().then(cap => {
@@ -219,6 +227,27 @@ export default function SettingsScreen() {
     );
   };
 
+  const handleAdminUnlock = () => {
+    if (validateAdminBypassCode(adminCode)) {
+      setAdminAccess(true);
+      setAdminCode('');
+      setAdminError(null);
+      setShowAdminUnlock(false);
+      Alert.alert('Owner Access Enabled', 'This device now bypasses the Pro paywall.');
+      return;
+    }
+
+    setAdminError('Code did not match the configured owner access secret.');
+  };
+
+  const handleDisableAdminAccess = () => {
+    setAdminAccess(false);
+    setAdminCode('');
+    setAdminError(null);
+    setShowAdminUnlock(false);
+    void checkPro();
+  };
+
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.header}>
@@ -348,6 +377,69 @@ export default function SettingsScreen() {
               <Text style={styles.proCTAText}>{isPro ? 'Pro Active' : 'Unlock Pro'}</Text>
             </Pressable>
           </View>
+          {adminBypassConfigured && (
+            <View style={styles.adminPanel}>
+              <View style={styles.adminHeader}>
+                <View>
+                  <Text style={styles.adminTitle}>Owner Access</Text>
+                  <Text style={styles.adminBody}>
+                    {hasAdminAccess
+                      ? 'This device currently bypasses the Pro paywall.'
+                      : 'Enter the configured owner access code to unlock Pro on this device.'}
+                  </Text>
+                </View>
+                {hasAdminAccess ? (
+                  <Pressable
+                    style={({ pressed }) => [styles.adminBtnSecondary, pressed && { opacity: 0.85 }]}
+                    onPress={handleDisableAdminAccess}
+                  >
+                    <Text style={styles.adminBtnSecondaryText}>Disable</Text>
+                  </Pressable>
+                ) : (
+                  <Pressable
+                    style={({ pressed }) => [styles.adminBtnSecondary, pressed && { opacity: 0.85 }]}
+                    onPress={() => {
+                      setAdminError(null);
+                      setShowAdminUnlock(v => !v);
+                    }}
+                  >
+                    <Text style={styles.adminBtnSecondaryText}>
+                      {showAdminUnlock ? 'Hide' : 'Enter Code'}
+                    </Text>
+                  </Pressable>
+                )}
+              </View>
+              {showAdminUnlock && !hasAdminAccess && (
+                <View style={styles.adminUnlockBox}>
+                  <TextInput
+                    style={styles.adminInput}
+                    value={adminCode}
+                    onChangeText={(value) => {
+                      setAdminCode(value);
+                      if (adminError) setAdminError(null);
+                    }}
+                    placeholder="Owner access code"
+                    placeholderTextColor={C.ash}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    secureTextEntry
+                  />
+                  {adminError && <Text style={styles.adminError}>{adminError}</Text>}
+                  <Pressable
+                    style={({ pressed }) => [
+                      styles.adminBtnPrimary,
+                      adminCode.trim().length === 0 && styles.adminBtnDisabled,
+                      pressed && adminCode.trim().length > 0 && { opacity: 0.85 },
+                    ]}
+                    onPress={handleAdminUnlock}
+                    disabled={adminCode.trim().length === 0}
+                  >
+                    <Text style={styles.adminBtnPrimaryText}>Enable Owner Access</Text>
+                  </Pressable>
+                </View>
+              )}
+            </View>
+          )}
         </View>
 
         {/* About */}
@@ -496,4 +588,74 @@ const styles = StyleSheet.create({
     opacity: 0.65,
   },
   proCTAText: { fontSize: T.sm, fontWeight: '700', color: C.ink1 },
+  adminPanel: {
+    marginTop: S[2],
+    borderTopWidth: 1,
+    borderTopColor: C.ink4,
+    paddingTop: S[3],
+    gap: S[3],
+  },
+  adminHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: S[3],
+  },
+  adminTitle: {
+    fontSize: T.sm,
+    fontWeight: '700',
+    color: C.cream,
+    marginBottom: 4,
+  },
+  adminBody: {
+    fontSize: T.xs,
+    color: C.ash,
+    lineHeight: 18,
+    maxWidth: 220,
+  },
+  adminUnlockBox: {
+    gap: S[2],
+  },
+  adminInput: {
+    backgroundColor: C.ink1,
+    borderRadius: R.md,
+    minHeight: 44,
+    paddingHorizontal: S[3],
+    color: C.cream,
+    borderWidth: 1,
+    borderColor: C.ink4,
+  },
+  adminError: {
+    fontSize: T.xs,
+    color: C.danger,
+  },
+  adminBtnPrimary: {
+    backgroundColor: C.amber,
+    borderRadius: R.lg,
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  adminBtnDisabled: {
+    opacity: 0.55,
+  },
+  adminBtnPrimaryText: {
+    fontSize: T.sm,
+    fontWeight: '700',
+    color: C.ink1,
+  },
+  adminBtnSecondary: {
+    borderWidth: 1,
+    borderColor: C.amber + '66',
+    borderRadius: R.md,
+    minHeight: 36,
+    paddingHorizontal: S[3],
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  adminBtnSecondaryText: {
+    fontSize: T.xs,
+    fontWeight: '700',
+    color: C.amber,
+  },
 });
