@@ -23,6 +23,7 @@ import {
   Switch,
 } from 'react-native';
 import Constants from 'expo-constants';
+import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useDocumentStore } from '@/store/documentStore';
 import { useAppStore } from '@/store/appStore';
@@ -48,11 +49,14 @@ function errorMessage(err: unknown, fallback: string): string {
 }
 
 export default function SettingsScreen() {
+  const router = useRouter();
   const insets = useSafeAreaInsets();
   const documents = useDocumentStore(s => s.documents);
   const folders = useDocumentStore(s => s.folders);
   const biometricEnabled = useAppStore(s => s.biometricEnabled);
   const setBiometricEnabled = useAppStore(s => s.setBiometricEnabled);
+  const accountProfile = useAppStore(s => s.accountProfile);
+  const clearAccountSession = useAppStore(s => s.clearAccountSession);
 
   const isPro = useProStore(s => s.isPro);
   const checkPro = useProStore(s => s.checkPro);
@@ -248,6 +252,24 @@ export default function SettingsScreen() {
     void checkPro();
   };
 
+  const handleSignOut = () => {
+    Alert.alert(
+      'Sign Out',
+      'You will need to log back into your FileTrail account on this device before reopening the vault.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Sign Out',
+          style: 'destructive',
+          onPress: () => {
+            clearAccountSession();
+            router.replace('/account');
+          },
+        },
+      ],
+    );
+  };
+
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.header}>
@@ -291,6 +313,27 @@ export default function SettingsScreen() {
           <SettingsRow label="Folders" value={`${folders.length}`} />
           <Divider />
           <SettingsRow label="Disk Usage" value={formatBytes(totalSize)} />
+        </View>
+
+        {/* Account */}
+        <SectionHeader title="Account" />
+        <View style={styles.card}>
+          <SettingsRow label="Name" value={accountProfile?.fullName ?? 'Unknown'} />
+          <Divider />
+          <SettingsRow label="Email" value={accountProfile?.email ?? 'Unknown'} />
+          <Divider />
+          <SettingsRow
+            label="Sign-in Method"
+            value={accountProfile?.provider === 'apple' ? 'Apple' : 'Email'}
+          />
+        </View>
+        <View style={styles.card}>
+          <Pressable
+            style={({ pressed }) => [styles.accountActionRow, pressed && { opacity: 0.75 }]}
+            onPress={handleSignOut}
+          >
+            <Text style={styles.accountActionText}>Sign Out</Text>
+          </Pressable>
         </View>
 
         <View style={styles.card}>
@@ -541,6 +584,8 @@ const styles = StyleSheet.create({
   dangerRow: { alignItems: 'center', justifyContent: 'center', paddingVertical: S[4], minHeight: 52 },
   dangerText: { fontSize: T.base, color: C.danger, fontWeight: '600' },
   dangerTextDisabled: { color: C.ink4 },
+  accountActionRow: { alignItems: 'center', justifyContent: 'center', paddingVertical: S[4], minHeight: 52 },
+  accountActionText: { fontSize: T.base, color: C.amber, fontWeight: '600' },
   actionRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: S[4], paddingVertical: S[4], minHeight: 64 },
   actionContent: { flex: 1, gap: 2 },
   actionLabel: { fontSize: T.base, color: C.cream, fontWeight: '600' },

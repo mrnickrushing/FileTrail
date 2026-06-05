@@ -62,7 +62,7 @@ export default function OnboardingScreen() {
     track(skipped ? 'onboarding_skipped' : 'onboarding_completed');
     setHasOnboarded(true);
     // Defer so Zustand persist can flush to AsyncStorage before navigation
-    requestAnimationFrame(() => router.replace('/(tabs)/'));
+    requestAnimationFrame(() => router.replace('/account'));
   }
 
   function next() {

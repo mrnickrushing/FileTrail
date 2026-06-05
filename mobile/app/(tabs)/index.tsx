@@ -83,6 +83,7 @@ export default function VaultScreen() {
   const setSortDir = useAppStore(s => s.setSortDir);
   const setViewMode = useAppStore(s => s.setViewMode);
   const hasOnboarded = useAppStore(s => s.hasOnboarded);
+  const isAccountAuthenticated = useAppStore(s => s.isAccountAuthenticated);
 
   // ── Filter logic ──────────────────────────────────────────────────────────
 
@@ -209,6 +210,10 @@ export default function VaultScreen() {
 
   if (!hasOnboarded) {
     return <Redirect href="/onboarding" />;
+  }
+
+  if (!isAccountAuthenticated) {
+    return <Redirect href="/account" />;
   }
 
   return (

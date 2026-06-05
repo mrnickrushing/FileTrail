@@ -1,6 +1,6 @@
 import React, { Component, type ReactNode, useEffect, useRef } from 'react';
 import { AppState, Text, View, useColorScheme } from 'react-native';
-import { Stack } from 'expo-router';
+import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -45,9 +45,14 @@ class RootErrorBoundary extends Component<{ children: ReactNode }, { error: Erro
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
+  const router = useRouter();
+  const segments = useSegments();
   const processOCRQueue = useDocumentStore(s => s.processOCRQueue);
   const syncWithBackend = useDocumentStore(s => s.syncWithBackend);
+  const hasHydrated = useAppStore(s => s.hasHydrated);
   const biometricEnabled = useAppStore(s => s.biometricEnabled);
+  const hasOnboarded = useAppStore(s => s.hasOnboarded);
+  const isAccountAuthenticated = useAppStore(s => s.isAccountAuthenticated);
   const checkPro = useProStore(s => s.checkPro);
   const isLocked = useAppStore(s => s.isLocked);
   const setLocked = useAppStore(s => s.setLocked);
@@ -62,7 +67,6 @@ export default function RootLayout() {
   checkProRef.current = checkPro;
 
   useEffect(() => {
-    SplashScreen.hideAsync();
     processOCRQueueRef.current();
     void syncWithBackendRef.current().catch(() => undefined);
     initializePurchases();
@@ -83,6 +87,37 @@ export default function RootLayout() {
     });
     return () => sub.remove();
   }, [biometricEnabled, setLocked]);
+
+  useEffect(() => {
+    if (!hasHydrated) return;
+    SplashScreen.hideAsync();
+  }, [hasHydrated]);
+
+  useEffect(() => {
+    if (!hasHydrated) return;
+
+    const topSegment = segments[0];
+    const inOnboarding = topSegment === 'onboarding';
+    const inAccount = topSegment === 'account';
+
+    if (!hasOnboarded) {
+      if (!inOnboarding) router.replace('/onboarding');
+      return;
+    }
+
+    if (!isAccountAuthenticated) {
+      if (!inAccount) router.replace('/account');
+      return;
+    }
+
+    if (inOnboarding || inAccount) {
+      router.replace('/(tabs)/');
+    }
+  }, [hasHydrated, hasOnboarded, isAccountAuthenticated, router, segments]);
+
+  if (!hasHydrated) {
+    return null;
+  }
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
@@ -105,6 +140,7 @@ export default function RootLayout() {
             <Stack.Screen name="document/[id]" options={{ title: 'Document', headerBackTitle: 'Back' }} />
             <Stack.Screen name="folder/[id]" options={{ title: 'Folder', headerBackTitle: 'Back' }} />
             <Stack.Screen name="onboarding" options={{ headerShown: false, gestureEnabled: false }} />
+            <Stack.Screen name="account" options={{ headerShown: false, gestureEnabled: false }} />
           </Stack>
         </RootErrorBoundary>
 

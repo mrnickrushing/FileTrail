@@ -22,6 +22,7 @@
       "supportsTablet": false,
       "bundleIdentifier": "com.papertraill.app",
       "buildNumber": "2",
+      "usesAppleSignIn": true,
       "infoPlist": {
         "NSCameraUsageDescription": "FileTrail uses your camera to scan documents.",
         "NSPhotoLibraryUsageDescription": "FileTrail accesses your photos to import documents.",
@@ -46,6 +47,7 @@
     },
     "plugins": [
       "expo-router",
+      "expo-apple-authentication",
       "expo-local-authentication",
       [
         "expo-image-picker",
