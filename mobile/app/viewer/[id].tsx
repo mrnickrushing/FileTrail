@@ -24,7 +24,6 @@ import {
   Modal,
   Platform,
   Animated,
-  PanResponder,
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -133,7 +132,7 @@ export default function DocumentViewerScreen() {
   const checkPro = useProStore(s => s.checkPro);
 
   const [isEditingTitle, setIsEditingTitle] = useState(false);
-  // Ref so PanResponder can read the live value without stale closure
+  // Ref so title editing state can be read without stale closure
   const isEditingTitleRef = useRef(false);
   const [editTitle, setEditTitle] = useState(document?.title ?? '');
   const [showOCR, setShowOCR] = useState(false);
@@ -168,29 +167,10 @@ export default function DocumentViewerScreen() {
 
   const titleInputRef = useRef<TextInput>(null);
 
-  // Swipe-to-dismiss: downward pan dismisses viewer
+  // Keep Animated.View stable without attaching a PanResponder.
+  // The old swipe-to-dismiss responder could capture touches and leave the app
+  // unresponsive after navigating back from this screen.
   const swipeY = useRef(new Animated.Value(0)).current;
-  const dismissPan = useRef(
-    PanResponder.create({
-      onMoveShouldSetPanResponder: (_, g) =>
-        !isEditingTitleRef.current && g.dy > 12 && Math.abs(g.dy) > Math.abs(g.dx) * 1.5,
-      onPanResponderMove: (_, g) => {
-        if (g.dy > 0) swipeY.setValue(g.dy);
-      },
-      onPanResponderRelease: (_, g) => {
-        if (g.dy > 100 || g.vy > 0.8) {
-          Animated.timing(swipeY, { toValue: SCREEN_H, duration: 200, useNativeDriver: true }).start(
-            () => router.canGoBack() ? router.back() : router.replace('/(tabs)/')
-          );
-        } else {
-          Animated.spring(swipeY, { toValue: 0, useNativeDriver: true }).start();
-        }
-      },
-      onPanResponderTerminate: () => {
-        Animated.spring(swipeY, { toValue: 0, useNativeDriver: true }).start();
-      },
-    })
-  ).current;
 
   const handleSaveTitle = useCallback(() => {
     if (!document) return;
@@ -396,7 +376,7 @@ export default function DocumentViewerScreen() {
         showsVerticalScrollIndicator={false}
       >
         {/* Document preview */}
-        <View style={styles.previewCard} {...dismissPan.panHandlers}>
+        <View style={styles.previewCard}>
           {!isPDF ? (
             <ScrollView
               maximumZoomScale={4}
