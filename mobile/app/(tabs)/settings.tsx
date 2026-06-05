@@ -13,7 +13,6 @@ import React, { useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
-  Linking,
   Pressable,
   StyleSheet,
   ScrollView,
@@ -328,14 +327,19 @@ export default function SettingsScreen() {
             ))}
           </View>
           <View style={styles.proAction}>
-            <Text style={styles.proPrice}>From $4.99/mo</Text>
+            <Text style={styles.proPrice}>{isPro ? 'Pro unlocked' : 'From $4.99/mo'}</Text>
             <Pressable
-              style={({ pressed }) => [styles.proCTA, pressed && { opacity: 0.8 }]}
-              onPress={() => Linking.openURL('https://filetrail.app/pro')}
-              accessibilityRole="link"
-              accessibilityLabel="Learn more about FileTrail Pro"
+              style={({ pressed }) => [
+                styles.proCTA,
+                isPro && styles.proCTADisabled,
+                pressed && !isPro && { opacity: 0.8 },
+              ]}
+              onPress={() => setShowPaywall(true)}
+              disabled={isPro}
+              accessibilityRole="button"
+              accessibilityLabel={isPro ? 'FileTrail Pro is already unlocked' : 'Unlock FileTrail Pro'}
             >
-              <Text style={styles.proCTAText}>Learn More →</Text>
+              <Text style={styles.proCTAText}>{isPro ? 'Pro Active' : 'Unlock Pro'}</Text>
             </Pressable>
           </View>
         </View>
@@ -481,6 +485,9 @@ const styles = StyleSheet.create({
     borderRadius: R.lg,
     paddingHorizontal: S[4],
     paddingVertical: S[2],
+  },
+  proCTADisabled: {
+    opacity: 0.65,
   },
   proCTAText: { fontSize: T.sm, fontWeight: '700', color: C.ink1 },
 });

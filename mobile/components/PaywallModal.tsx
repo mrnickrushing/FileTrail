@@ -32,6 +32,23 @@ interface PaywallModalProps {
   onSuccess: () => void;
 }
 
+function billingAlertTitle(code: string): string {
+  switch (code) {
+    case 'not_available':
+      return 'Purchase Unavailable';
+    case 'not_entitled':
+      return 'Purchase Incomplete';
+    case 'not_found':
+      return 'No Purchase Found';
+    case 'unsupported_platform':
+      return 'Unavailable Here';
+    case 'restore_failed':
+      return 'Restore Failed';
+    default:
+      return 'Purchase Failed';
+  }
+}
+
 export function PaywallModal({ visible, onClose, onSuccess }: PaywallModalProps) {
   const insets = useSafeAreaInsets();
   const [isPurchasing, setIsPurchasing] = useState(false);
@@ -40,11 +57,14 @@ export function PaywallModal({ visible, onClose, onSuccess }: PaywallModalProps)
   const handleUnlock = async () => {
     setIsPurchasing(true);
     try {
-      const success = await purchasePro();
-      if (success) {
+      const result = await purchasePro();
+      if (result.ok) {
         onSuccess();
-      } else {
-        Alert.alert('Purchase Unavailable', 'Could not complete purchase. Please try again.');
+        return;
+      }
+
+      if (result.code !== 'cancelled') {
+        Alert.alert(billingAlertTitle(result.code), result.message);
       }
     } finally {
       setIsPurchasing(false);
@@ -54,12 +74,13 @@ export function PaywallModal({ visible, onClose, onSuccess }: PaywallModalProps)
   const handleRestore = async () => {
     setIsRestoring(true);
     try {
-      const hasPro = await restorePurchases();
-      if (hasPro) {
+      const result = await restorePurchases();
+      if (result.ok) {
         onSuccess();
-      } else {
-        Alert.alert('No Purchase Found', 'We could not find a previous Pro purchase to restore.');
+        return;
       }
+
+      Alert.alert(billingAlertTitle(result.code), result.message);
     } finally {
       setIsRestoring(false);
     }

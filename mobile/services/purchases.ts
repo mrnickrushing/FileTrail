@@ -5,49 +5,191 @@
  * Product ID: FileTrail.monthly  |  Entitlement: pro
  */
 
-import Purchases, { LOG_LEVEL } from 'react-native-purchases';
+import { Platform } from 'react-native';
+import Purchases, {
+  type CustomerInfo,
+  LOG_LEVEL,
+  type PurchasesPackage,
+  type PurchasesStoreProduct,
+} from 'react-native-purchases';
 
 // RevenueCat iOS public SDK key
 const RC_API_KEY_IOS = 'appl_irsrRjnQozQoLjXSSQKdXKfgTQN';
+const PRO_PRODUCT_ID = 'FileTrail.monthly';
+const PRO_ENTITLEMENT_ID = 'pro';
+
+let isConfigured = false;
+
+export type BillingActionResult =
+  | { ok: true }
+  | {
+      ok: false;
+      code:
+        | 'cancelled'
+        | 'not_available'
+        | 'not_entitled'
+        | 'not_found'
+        | 'purchase_failed'
+        | 'restore_failed'
+        | 'unsupported_platform';
+      message: string;
+    };
+
+function isNativePurchasesPlatform(): boolean {
+  return Platform.OS === 'ios' || Platform.OS === 'android';
+}
+
+function hasProEntitlement(customerInfo: CustomerInfo): boolean {
+  return typeof customerInfo.entitlements.active[PRO_ENTITLEMENT_ID] !== 'undefined';
+}
+
+function configureIfNeeded(): boolean {
+  if (!isNativePurchasesPlatform()) {
+    return false;
+  }
+
+  if (!isConfigured) {
+    Purchases.setLogLevel(__DEV__ ? LOG_LEVEL.DEBUG : LOG_LEVEL.ERROR);
+    Purchases.configure({ apiKey: RC_API_KEY_IOS });
+    isConfigured = true;
+  }
+
+  return true;
+}
+
+async function findPackageFromOfferings(): Promise<PurchasesPackage | null> {
+  const offerings = await Purchases.getOfferings();
+  const packages = [
+    ...(offerings.current?.availablePackages ?? []),
+    ...Object.values(offerings.all ?? {}).flatMap(offering => offering.availablePackages ?? []),
+  ];
+
+  return packages.find(pkg => pkg.product.identifier === PRO_PRODUCT_ID) ?? packages[0] ?? null;
+}
+
+async function findDirectProduct(): Promise<PurchasesStoreProduct | null> {
+  const products = await Purchases.getProducts(
+    [PRO_PRODUCT_ID],
+    Purchases.PRODUCT_CATEGORY.SUBSCRIPTION,
+  );
+
+  return products.find(product => product.identifier === PRO_PRODUCT_ID) ?? products[0] ?? null;
+}
 
 export function initializePurchases(): void {
-  Purchases.setLogLevel(__DEV__ ? LOG_LEVEL.DEBUG : LOG_LEVEL.ERROR);
-  Purchases.configure({ apiKey: RC_API_KEY_IOS });
+  configureIfNeeded();
 }
 
 export async function checkProEntitlement(): Promise<boolean> {
+  if (!configureIfNeeded()) {
+    return false;
+  }
+
   try {
     const customerInfo = await Purchases.getCustomerInfo();
-    return typeof customerInfo.entitlements.active['pro'] !== 'undefined';
+    return hasProEntitlement(customerInfo);
   } catch (e) {
     console.warn('[purchases] checkProEntitlement error', e);
     return false;
   }
 }
 
-export async function purchasePro(): Promise<boolean> {
+export async function purchasePro(): Promise<BillingActionResult> {
+  if (!configureIfNeeded()) {
+    return {
+      ok: false,
+      code: 'unsupported_platform',
+      message: 'Purchases are only available on iPhone and Android.',
+    };
+  }
+
   try {
-    const offerings = await Purchases.getOfferings();
-    const pkg = offerings.current?.availablePackages[0];
-    if (!pkg) {
-      console.warn('[purchases] No available packages found');
-      return false;
+    const pkg = await findPackageFromOfferings();
+    if (pkg) {
+      const { customerInfo } = await Purchases.purchasePackage(pkg);
+      if (hasProEntitlement(customerInfo)) {
+        return { ok: true };
+      }
+
+      return {
+        ok: false,
+        code: 'not_entitled',
+        message: `Purchase completed, but the '${PRO_ENTITLEMENT_ID}' entitlement is not active.`,
+      };
     }
-    const { customerInfo } = await Purchases.purchasePackage(pkg);
-    return typeof customerInfo.entitlements.active['pro'] !== 'undefined';
-  } catch (e: any) {
-    if (e?.userCancelled) return false;
+
+    console.warn('[purchases] No package in offerings, falling back to direct product lookup');
+
+    const product = await findDirectProduct();
+    if (!product) {
+      return {
+        ok: false,
+        code: 'not_available',
+        message: `FileTrail Pro is not available right now. Verify '${PRO_PRODUCT_ID}' is approved in App Store Connect and attached to a RevenueCat offering.`,
+      };
+    }
+
+    const { customerInfo } = await Purchases.purchaseStoreProduct(product);
+    if (hasProEntitlement(customerInfo)) {
+      return { ok: true };
+    }
+
+    return {
+      ok: false,
+      code: 'not_entitled',
+      message: `Purchase completed, but the '${PRO_ENTITLEMENT_ID}' entitlement is not active.`,
+    };
+  } catch (e: unknown) {
+    if (
+      typeof e === 'object' &&
+      e !== null &&
+      'userCancelled' in e &&
+      e.userCancelled === true
+    ) {
+      return {
+        ok: false,
+        code: 'cancelled',
+        message: 'Purchase was cancelled.',
+      };
+    }
+
     console.warn('[purchases] purchasePro error', e);
-    return false;
+    return {
+      ok: false,
+      code: 'purchase_failed',
+      message: e instanceof Error && e.message.trim().length > 0
+        ? e.message
+        : 'Could not complete the purchase.',
+    };
   }
 }
 
-export async function restorePurchases(): Promise<boolean> {
+export async function restorePurchases(): Promise<BillingActionResult> {
+  if (!configureIfNeeded()) {
+    return {
+      ok: false,
+      code: 'unsupported_platform',
+      message: 'Purchases are only available on iPhone and Android.',
+    };
+  }
+
   try {
     const customerInfo = await Purchases.restorePurchases();
-    return typeof customerInfo.entitlements.active['pro'] !== 'undefined';
+    if (hasProEntitlement(customerInfo)) {
+      return { ok: true };
+    }
+
+    return {
+      ok: false,
+      code: 'not_found',
+      message: 'We could not find a previous Pro purchase to restore.',
+    };
   } catch (e) {
     console.warn('[purchases] restorePurchases error', e);
-    return false;
+    return {
+      ok: false,
+      code: 'restore_failed',
+      message: e instanceof Error && e.message ? e.message : 'Could not restore purchases.',
+    };
   }
 }
