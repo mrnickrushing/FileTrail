@@ -57,6 +57,7 @@ export default function SettingsScreen() {
   const setBiometricEnabled = useAppStore(s => s.setBiometricEnabled);
   const accountProfile = useAppStore(s => s.accountProfile);
   const clearAccountSession = useAppStore(s => s.clearAccountSession);
+  const clearAccountProfile = useAppStore(s => s.clearAccountProfile);
 
   const isPro = useProStore(s => s.isPro);
   const checkPro = useProStore(s => s.checkPro);
@@ -70,6 +71,7 @@ export default function SettingsScreen() {
   const [biometricLabel, setBiometricLabel] = useState('Biometric Lock');
   const [biometricAvailable, setBiometricAvailable] = useState(false);
   const [isClearing, setIsClearing] = useState(false);
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [exportProgress, setExportProgress] = useState<string | null>(null);
   const [isBackingUp, setIsBackingUp] = useState(false);
@@ -270,6 +272,44 @@ export default function SettingsScreen() {
     );
   };
 
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      'Delete Account',
+      'This removes your FileTrail account from this device and permanently deletes the local vault, including all documents and folders. This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete Account',
+          style: 'destructive',
+          onPress: async () => {
+            setIsDeletingAccount(true);
+            try {
+              await Promise.all(
+                documents.map((d) => deleteDocumentFiles(d.id).catch(() => undefined)),
+              );
+
+              const documentIds = documents.map((d) => d.id);
+              const folderIds = folders.map((f) => f.id);
+
+              useDocumentStore.setState((state) => ({
+                documents: [],
+                folders: [],
+                deletedDocumentIds: Array.from(new Set([...state.deletedDocumentIds, ...documentIds])),
+                deletedFolderIds: Array.from(new Set([...state.deletedFolderIds, ...folderIds])),
+              }));
+
+              setAdminAccess(false);
+              clearAccountProfile();
+              router.replace('/account');
+            } finally {
+              setIsDeletingAccount(false);
+            }
+          },
+        },
+      ],
+    );
+  };
+
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.header}>
@@ -333,6 +373,21 @@ export default function SettingsScreen() {
             onPress={handleSignOut}
           >
             <Text style={styles.accountActionText}>Sign Out</Text>
+          </Pressable>
+          <Divider />
+          <Pressable
+            style={({ pressed }) => [
+              styles.accountActionRow,
+              (pressed || isDeletingAccount) && { opacity: 0.75 },
+            ]}
+            onPress={handleDeleteAccount}
+            disabled={isDeletingAccount}
+          >
+            {isDeletingAccount ? (
+              <ActivityIndicator color={C.danger} />
+            ) : (
+              <Text style={styles.accountDeleteText}>Delete Account</Text>
+            )}
           </Pressable>
         </View>
 
@@ -586,6 +641,7 @@ const styles = StyleSheet.create({
   dangerTextDisabled: { color: C.ink4 },
   accountActionRow: { alignItems: 'center', justifyContent: 'center', paddingVertical: S[4], minHeight: 52 },
   accountActionText: { fontSize: T.base, color: C.amber, fontWeight: '600' },
+  accountDeleteText: { fontSize: T.base, color: C.danger, fontWeight: '600' },
   actionRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: S[4], paddingVertical: S[4], minHeight: 64 },
   actionContent: { flex: 1, gap: 2 },
   actionLabel: { fontSize: T.base, color: C.cream, fontWeight: '600' },
