@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -204,9 +204,14 @@ export default function AccountScreen() {
     if (accountProfile.passwordHash) {
       const pwHash = await hashPassword(password);
       if (pwHash !== accountProfile.passwordHash) {
-        fail('Incorrect password.');
+        fail('That password does not match this FileTrail account.');
         return;
       }
+    }
+
+    if (!accountProfile.passwordHash && password.trim().length > 0) {
+      fail('This local account was created before passwords were required. Leave password blank or recreate the account.');
+      return;
     }
 
     setAccountAuthenticated(true);
@@ -385,7 +390,6 @@ export default function AccountScreen() {
               clearInlineError();
               setMode('create');
             }}
-            disabled={Boolean(accountProfile)}
           >
             <Text style={[styles.segmentText, isCreateMode && styles.segmentTextActive]}>
               Create account
@@ -397,7 +401,6 @@ export default function AccountScreen() {
               clearInlineError();
               setMode('login');
             }}
-            disabled={!accountProfile}
           >
             <Text style={[styles.segmentText, !isCreateMode && styles.segmentTextActive]}>
               Log in
@@ -453,7 +456,7 @@ export default function AccountScreen() {
                 setPassword(value);
                 clearInlineError();
               }}
-              placeholder={isCreateMode ? 'Create a password' : 'Your password'}
+              placeholder={isCreateMode ? 'Create a password' : 'Enter your password'}
               placeholderTextColor={C.ash}
               autoCapitalize="none"
               autoCorrect={false}
@@ -462,6 +465,11 @@ export default function AccountScreen() {
               textContentType={isCreateMode ? 'newPassword' : 'password'}
               editable={!isWorking}
             />
+            {!isCreateMode && accountProfile?.provider === 'email' && !accountProfile.passwordHash && (
+              <Text style={styles.fieldHint}>
+                This device has an older local account profile. Email-only login still works.
+              </Text>
+            )}
           </View>
 
           {error && <Text style={styles.errorText}>{error}</Text>}
@@ -684,6 +692,11 @@ const styles = StyleSheet.create({
     color: C.danger,
     fontSize: T.sm,
     lineHeight: 20,
+  },
+  fieldHint: {
+    color: C.ash,
+    fontSize: T.xs,
+    lineHeight: 18,
   },
   primaryBtn: {
     minHeight: 54,

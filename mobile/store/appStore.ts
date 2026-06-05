@@ -16,8 +16,8 @@ export interface AccountProfile {
   email: string;
   provider: AccountProvider;
   appleUserId?: string;
-  createdAt: string;
   passwordHash?: string;
+  createdAt: string;
   userId?: string;
 }
 

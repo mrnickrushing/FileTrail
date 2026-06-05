@@ -29,10 +29,14 @@ import {
 import { useLocalSearchParams, router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useDocumentStore } from '@/store/documentStore';
+import { useProStore } from '@/store/proStore';
 import { shareDocument } from '@/services/exportService';
+import { apiRequest, isBackendConfigured } from '@/services/api';
 import { TagEditor } from '@/components/TagEditor';
+import { FolderPickerModal } from '@/components/FolderPickerModal';
+import { PaywallModal } from '@/components/PaywallModal';
 import { C, T, R, S } from '@/theme/tokens';
-import type { DocumentCategory } from '@/types/document';
+import type { DocumentCategory, Folder } from '@/types/document';
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 
@@ -54,13 +58,66 @@ const CATEGORIES: DocumentCategory[] = [
   'receipt', 'contract', 'id', 'warranty', 'medical', 'tax', 'other',
 ];
 
+function tokenize(value: string): string[] {
+  return value
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter((token) => token.length > 1);
+}
+
+function suggestFolderId(
+  folders: Folder[],
+  input: {
+    title: string;
+    category: DocumentCategory;
+    tags: string[];
+    ocrText?: string;
+  },
+): string | null {
+  if (folders.length === 0) return null;
+
+  const contextTokens = new Set([
+    ...tokenize(input.title),
+    ...tokenize(input.category),
+    ...input.tags.flatMap(tokenize),
+    ...tokenize(input.ocrText?.slice(0, 600) ?? ''),
+  ]);
+
+  let bestFolderId: string | null = null;
+  let bestScore = 0;
+
+  for (const folder of folders) {
+    const folderTokens = tokenize(folder.name);
+    const folderName = folder.name.toLowerCase();
+    let score = 0;
+
+    for (const token of folderTokens) {
+      if (contextTokens.has(token)) {
+        score += token.length >= 5 ? 4 : 2;
+      }
+    }
+
+    if (input.title.toLowerCase().includes(folderName)) score += 5;
+    if (input.tags.some((tag) => tag.toLowerCase().includes(folderName))) score += 4;
+
+    if (score > bestScore) {
+      bestScore = score;
+      bestFolderId = folder.id;
+    }
+  }
+
+  return bestScore > 0 ? bestFolderId : null;
+}
+
 export default function DocumentViewerScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const insets = useSafeAreaInsets();
 
   const document = useDocumentStore(s => s.getDocument(id));
+  const folders = useDocumentStore(s => s.folders);
   const updateDocument = useDocumentStore(s => s.updateDocument);
   const updateDocumentTags = useDocumentStore(s => s.updateDocumentTags);
+  const moveDocumentToFolder = useDocumentStore(s => s.moveDocumentToFolder);
   const allDocumentTags = useDocumentStore(s => {
     const tagSet = new Set<string>();
     for (const doc of s.documents) for (const tag of doc.tags) tagSet.add(tag);
@@ -68,14 +125,20 @@ export default function DocumentViewerScreen() {
   });
   const deleteDocument = useDocumentStore(s => s.deleteDocument);
   const toggleFavorite = useDocumentStore(s => s.toggleFavorite);
+  const isPro = useProStore(s => s.isPro);
+  const checkPro = useProStore(s => s.checkPro);
 
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editTitle, setEditTitle] = useState(document?.title ?? '');
   const [showOCR, setShowOCR] = useState(false);
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
   const [showTagEditor, setShowTagEditor] = useState(false);
+  const [showFolderPicker, setShowFolderPicker] = useState(false);
+  const [showPaywall, setShowPaywall] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
+  const [isAiOrganizing, setIsAiOrganizing] = useState(false);
+  const [aiSummary, setAiSummary] = useState<string | null>(null);
 
   // PDF-specific state
   const [pdfPage, setPdfPage] = useState(1);
@@ -156,6 +219,90 @@ export default function DocumentViewerScreen() {
     setShowCategoryPicker(false);
   }, [document, updateDocument]);
 
+  const handleFolderSelect = useCallback((folderId: string | null) => {
+    if (!document) return;
+    moveDocumentToFolder(document.id, folderId);
+    setShowFolderPicker(false);
+  }, [document, moveDocumentToFolder]);
+
+  const handleAiOrganize = useCallback(async () => {
+    if (!document || isAiOrganizing) return;
+
+    if (!isPro) {
+      setShowPaywall(true);
+      return;
+    }
+
+    if (!isBackendConfigured()) {
+      Alert.alert(
+        'AI Unavailable',
+        'Configure EXPO_PUBLIC_API_URL and deploy the backend AI service before using AI organize.',
+      );
+      return;
+    }
+
+    setIsAiOrganizing(true);
+    setAiSummary(null);
+
+    try {
+      const suggestion = await apiRequest<{
+        suggestedTitle: string;
+        category: DocumentCategory;
+        tags: string[];
+        source: string;
+      }>('/v1/ai/suggest-document', {
+        method: 'POST',
+        body: {
+          title: document.title,
+          filename: document.title,
+          ocrText: document.ocrText,
+          mimeType: document.mimeType,
+        },
+      });
+
+      const nextTitle = suggestion.suggestedTitle?.trim() || document.title;
+      const nextCategory = suggestion.category || document.category;
+      const nextTags = Array.isArray(suggestion.tags)
+        ? Array.from(new Set(suggestion.tags.map((tag) => tag.trim()).filter(Boolean)))
+        : document.tags;
+
+      updateDocument(document.id, {
+        title: nextTitle,
+        category: nextCategory,
+      });
+      updateDocumentTags(document.id, nextTags);
+
+      const suggestedFolderId = suggestFolderId(folders, {
+        title: nextTitle,
+        category: nextCategory,
+        tags: nextTags,
+        ocrText: document.ocrText,
+      });
+
+      const suggestedFolder = folders.find((folder) => folder.id === suggestedFolderId) ?? null;
+      if (suggestedFolderId) {
+        moveDocumentToFolder(document.id, suggestedFolderId);
+      }
+
+      const summaryParts = ['updated the name', 'set the category'];
+      if (nextTags.length > 0) summaryParts.push('applied tags');
+      if (suggestedFolder) summaryParts.push(`moved it to ${suggestedFolder.name}`);
+      setAiSummary(`AI ${summaryParts.join(', ')}.`);
+    } catch (err: unknown) {
+      Alert.alert('AI Organize Failed', errorMessage(err, 'Could not analyze this document.'));
+    } finally {
+      setIsAiOrganizing(false);
+    }
+  }, [
+    document,
+    folders,
+    isAiOrganizing,
+    isPro,
+    moveDocumentToFolder,
+    updateDocument,
+    updateDocumentTags,
+  ]);
+
   if (!document) {
     return (
       <View style={[styles.notFound, { paddingTop: insets.top }]}>
@@ -168,11 +315,13 @@ export default function DocumentViewerScreen() {
   }
 
   const isPDF = document.mimeType.includes('pdf');
+  const currentFolder = document.folderId
+    ? folders.find((folder) => folder.id === document.folderId) ?? null
+    : null;
 
   return (
     <Animated.View
       style={[styles.container, { paddingTop: insets.top, transform: [{ translateY: swipeY }] }]}
-      {...dismissPan.panHandlers}
     >
       {/* ── Header ── */}
       <View style={styles.header}>
@@ -218,7 +367,7 @@ export default function DocumentViewerScreen() {
         showsVerticalScrollIndicator={false}
       >
         {/* Document preview */}
-        <View style={styles.previewCard}>
+        <View style={styles.previewCard} {...dismissPan.panHandlers}>
           {!isPDF ? (
             <ScrollView
               maximumZoomScale={4}
@@ -292,6 +441,44 @@ export default function DocumentViewerScreen() {
             })} />
             {isPDF && <MetaChip label={`${pdfTotal} ${pdfTotal === 1 ? 'page' : 'pages'}`} />}
             {document.isFavorite && <MetaChip label="★ Favorited" amber />}
+            <MetaChip label={currentFolder?.name ?? 'Unfiled'} />
+          </View>
+
+          <View style={styles.organizeCard}>
+            <View style={styles.organizeHeader}>
+              <View style={styles.organizeTitleWrap}>
+                <Text style={styles.organizeTitle}>Smart Organize</Text>
+                <Text style={styles.organizeBody}>
+                  Use AI to rename, categorize, tag, and suggest a folder for this document.
+                </Text>
+              </View>
+            </View>
+            <View style={styles.organizeActions}>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.organizeBtnSecondary,
+                  pressed && { opacity: 0.8 },
+                ]}
+                onPress={() => setShowFolderPicker(true)}
+              >
+                <Text style={styles.organizeBtnSecondaryText}>Move Folder</Text>
+              </Pressable>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.organizeBtnPrimary,
+                  (pressed || isAiOrganizing) && { opacity: 0.85 },
+                ]}
+                onPress={handleAiOrganize}
+                disabled={isAiOrganizing}
+              >
+                {isAiOrganizing ? (
+                  <ActivityIndicator size="small" color={C.ink1} />
+                ) : (
+                  <Text style={styles.organizeBtnPrimaryText}>AI Organize</Text>
+                )}
+              </Pressable>
+            </View>
+            {aiSummary && <Text style={styles.organizeSummary}>{aiSummary}</Text>}
           </View>
 
           {/* Tags */}
@@ -356,6 +543,22 @@ export default function DocumentViewerScreen() {
           setShowTagEditor(false);
         }}
         onCancel={() => setShowTagEditor(false)}
+      />
+
+      <FolderPickerModal
+        visible={showFolderPicker}
+        folders={folders}
+        onSelect={handleFolderSelect}
+        onCancel={() => setShowFolderPicker(false)}
+      />
+
+      <PaywallModal
+        visible={showPaywall}
+        onClose={() => setShowPaywall(false)}
+        onSuccess={() => {
+          setShowPaywall(false);
+          void checkPro();
+        }}
       />
 
       {/* ── Category Picker Modal ── */}
@@ -628,6 +831,70 @@ const styles = StyleSheet.create({
   categoryLabel: { flex: 1, fontSize: T.base, color: C.cream },
   categoryChevron: { fontSize: T.lg, color: C.ash },
   metaRow: { flexDirection: 'row', flexWrap: 'wrap', gap: S[2] },
+  organizeCard: {
+    backgroundColor: C.ink2,
+    borderRadius: R.lg,
+    borderWidth: 1,
+    borderColor: `${C.amber}33`,
+    padding: S[4],
+    gap: S[3],
+  },
+  organizeHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+  },
+  organizeTitleWrap: {
+    flex: 1,
+    gap: 4,
+  },
+  organizeTitle: {
+    fontSize: T.base,
+    fontWeight: '700',
+    color: C.cream,
+  },
+  organizeBody: {
+    fontSize: T.sm,
+    color: C.ash,
+    lineHeight: 20,
+  },
+  organizeActions: {
+    flexDirection: 'row',
+    gap: S[2],
+  },
+  organizeBtnPrimary: {
+    flex: 1,
+    minHeight: 44,
+    borderRadius: R.lg,
+    backgroundColor: C.amber,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  organizeBtnPrimaryText: {
+    fontSize: T.sm,
+    fontWeight: '700',
+    color: C.ink1,
+  },
+  organizeBtnSecondary: {
+    flex: 1,
+    minHeight: 44,
+    borderRadius: R.lg,
+    borderWidth: 1,
+    borderColor: C.ink4,
+    backgroundColor: C.ink3,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  organizeBtnSecondaryText: {
+    fontSize: T.sm,
+    fontWeight: '600',
+    color: C.cream,
+  },
+  organizeSummary: {
+    fontSize: T.xs,
+    color: C.amber,
+    lineHeight: 18,
+  },
   tagsRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
