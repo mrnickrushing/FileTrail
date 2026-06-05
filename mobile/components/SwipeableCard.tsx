@@ -56,17 +56,11 @@ export function SwipeableCard({ children, onDelete, onFavorite, isFavorite, disa
       onPanResponderRelease: (_, g) => {
         hasFiredRef.current = false;
         if (g.dx > ACTION_THRESHOLD) {
-          // Swipe right → favorite
-          Animated.spring(translateX, { toValue: SNAP_DISTANCE, useNativeDriver: true }).start(() => {
-            onFavorite();
-            Animated.spring(translateX, { toValue: 0, useNativeDriver: true }).start();
-          });
+          translateX.setValue(0);
+          onFavorite();
         } else if (g.dx < -ACTION_THRESHOLD) {
-          // Swipe left → delete
-          Animated.spring(translateX, { toValue: -SNAP_DISTANCE, useNativeDriver: true }).start(() => {
-            onDelete();
-            Animated.spring(translateX, { toValue: 0, useNativeDriver: true }).start();
-          });
+          translateX.setValue(0);
+          onDelete();
         } else {
           Animated.spring(translateX, { toValue: 0, useNativeDriver: true }).start();
         }
