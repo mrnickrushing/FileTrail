@@ -318,13 +318,28 @@ export default function AccountScreen() {
           return;
         }
 
-        completeAccountSetup({
+        const appleProfile = {
           fullName: credentialName || fullName.trim() || 'FileTrail User',
           email: normalizedEmail,
-          provider: 'apple',
+          provider: 'apple' as const,
           appleUserId: credential.user,
           createdAt: new Date().toISOString(),
-        });
+        };
+        completeAccountSetup(appleProfile);
+        // Register Apple user on backend (fire-and-forget — local auth already set)
+        const appleId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+        registerUserWithBackend({
+          id: appleId,
+          fullName: appleProfile.fullName,
+          email: appleProfile.email,
+          passwordHash: '',
+          provider: 'apple',
+          appleUserId: credential.user,
+        }).then((res) => {
+          if (res.userId) {
+            completeAccountSetup({ ...appleProfile, userId: res.userId });
+          }
+        }).catch(() => undefined);
         return;
       }
 
