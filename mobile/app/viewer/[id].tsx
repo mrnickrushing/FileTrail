@@ -23,8 +23,6 @@ import {
   Dimensions,
   Modal,
   Platform,
-  Animated,
-  PanResponder,
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -109,6 +107,13 @@ function suggestFolderId(
   return bestScore > 0 ? bestFolderId : null;
 }
 
+// Module-level selector — stable reference, never re-created.
+function selectAllTags(s: { documents: { tags: string[] }[] }): string[] {
+  const tagSet = new Set<string>();
+  for (const doc of s.documents) for (const tag of doc.tags) tagSet.add(tag);
+  return Array.from(tagSet).sort();
+}
+
 export default function DocumentViewerScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const insets = useSafeAreaInsets();
@@ -118,22 +123,13 @@ export default function DocumentViewerScreen() {
   const updateDocument = useDocumentStore(s => s.updateDocument);
   const updateDocumentTags = useDocumentStore(s => s.updateDocumentTags);
   const moveDocumentToFolder = useDocumentStore(s => s.moveDocumentToFolder);
-  // Stable selector: only recomputes when documents array reference changes.
-  // Using getAllTags() avoids a new array ref on every render.
-  const allDocumentTags = useDocumentStore(
-    React.useCallback((s) => {
-      const tagSet = new Set<string>();
-      for (const doc of s.documents) for (const tag of doc.tags) tagSet.add(tag);
-      return Array.from(tagSet).sort();
-    }, []),
-  );
+  const allDocumentTags = useDocumentStore(selectAllTags);
   const deleteDocument = useDocumentStore(s => s.deleteDocument);
   const toggleFavorite = useDocumentStore(s => s.toggleFavorite);
   const isPro = useProStore(s => s.isPro);
   const checkPro = useProStore(s => s.checkPro);
 
   const [isEditingTitle, setIsEditingTitle] = useState(false);
-  // Ref so PanResponder can read the live value without stale closure
   const isEditingTitleRef = useRef(false);
   const [editTitle, setEditTitle] = useState(document?.title ?? '');
   const [showOCR, setShowOCR] = useState(false);
@@ -148,41 +144,22 @@ export default function DocumentViewerScreen() {
   useEffect(() => {
     isEditingTitleRef.current = isEditingTitle;
   }, [isEditingTitle]);
+
+  useEffect(() => {
+    if (!isEditingTitle && document?.title) {
+      setEditTitle(document.title);
+    }
+  }, [document?.title, isEditingTitle]);
   const [showPaywall, setShowPaywall] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
   const [isAiOrganizing, setIsAiOrganizing] = useState(false);
   const [aiSummary, setAiSummary] = useState<string | null>(null);
 
-  // PDF-specific state
   const [pdfPage, setPdfPage] = useState(1);
   const [pdfTotal] = useState(document?.pageCount ?? 1);
 
   const titleInputRef = useRef<TextInput>(null);
-
-  // Swipe-to-dismiss: downward pan dismisses viewer
-  const swipeY = useRef(new Animated.Value(0)).current;
-  const dismissPan = useRef(
-    PanResponder.create({
-      onMoveShouldSetPanResponder: (_, g) =>
-        !isEditingTitleRef.current && g.dy > 12 && Math.abs(g.dy) > Math.abs(g.dx) * 1.5,
-      onPanResponderMove: (_, g) => {
-        if (g.dy > 0) swipeY.setValue(g.dy);
-      },
-      onPanResponderRelease: (_, g) => {
-        if (g.dy > 100 || g.vy > 0.8) {
-          Animated.timing(swipeY, { toValue: SCREEN_H, duration: 200, useNativeDriver: true }).start(
-            () => router.canGoBack() ? router.back() : router.replace('/(tabs)/')
-          );
-        } else {
-          Animated.spring(swipeY, { toValue: 0, useNativeDriver: true }).start();
-        }
-      },
-      onPanResponderTerminate: () => {
-        Animated.spring(swipeY, { toValue: 0, useNativeDriver: true }).start();
-      },
-    })
-  ).current;
 
   const handleSaveTitle = useCallback(() => {
     if (!document) return;
@@ -204,7 +181,7 @@ export default function DocumentViewerScreen() {
     } catch (err: unknown) {
       Alert.alert('Share Failed', errorMessage(err, 'Could not share this document.'));
     } finally {
-      setIsSharing(false);
+      if (isMounted.current) setIsSharing(false);
     }
   }, [document, isSharing]);
 
@@ -221,6 +198,7 @@ export default function DocumentViewerScreen() {
           onPress: async () => {
             setIsDeleting(true);
             await deleteDocument(document.id);
+            if (isMounted.current) setIsDeleting(false);
             router.replace('/(tabs)/');
           },
         },
@@ -340,9 +318,12 @@ export default function DocumentViewerScreen() {
     : null;
 
   return (
-    <Animated.View
-      style={[styles.container, { paddingTop: insets.top, transform: [{ translateY: swipeY }] }]}
-    >
+    // Plain View replaces the previous Animated.View wrapper.
+    // The swipe-to-dismiss PanResponder was removed in a prior commit but the
+    // Animated.View shell remained. React Native's gesture responder system was
+    // locking that node and swallowing touches before they could reach any child
+    // Pressable or ScrollView, causing the page to appear frozen.
+    <View style={[styles.container, { paddingTop: insets.top }]}>
       {/* ── Header ── */}
       <View style={styles.header}>
         <Pressable style={styles.headerBtn} onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)/')} hitSlop={8}>
@@ -387,7 +368,7 @@ export default function DocumentViewerScreen() {
         showsVerticalScrollIndicator={false}
       >
         {/* Document preview */}
-        <View style={styles.previewCard} {...dismissPan.panHandlers}>
+        <View style={styles.previewCard}>
           {!isPDF ? (
             <ScrollView
               maximumZoomScale={4}
@@ -628,7 +609,7 @@ export default function DocumentViewerScreen() {
           <ActivityIndicator color={C.amber} size="large" />
         </View>
       )}
-    </Animated.View>
+    </View>
   );
 }
 
