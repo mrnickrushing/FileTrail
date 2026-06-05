@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -22,6 +22,7 @@ import {
   validateAdminBypassCode,
 } from '@/services/adminAccess';
 import { C, R, S, T } from '@/theme/tokens';
+import { hashPassword, registerUserWithBackend } from '@/services/userService';
 
 type AuthMode = 'create' | 'login';
 type BusyAction = 'manual' | 'apple' | null;
@@ -60,6 +61,7 @@ export default function AccountScreen() {
   const [mode, setMode] = useState<AuthMode>(accountProfile ? 'login' : 'create');
   const [fullName, setFullName] = useState(accountProfile?.fullName ?? '');
   const [email, setEmail] = useState(accountProfile?.email ?? '');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [ownerCode, setOwnerCode] = useState('');
   const [ownerError, setOwnerError] = useState<string | null>(null);
@@ -130,7 +132,7 @@ export default function AccountScreen() {
     if (ownerError) setOwnerError(null);
   }
 
-  function createManualProfile() {
+  async function createManualProfile() {
     const trimmedName = fullName.trim();
     const normalizedEmail = normalizeEmail(email);
 
@@ -150,15 +152,32 @@ export default function AccountScreen() {
       return;
     }
 
-    completeAccountSetup({
+    if (password.length < 8) {
+      fail('Password must be at least 8 characters.');
+      return;
+    }
+
+    const pwHash = await hashPassword(password);
+    const newProfile = {
       fullName: trimmedName,
       email: normalizedEmail,
-      provider: 'email',
+      provider: 'email' as const,
       createdAt: new Date().toISOString(),
+      passwordHash: pwHash,
+    };
+    completeAccountSetup(newProfile);
+
+    const id = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+    await registerUserWithBackend({
+      id,
+      fullName: trimmedName,
+      email: normalizedEmail,
+      passwordHash: pwHash,
+      provider: 'email',
     });
   }
 
-  function loginWithManualProfile() {
+  async function loginWithManualProfile() {
     const normalizedEmail = normalizeEmail(email);
 
     if (!accountProfile) {
@@ -182,6 +201,14 @@ export default function AccountScreen() {
       return;
     }
 
+    if (accountProfile.passwordHash) {
+      const pwHash = await hashPassword(password);
+      if (pwHash !== accountProfile.passwordHash) {
+        fail('Incorrect password.');
+        return;
+      }
+    }
+
     setAccountAuthenticated(true);
   }
 
@@ -190,9 +217,9 @@ export default function AccountScreen() {
     setBusyAction('manual');
     try {
       if (isCreateMode) {
-        createManualProfile();
+        await createManualProfile();
       } else {
-        loginWithManualProfile();
+        await loginWithManualProfile();
       }
     } finally {
       setBusyAction(null);
@@ -414,6 +441,25 @@ export default function AccountScreen() {
               keyboardType="email-address"
               style={styles.input}
               textContentType="emailAddress"
+              editable={!isWorking}
+            />
+          </View>
+
+          <View style={styles.fieldGroup}>
+            <Text style={styles.label}>Password</Text>
+            <TextInput
+              value={password}
+              onChangeText={(value) => {
+                setPassword(value);
+                clearInlineError();
+              }}
+              placeholder={isCreateMode ? 'Create a password' : 'Your password'}
+              placeholderTextColor={C.ash}
+              autoCapitalize="none"
+              autoCorrect={false}
+              secureTextEntry
+              style={styles.input}
+              textContentType={isCreateMode ? 'newPassword' : 'password'}
               editable={!isWorking}
             />
           </View>

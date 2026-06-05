@@ -8,6 +8,7 @@ import type {
   ShareLinkCreateInput,
   ShareLinkRecord,
   ShareLinkStoreRecord,
+  UserRecord,
 } from './types.js';
 import { toPublicShareLinkRecord } from './shareLinks.js';
 
@@ -277,6 +278,55 @@ export class PostgresStore implements FiletrailStore {
       userId: r.user_id ?? undefined,
       properties: r.properties ? JSON.parse(r.properties) : undefined,
       createdAt: r.created_at,
+    }));
+  }
+
+  async registerUser(input: Omit<UserRecord, 'isPro' | 'createdAt'>): Promise<UserRecord> {
+    const createdAt = new Date().toISOString();
+    await this.pool.query(
+      `INSERT INTO users (id, full_name, email, password_hash, provider, apple_user_id, is_pro, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6, false, $7)
+       ON CONFLICT (email) DO NOTHING`,
+      [input.id, input.fullName, input.email, input.passwordHash, input.provider, input.appleUserId ?? null, createdAt],
+    );
+    const existing = await this.getUserByEmail(input.email);
+    if (!existing) throw new Error('Registration failed');
+    return existing;
+  }
+
+  async getUserByEmail(email: string): Promise<UserRecord | null> {
+    const res = await this.pool.query<{
+      id: string; full_name: string; email: string; password_hash: string;
+      provider: string; apple_user_id: string | null; is_pro: boolean; created_at: Date;
+    }>('SELECT * FROM users WHERE email = $1', [email]);
+    const row = res.rows[0];
+    if (!row) return null;
+    return {
+      id: row.id,
+      fullName: row.full_name,
+      email: row.email,
+      passwordHash: row.password_hash,
+      provider: row.provider as 'email' | 'apple',
+      appleUserId: row.apple_user_id ?? undefined,
+      isPro: row.is_pro,
+      createdAt: row.created_at.toISOString(),
+    };
+  }
+
+  async listUsers(limit = 500): Promise<UserRecord[]> {
+    const res = await this.pool.query<{
+      id: string; full_name: string; email: string; password_hash: string;
+      provider: string; apple_user_id: string | null; is_pro: boolean; created_at: Date;
+    }>('SELECT * FROM users ORDER BY created_at DESC LIMIT $1', [limit]);
+    return res.rows.map(row => ({
+      id: row.id,
+      fullName: row.full_name,
+      email: row.email,
+      passwordHash: row.password_hash,
+      provider: row.provider as 'email' | 'apple',
+      appleUserId: row.apple_user_id ?? undefined,
+      isPro: row.is_pro,
+      createdAt: row.created_at.toISOString(),
     }));
   }
 

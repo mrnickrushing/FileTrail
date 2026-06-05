@@ -90,3 +90,17 @@ export const analyticsEventSchema = z.object({
 export const analyticsBatchSchema = z.object({
   events: z.array(analyticsEventSchema).min(1).max(100),
 });
+
+export const userRegisterSchema = z.object({
+  id: z.string().min(1),
+  fullName: z.string().min(1),
+  email: z.string().email(),
+  passwordHash: z.string().min(1),
+  provider: z.enum(['email', 'apple']).default('email'),
+  appleUserId: z.string().optional(),
+});
+
+export const userLoginSchema = z.object({
+  email: z.string().email(),
+  passwordHash: z.string().min(1),
+});

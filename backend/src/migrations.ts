@@ -79,4 +79,22 @@ export const MIGRATIONS = [
       ADD COLUMN IF NOT EXISTS password_hash text;
     `,
   },
+  {
+    id: 3,
+    sql: `
+      CREATE TABLE IF NOT EXISTS users (
+        id text PRIMARY KEY,
+        full_name text NOT NULL,
+        email text NOT NULL,
+        password_hash text NOT NULL,
+        provider text NOT NULL DEFAULT 'email',
+        apple_user_id text,
+        is_pro boolean NOT NULL DEFAULT false,
+        created_at timestamptz NOT NULL DEFAULT now(),
+        CONSTRAINT users_email_unique UNIQUE (email)
+      );
+      CREATE INDEX IF NOT EXISTS users_email_idx ON users(email);
+      CREATE INDEX IF NOT EXISTS users_created_at_idx ON users(created_at);
+    `,
+  },
 ] as const;
