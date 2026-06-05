@@ -23,7 +23,6 @@ import {
   Dimensions,
   Modal,
   Platform,
-  Animated,
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -169,11 +168,6 @@ export default function DocumentViewerScreen() {
   const [pdfTotal] = useState(document?.pageCount ?? 1);
 
   const titleInputRef = useRef<TextInput>(null);
-
-  // Keep Animated.View stable without attaching a PanResponder.
-  // The old swipe-to-dismiss responder could capture touches and leave the app
-  // unresponsive after navigating back from this screen.
-  const swipeY = useRef(new Animated.Value(0)).current;
 
   const handleSaveTitle = useCallback(() => {
     if (!document) return;
@@ -332,9 +326,7 @@ export default function DocumentViewerScreen() {
     : null;
 
   return (
-    <Animated.View
-      style={[styles.container, { paddingTop: insets.top, transform: [{ translateY: swipeY }] }]}
-    >
+    <View style={[styles.container, { paddingTop: insets.top }]}>
       {/* ── Header ── */}
       <View style={styles.header}>
         <Pressable style={styles.headerBtn} onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)/')} hitSlop={8}>
@@ -620,7 +612,7 @@ export default function DocumentViewerScreen() {
           <ActivityIndicator color={C.amber} size="large" />
         </View>
       )}
-    </Animated.View>
+    </View>
   );
 }
 
