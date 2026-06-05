@@ -12,6 +12,8 @@ import {
   shareLinkCreateSchema,
   syncPullSchema,
   syncPushSchema,
+  userRegisterSchema,
+  userLoginSchema,
 } from './schemas.js';
 import {
   hashShareLinkPassword,
@@ -182,6 +184,40 @@ export async function buildApp(config: RuntimeConfig, store: FiletrailStore = ne
 
   app.get('/v1/notifications', async () => {
     return { notifications: notificationLog.slice(0, 100) };
+  });
+
+  app.post('/v1/auth/register', async (request, reply) => {
+    const input = parseBody(userRegisterSchema, request.body);
+    try {
+      const user = await store.registerUser(input);
+      return { ok: true, userId: user.id, createdAt: user.createdAt };
+    } catch {
+      return reply.code(409).send({ error: 'Email already registered' });
+    }
+  });
+
+  app.post('/v1/auth/login', async (request, reply) => {
+    const input = parseBody(userLoginSchema, request.body);
+    const user = await store.getUserByEmail(input.email);
+    if (!user) return reply.code(404).send({ error: 'No account found for that email' });
+    if (user.passwordHash !== input.passwordHash) {
+      return reply.code(401).send({ error: 'Incorrect password' });
+    }
+    return { ok: true, userId: user.id, fullName: user.fullName, isPro: user.isPro };
+  });
+
+  app.get('/v1/admin/users', async () => {
+    const users = await store.listUsers(500);
+    return {
+      users: users.map(u => ({
+        id: u.id,
+        fullName: u.fullName,
+        email: u.email,
+        provider: u.provider,
+        isPro: u.isPro,
+        createdAt: u.createdAt,
+      })),
+    };
   });
 
   app.setErrorHandler((error, _request, reply) => {

@@ -89,3 +89,16 @@ export async function broadcastNotification(title: string, body: string, filter?
     { method: 'POST', body: JSON.stringify({ title, body, filter }) },
   );
 }
+
+export type UserRecord = {
+  id: string;
+  fullName: string;
+  email: string;
+  provider: string;
+  isPro: boolean;
+  createdAt: string;
+};
+
+export async function getUsers() {
+  return apiFetch<{ users: UserRecord[] }>('/v1/admin/users');
+}

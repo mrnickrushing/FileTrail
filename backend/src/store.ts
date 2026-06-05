@@ -9,6 +9,7 @@ import type {
   ShareLinkRecord,
   ShareLinkStoreRecord,
   TombstoneRecord,
+  UserRecord,
 } from './types.js';
 import type { FiletrailStore, SyncPullOutput, SyncPushInput } from './storeInterface.js';
 import { toPublicShareLinkRecord } from './shareLinks.js';
@@ -21,6 +22,7 @@ const INITIAL_DATA: AppData = {
   shareLinks: {},
   inboundEmails: {},
   analytics: [],
+  users: {},
 };
 
 export class JsonStore implements FiletrailStore {
@@ -163,6 +165,35 @@ export class JsonStore implements FiletrailStore {
   async getAnalytics(limit = 500): Promise<AnalyticsRecord[]> {
     const data = await this.read();
     return data.analytics.slice(-limit).reverse();
+  }
+
+  async registerUser(input: Omit<UserRecord, 'isPro' | 'createdAt'>): Promise<UserRecord> {
+    return this.mutate((data) => {
+      if (!data.users) data.users = {};
+      const existing = Object.values(data.users).find(u => u.email === input.email);
+      if (existing) return existing;
+      const record: UserRecord = {
+        ...input,
+        isPro: false,
+        createdAt: new Date().toISOString(),
+      };
+      data.users[record.id] = record;
+      return record;
+    });
+  }
+
+  async getUserByEmail(email: string): Promise<UserRecord | null> {
+    const data = await this.read();
+    if (!data.users) return null;
+    return Object.values(data.users).find(u => u.email === email) ?? null;
+  }
+
+  async listUsers(limit = 500): Promise<UserRecord[]> {
+    const data = await this.read();
+    if (!data.users) return [];
+    return Object.values(data.users)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+      .slice(0, limit);
   }
 
   async addAnalytics(events: Array<Omit<AnalyticsRecord, 'id' | 'createdAt'>>): Promise<number> {

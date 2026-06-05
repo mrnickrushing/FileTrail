@@ -88,6 +88,17 @@ export type AnalyticsRecord = {
   createdAt: string;
 };
 
+export type UserRecord = {
+  id: string;
+  fullName: string;
+  email: string;
+  passwordHash: string;
+  provider: 'email' | 'apple';
+  appleUserId?: string;
+  isPro: boolean;
+  createdAt: string;
+};
+
 export type AppData = {
   syncVersion: number;
   documents: Record<string, DocumentRecord>;
@@ -96,4 +107,5 @@ export type AppData = {
   shareLinks: Record<string, ShareLinkStoreRecord>;
   inboundEmails: Record<string, EmailInboundRecord>;
   analytics: AnalyticsRecord[];
+  users: Record<string, UserRecord>;
 };

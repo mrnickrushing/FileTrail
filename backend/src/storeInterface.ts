@@ -7,6 +7,7 @@ import type {
   ShareLinkRecord,
   ShareLinkStoreRecord,
   TombstoneRecord,
+  UserRecord,
 } from './types.js';
 
 export type SyncPushInput = {
@@ -33,4 +34,7 @@ export interface FiletrailStore {
   addInboundEmail(input: Omit<EmailInboundRecord, 'id' | 'receivedAt'>): Promise<EmailInboundRecord>;
   addAnalytics(events: Array<Omit<AnalyticsRecord, 'id' | 'createdAt'>>): Promise<number>;
   getAnalytics(limit?: number): Promise<AnalyticsRecord[]>;
+  registerUser(input: Omit<UserRecord, 'isPro' | 'createdAt'>): Promise<UserRecord>;
+  getUserByEmail(email: string): Promise<UserRecord | null>;
+  listUsers(limit?: number): Promise<UserRecord[]>;
 }

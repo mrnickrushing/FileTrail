@@ -17,6 +17,8 @@ export interface AccountProfile {
   provider: AccountProvider;
   appleUserId?: string;
   createdAt: string;
+  passwordHash?: string;
+  userId?: string;
 }
 
 interface AppState {

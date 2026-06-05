@@ -7,6 +7,7 @@ const NAV = [
   { href: '/dashboard/sync', label: 'Sync Data', icon: '🔄' },
   { href: '/dashboard/share-links', label: 'Share Links', icon: '🔗' },
   { href: '/dashboard/analytics', label: 'Analytics', icon: '📈' },
+  { href: '/dashboard/users', label: 'Users', icon: '👥' },
   { href: '/dashboard/notifications', label: 'Notifications', icon: '🔔' },
 ];
 
