@@ -104,3 +104,70 @@ test('AI suggestion endpoint returns heuristic result', async () => {
   assert.equal(res.statusCode, 200);
   assert.equal(res.json().category, 'receipt');
 });
+
+test('AI suggestion endpoint uses filename when OCR text is missing', async () => {
+  const res = await app.inject({
+    method: 'POST',
+    url: '/v1/ai/suggest-document',
+    headers: { Authorization: 'Bearer test-key' },
+    payload: { filename: 'Acme-Warranty.pdf', mimeType: 'application/pdf' },
+  });
+
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.json().category, 'warranty');
+  assert.equal(res.json().suggestedTitle, 'Acme Warranty');
+  assert.ok(res.json().tags.includes('pdf'));
+});
+
+test('share links enforce passwords and list created links', async () => {
+  const auth = { Authorization: 'Bearer test-key' };
+  const expiresAt = new Date(Date.now() + 3600_000).toISOString();
+
+  const create = await app.inject({
+    method: 'POST',
+    url: '/v1/share-links',
+    headers: auth,
+    payload: {
+      documentId: 'doc-1',
+      title: 'Tax return',
+      expiresAt,
+      password: 'supersecret',
+    },
+  });
+
+  assert.equal(create.statusCode, 200);
+  assert.equal(create.json().passwordProtected, true);
+
+  const token = create.json().token as string;
+
+  const missingPassword = await app.inject({
+    method: 'GET',
+    url: `/v1/share-links/${token}`,
+    headers: auth,
+  });
+  assert.equal(missingPassword.statusCode, 401);
+
+  const wrongPassword = await app.inject({
+    method: 'GET',
+    url: `/v1/share-links/${token}?password=wrongpass`,
+    headers: auth,
+  });
+  assert.equal(wrongPassword.statusCode, 403);
+
+  const ok = await app.inject({
+    method: 'GET',
+    url: `/v1/share-links/${token}?password=supersecret`,
+    headers: auth,
+  });
+  assert.equal(ok.statusCode, 200);
+  assert.equal(ok.json().token, token);
+
+  const list = await app.inject({
+    method: 'GET',
+    url: '/v1/share-links',
+    headers: auth,
+  });
+  assert.equal(list.statusCode, 200);
+  assert.equal(list.json().shareLinks.length, 1);
+  assert.equal(list.json().shareLinks[0].token, token);
+});

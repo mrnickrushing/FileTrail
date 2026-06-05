@@ -48,10 +48,21 @@ export async function apiRequest<T>(path: string, options: ApiOptions = {}): Pro
     });
 
     const text = await res.text();
-    const data = text ? JSON.parse(text) : null;
+    let data: unknown = null;
+    if (text) {
+      try {
+        data = JSON.parse(text);
+      } catch {
+        data = text;
+      }
+    }
 
     if (!res.ok) {
-      const message = typeof data?.error === 'string' ? data.error : `Backend request failed (${res.status})`;
+      const message = typeof data === 'object' && data !== null && 'error' in data && typeof data.error === 'string'
+        ? data.error
+        : typeof data === 'string' && data.trim()
+          ? data
+          : `Backend request failed (${res.status})`;
       throw new Error(message);
     }
 

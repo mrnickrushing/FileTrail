@@ -81,6 +81,7 @@ export default function DocumentReviewScreen() {
 
   const [title, setTitle] = useState(() => generateTitle(params.source, params.mimeType));
   const [category, setCategory] = useState<DocumentCategory>('other');
+  const [suggestedTags, setSuggestedTags] = useState<string[]>([]);
   const [ocrText, setOCRText] = useState<string | null>(null);
   const [ocrStatus, setOCRStatus] = useState<'idle' | 'processing' | 'done' | 'unavailable'>('idle');
   const [aiStatus, setAiStatus] = useState<'idle' | 'processing' | 'done'>('idle');
@@ -108,12 +109,13 @@ export default function DocumentReviewScreen() {
           source: string;
         }>('/v1/ai/suggest-document', {
           method: 'POST',
-          body: { filename: params.name, mimeType: params.mimeType },
+          body: { title: params.name, filename: params.name, mimeType: params.mimeType },
         })
           .then((suggestion) => {
             if (!isMounted.current) return;
             if (suggestion.suggestedTitle) setTitle(suggestion.suggestedTitle);
             if (suggestion.category) setCategory(suggestion.category);
+            setSuggestedTags(Array.isArray(suggestion.tags) ? suggestion.tags : []);
             setAiStatus('done');
           })
           .catch(() => {
@@ -146,11 +148,12 @@ export default function DocumentReviewScreen() {
               source: string;
             }>('/v1/ai/suggest-document', {
               method: 'POST',
-              body: { ocrText: text, mimeType: params.mimeType },
+              body: { title: params.name, filename: params.name, ocrText: text, mimeType: params.mimeType },
             });
             if (!isMounted.current) return;
             if (suggestion.suggestedTitle) setTitle(suggestion.suggestedTitle);
             if (suggestion.category) setCategory(suggestion.category);
+            setSuggestedTags(Array.isArray(suggestion.tags) ? suggestion.tags : []);
             setAiStatus('done');
           } catch {
             if (isMounted.current) setAiStatus('idle');
@@ -213,7 +216,7 @@ export default function DocumentReviewScreen() {
               : 'pending',
         isFavorite: false,
         folderId: null,
-        tags: [],
+        tags: suggestedTags,
       });
 
       router.replace('/(tabs)/');
@@ -223,7 +226,7 @@ export default function DocumentReviewScreen() {
     } finally {
       if (isMounted.current) setIsSaving(false);
     }
-  }, [params, title, category, ocrText, ocrStatus, addDocument, isSaving, documents.length, isPro]);
+  }, [params, title, category, suggestedTags, ocrText, ocrStatus, addDocument, isSaving, documents.length, isPro]);
 
   const isImage = !isPDFLike(params.uri ?? '', params.mimeType);
 
@@ -290,7 +293,7 @@ export default function DocumentReviewScreen() {
           {ocrStatus === 'done' && aiStatus === 'done' && (
             <>
               <Text style={styles.ocrDot}>✦</Text>
-              <Text style={styles.ocrText}>AI filled title & category</Text>
+              <Text style={styles.ocrText}>AI filled title, category, and tags</Text>
             </>
           )}
           {ocrStatus === 'done' && aiStatus === 'idle' && (
@@ -310,13 +313,26 @@ export default function DocumentReviewScreen() {
           {ocrStatus === 'unavailable' && aiStatus === 'done' && (
             <>
               <Text style={styles.ocrDot}>✦</Text>
-              <Text style={styles.ocrText}>AI filled title & category</Text>
+              <Text style={styles.ocrText}>AI filled title, category, and tags</Text>
             </>
           )}
           {ocrStatus === 'unavailable' && aiStatus === 'idle' && (
             <Text style={styles.ocrMuted}>OCR available in full build</Text>
           )}
         </View>
+
+        {suggestedTags.length > 0 && (
+          <View style={styles.field}>
+            <Text style={styles.fieldLabel}>Suggested Tags</Text>
+            <View style={styles.tagRow}>
+              {suggestedTags.map((tag) => (
+                <View key={tag} style={styles.tagChip}>
+                  <Text style={styles.tagChipText}>{tag}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
 
         {/* Title */}
         <View style={styles.field}>
@@ -489,6 +505,26 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: S[2],
+  },
+  tagRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: S[2],
+  },
+  tagChip: {
+    backgroundColor: C.ink2,
+    borderRadius: R.full,
+    paddingHorizontal: S[3],
+    paddingVertical: S[2],
+    borderWidth: 1,
+    borderColor: C.amber + '55',
+    minHeight: 34,
+    justifyContent: 'center',
+  },
+  tagChipText: {
+    fontSize: T.sm,
+    color: C.amber,
+    fontWeight: '600',
   },
   categoryChip: {
     backgroundColor: C.ink2,

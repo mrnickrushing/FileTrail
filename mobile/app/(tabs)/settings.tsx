@@ -18,8 +18,10 @@ import {
   ScrollView,
   Alert,
   ActivityIndicator,
+  Platform,
   Switch,
 } from 'react-native';
+import Constants from 'expo-constants';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useDocumentStore } from '@/store/documentStore';
 import { useAppStore } from '@/store/appStore';
@@ -32,8 +34,12 @@ import { getBiometricCapability, authenticate } from '@/services/biometricServic
 import { isBackendConfigured } from '@/services/api';
 import { C, T, R, S } from '@/theme/tokens';
 
-const APP_VERSION = '1.1.0';
-const BUILD = '2026.06';
+const APP_VERSION = Constants.expoConfig?.version ?? 'Unknown';
+const BUILD = Platform.OS === 'ios'
+  ? Constants.expoConfig?.ios?.buildNumber ?? Constants.nativeBuildVersion ?? 'Unknown'
+  : Platform.OS === 'android'
+    ? String(Constants.expoConfig?.android?.versionCode ?? Constants.nativeBuildVersion ?? 'Unknown')
+    : APP_VERSION;
 
 function errorMessage(err: unknown, fallback: string): string {
   return err instanceof Error ? err.message : fallback;

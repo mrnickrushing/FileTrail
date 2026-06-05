@@ -4,13 +4,14 @@ import { randomUUID } from 'node:crypto';
 import type {
   AnalyticsRecord,
   AppData,
-  DocumentRecord,
   EmailInboundRecord,
-  FolderRecord,
+  ShareLinkCreateInput,
   ShareLinkRecord,
+  ShareLinkStoreRecord,
   TombstoneRecord,
 } from './types.js';
 import type { FiletrailStore, SyncPullOutput, SyncPushInput } from './storeInterface.js';
+import { toPublicShareLinkRecord } from './shareLinks.js';
 
 const INITIAL_DATA: AppData = {
   syncVersion: 0,
@@ -39,13 +40,18 @@ export class JsonStore implements FiletrailStore {
     }
   }
 
-  async read(): Promise<AppData> {
+  private async readFromDisk(): Promise<AppData> {
     try {
       const raw = await readFile(this.filePath, 'utf8');
       return { ...INITIAL_DATA, ...JSON.parse(raw) } as AppData;
     } catch {
       return { ...INITIAL_DATA };
     }
+  }
+
+  async read(): Promise<AppData> {
+    await this.writeChain;
+    return this.readFromDisk();
   }
 
   async write(data: AppData): Promise<void> {
@@ -55,36 +61,52 @@ export class JsonStore implements FiletrailStore {
     await this.writeChain;
   }
 
+  private async mutate<T>(updater: (data: AppData) => T | Promise<T>): Promise<T> {
+    const task = this.writeChain.then(async () => {
+      const data = await this.readFromDisk();
+      const result = await updater(data);
+      await writeFile(this.filePath, JSON.stringify(data, null, 2), 'utf8');
+      return result;
+    });
+
+    this.writeChain = task.then(
+      () => undefined,
+      () => undefined,
+    );
+
+    return task;
+  }
+
   async push(input: SyncPushInput): Promise<{ syncVersion: number }> {
-    const data = await this.read();
-    const tombstones: TombstoneRecord[] = [];
+    return this.mutate((data) => {
+      const tombstones: TombstoneRecord[] = [];
 
-    const nextVersion = (): number => {
-      data.syncVersion += 1;
-      return data.syncVersion;
-    };
+      const nextVersion = (): number => {
+        data.syncVersion += 1;
+        return data.syncVersion;
+      };
 
-    for (const folder of input.folders) {
-      data.folders[folder.id] = { ...folder, syncVersion: nextVersion() };
-    }
+      for (const folder of input.folders) {
+        data.folders[folder.id] = { ...folder, syncVersion: nextVersion() };
+      }
 
-    for (const document of input.documents) {
-      data.documents[document.id] = { ...document, syncVersion: nextVersion() };
-    }
+      for (const document of input.documents) {
+        data.documents[document.id] = { ...document, syncVersion: nextVersion() };
+      }
 
-    for (const id of input.deletedDocumentIds) {
-      delete data.documents[id];
-      tombstones.push({ id, kind: 'document', deletedAt: new Date().toISOString(), syncVersion: nextVersion() });
-    }
+      for (const id of input.deletedDocumentIds) {
+        delete data.documents[id];
+        tombstones.push({ id, kind: 'document', deletedAt: new Date().toISOString(), syncVersion: nextVersion() });
+      }
 
-    for (const id of input.deletedFolderIds) {
-      delete data.folders[id];
-      tombstones.push({ id, kind: 'folder', deletedAt: new Date().toISOString(), syncVersion: nextVersion() });
-    }
+      for (const id of input.deletedFolderIds) {
+        delete data.folders[id];
+        tombstones.push({ id, kind: 'folder', deletedAt: new Date().toISOString(), syncVersion: nextVersion() });
+      }
 
-    data.tombstones.push(...tombstones);
-    await this.write(data);
-    return { syncVersion: data.syncVersion };
+      data.tombstones.push(...tombstones);
+      return { syncVersion: data.syncVersion };
+    });
   }
 
   async pull(sinceVersion: number): Promise<SyncPullOutput> {
@@ -97,33 +119,45 @@ export class JsonStore implements FiletrailStore {
     };
   }
 
-  async createShareLink(input: Omit<ShareLinkRecord, 'token' | 'createdAt'>): Promise<ShareLinkRecord> {
-    const data = await this.read();
-    const record: ShareLinkRecord = {
-      ...input,
-      token: randomUUID().replace(/-/g, ''),
-      createdAt: new Date().toISOString(),
-    };
-    data.shareLinks[record.token] = record;
-    await this.write(data);
-    return record;
+  async createShareLink(input: ShareLinkCreateInput): Promise<ShareLinkRecord> {
+    return this.mutate((data) => {
+      const record: ShareLinkStoreRecord = {
+        documentId: input.documentId,
+        title: input.title,
+        expiresAt: input.expiresAt,
+        passwordProtected: Boolean(input.passwordHash),
+        passwordHash: input.passwordHash,
+        token: randomUUID().replace(/-/g, ''),
+        createdAt: new Date().toISOString(),
+      };
+      data.shareLinks[record.token] = record;
+      return toPublicShareLinkRecord(record);
+    });
   }
 
-  async getShareLink(token: string): Promise<ShareLinkRecord | null> {
+  async getShareLink(token: string): Promise<ShareLinkStoreRecord | null> {
     const data = await this.read();
     return data.shareLinks[token] ?? null;
   }
 
-  async addInboundEmail(input: Omit<EmailInboundRecord, 'id' | 'receivedAt'>): Promise<EmailInboundRecord> {
+  async listShareLinks(limit = 200): Promise<ShareLinkRecord[]> {
     const data = await this.read();
-    const record: EmailInboundRecord = {
-      ...input,
-      id: randomUUID(),
-      receivedAt: new Date().toISOString(),
-    };
-    data.inboundEmails[record.id] = record;
-    await this.write(data);
-    return record;
+    return Object.values(data.shareLinks)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+      .slice(0, limit)
+      .map(toPublicShareLinkRecord);
+  }
+
+  async addInboundEmail(input: Omit<EmailInboundRecord, 'id' | 'receivedAt'>): Promise<EmailInboundRecord> {
+    return this.mutate((data) => {
+      const record: EmailInboundRecord = {
+        ...input,
+        id: randomUUID(),
+        receivedAt: new Date().toISOString(),
+      };
+      data.inboundEmails[record.id] = record;
+      return record;
+    });
   }
 
   async getAnalytics(limit = 500): Promise<AnalyticsRecord[]> {
@@ -132,15 +166,15 @@ export class JsonStore implements FiletrailStore {
   }
 
   async addAnalytics(events: Array<Omit<AnalyticsRecord, 'id' | 'createdAt'>>): Promise<number> {
-    const data = await this.read();
-    const records = events.map((event) => ({
-      ...event,
-      id: randomUUID(),
-      createdAt: new Date().toISOString(),
-    }));
-    data.analytics.push(...records);
-    data.analytics = data.analytics.slice(-5000);
-    await this.write(data);
-    return records.length;
+    return this.mutate((data) => {
+      const records = events.map((event) => ({
+        ...event,
+        id: randomUUID(),
+        createdAt: new Date().toISOString(),
+      }));
+      data.analytics.push(...records);
+      data.analytics = data.analytics.slice(-5000);
+      return records.length;
+    });
   }
 }

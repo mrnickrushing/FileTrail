@@ -2,7 +2,14 @@ import { randomUUID } from 'node:crypto';
 import pg from 'pg';
 import { MIGRATIONS } from './migrations.js';
 import type { FiletrailStore, SyncPullOutput, SyncPushInput } from './storeInterface.js';
-import type { AnalyticsRecord, EmailInboundRecord, ShareLinkRecord } from './types.js';
+import type {
+  AnalyticsRecord,
+  EmailInboundRecord,
+  ShareLinkCreateInput,
+  ShareLinkRecord,
+  ShareLinkStoreRecord,
+} from './types.js';
+import { toPublicShareLinkRecord } from './shareLinks.js';
 
 const { Pool } = pg;
 
@@ -147,24 +154,32 @@ export class PostgresStore implements FiletrailStore {
     };
   }
 
-  async createShareLink(input: Omit<ShareLinkRecord, 'token' | 'createdAt'>): Promise<ShareLinkRecord> {
+  async createShareLink(input: ShareLinkCreateInput): Promise<ShareLinkRecord> {
     const token = randomUUID().replace(/-/g, '');
     const createdAt = new Date().toISOString();
     await this.pool.query(
-      `INSERT INTO share_links (token, document_id, title, expires_at, password_protected, created_at)
-       VALUES ($1, $2, $3, $4, $5, $6)`,
-      [token, input.documentId, input.title, input.expiresAt, input.passwordProtected, createdAt],
+      `INSERT INTO share_links (token, document_id, title, expires_at, password_protected, password_hash, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [token, input.documentId, input.title, input.expiresAt, Boolean(input.passwordHash), input.passwordHash ?? null, createdAt],
     );
-    return { ...input, token, createdAt };
+    return {
+      token,
+      documentId: input.documentId,
+      title: input.title,
+      expiresAt: input.expiresAt,
+      passwordProtected: Boolean(input.passwordHash),
+      createdAt,
+    };
   }
 
-  async getShareLink(token: string): Promise<ShareLinkRecord | null> {
+  async getShareLink(token: string): Promise<ShareLinkStoreRecord | null> {
     const res = await this.pool.query<{
       token: string;
       document_id: string;
       title: string;
       expires_at: Date;
       password_protected: boolean;
+      password_hash: string | null;
       created_at: Date;
     }>('SELECT * FROM share_links WHERE token = $1', [token]);
     const row = res.rows[0];
@@ -175,8 +190,37 @@ export class PostgresStore implements FiletrailStore {
       title: row.title,
       expiresAt: row.expires_at.toISOString(),
       passwordProtected: row.password_protected,
+      passwordHash: row.password_hash ?? undefined,
       createdAt: row.created_at.toISOString(),
     };
+  }
+
+  async listShareLinks(limit = 200): Promise<ShareLinkRecord[]> {
+    const res = await this.pool.query<{
+      token: string;
+      document_id: string;
+      title: string;
+      expires_at: Date;
+      password_protected: boolean;
+      password_hash: string | null;
+      created_at: Date;
+    }>(
+      `SELECT token, document_id, title, expires_at, password_protected, password_hash, created_at
+       FROM share_links
+       ORDER BY created_at DESC
+       LIMIT $1`,
+      [limit],
+    );
+
+    return res.rows.map((row) => toPublicShareLinkRecord({
+      token: row.token,
+      documentId: row.document_id,
+      title: row.title,
+      expiresAt: row.expires_at.toISOString(),
+      passwordProtected: row.password_protected,
+      passwordHash: row.password_hash ?? undefined,
+      createdAt: row.created_at.toISOString(),
+    }));
   }
 
   async addInboundEmail(input: Omit<EmailInboundRecord, 'id' | 'receivedAt'>): Promise<EmailInboundRecord> {

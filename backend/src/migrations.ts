@@ -72,4 +72,11 @@ export const MIGRATIONS = [
       CREATE INDEX IF NOT EXISTS analytics_events_created_at_idx ON analytics_events(created_at);
     `,
   },
+  {
+    id: 2,
+    sql: `
+      ALTER TABLE share_links
+      ADD COLUMN IF NOT EXISTS password_hash text;
+    `,
+  },
 ] as const;

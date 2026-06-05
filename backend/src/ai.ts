@@ -1,6 +1,8 @@
 import Anthropic from '@anthropic-ai/sdk';
 import type { DocumentCategory } from './types.js';
 
+const DEFAULT_ANTHROPIC_MODEL = process.env.ANTHROPIC_MODEL?.trim() || 'claude-3-5-haiku-20241022';
+
 const VALID_CATEGORIES: DocumentCategory[] = [
   'receipt', 'contract', 'id', 'warranty', 'medical', 'tax', 'other',
 ];
@@ -21,11 +23,36 @@ type SuggestResult = {
   source: 'heuristic' | 'claude';
 };
 
-function heuristicSuggest(input: { title?: string; ocrText?: string; mimeType?: string }): SuggestResult {
-  const text = `${input.title ?? ''}\n${input.ocrText ?? ''}`;
+function normalizeFilename(filename: string): string {
+  return filename
+    .replace(/\.[a-z0-9]+$/i, '')
+    .replace(/[_-]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function extractJsonObject(raw: string): string {
+  const trimmed = raw.trim();
+  if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+    return trimmed;
+  }
+
+  const firstBrace = trimmed.indexOf('{');
+  const lastBrace = trimmed.lastIndexOf('}');
+  if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+    return trimmed.slice(firstBrace, lastBrace + 1);
+  }
+
+  return trimmed;
+}
+
+function heuristicSuggest(input: { title?: string; filename?: string; ocrText?: string; mimeType?: string }): SuggestResult {
+  const filename = input.filename ? normalizeFilename(input.filename) : '';
+  const title = input.title?.trim() || filename;
+  const text = `${title}\n${input.ocrText ?? ''}`;
   const category = CATEGORY_KEYWORDS.find(([, pattern]) => pattern.test(text))?.[0] ?? 'other';
   const firstLine = input.ocrText?.split('\n').map((l) => l.trim()).find(Boolean);
-  const baseTitle = input.title?.trim() || firstLine || (input.mimeType?.includes('pdf') ? 'Document' : 'Scan');
+  const baseTitle = title || firstLine || (input.mimeType?.includes('pdf') ? 'Document' : 'Scan');
 
   const tags = new Set<string>();
   tags.add(category);
@@ -38,6 +65,7 @@ function heuristicSuggest(input: { title?: string; ocrText?: string; mimeType?: 
 
 export async function suggestDocument(input: {
   title?: string;
+  filename?: string;
   ocrText?: string;
   mimeType?: string;
 }): Promise<SuggestResult> {
@@ -49,7 +77,7 @@ export async function suggestDocument(input: {
   try {
     const client = new Anthropic({ apiKey });
     const message = await client.messages.create({
-      model: 'claude-haiku-4-5-20251001',
+      model: DEFAULT_ANTHROPIC_MODEL,
       max_tokens: 256,
       system: 'You are a document classification assistant. Always respond with valid JSON only, no markdown.',
       messages: [{
@@ -65,7 +93,7 @@ ${input.ocrText.slice(0, 2000)}`,
     });
 
     const raw = message.content[0].type === 'text' ? message.content[0].text : '';
-    const parsed = JSON.parse(raw);
+    const parsed = JSON.parse(extractJsonObject(raw));
 
     const category: DocumentCategory = VALID_CATEGORIES.includes(parsed.category)
       ? parsed.category

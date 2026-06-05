@@ -13,6 +13,11 @@ import {
   syncPullSchema,
   syncPushSchema,
 } from './schemas.js';
+import {
+  hashShareLinkPassword,
+  toPublicShareLinkRecord,
+  verifyShareLinkPassword,
+} from './shareLinks.js';
 import { suggestDocument } from './ai.js';
 
 function parseBody<T>(schema: { parse: (value: unknown) => T }, body: unknown): T {
@@ -91,7 +96,7 @@ export async function buildApp(config: RuntimeConfig, store: FiletrailStore = ne
       documentId: input.documentId,
       title: input.title,
       expiresAt: input.expiresAt,
-      passwordProtected: Boolean(input.password),
+      passwordHash: input.password ? hashShareLinkPassword(input.password) : undefined,
     });
     return {
       ...record,
@@ -99,14 +104,37 @@ export async function buildApp(config: RuntimeConfig, store: FiletrailStore = ne
     };
   });
 
+  app.get('/v1/share-links', async () => {
+    const shareLinks = await store.listShareLinks(200);
+    return {
+      shareLinks: shareLinks.map((record) => ({
+        ...record,
+        expired: Date.parse(record.expiresAt) <= Date.now(),
+        url: `${config.publicAppUrl.replace(/\/$/, '')}/share/${record.token}`,
+      })),
+    };
+  });
+
   app.get('/v1/share-links/:token', async (request, reply) => {
     const { token } = request.params as { token: string };
+    const { password } = request.query as { password?: string };
     const record = await store.getShareLink(token);
     if (!record) return reply.code(404).send({ error: 'Share link not found' });
     if (Date.parse(record.expiresAt) <= Date.now()) {
       return reply.code(410).send({ error: 'Share link expired' });
     }
-    return record;
+    if (record.passwordHash) {
+      if (!password) {
+        return reply.code(401).send({ error: 'Password required', passwordRequired: true });
+      }
+      if (!verifyShareLinkPassword(password, record.passwordHash)) {
+        return reply.code(403).send({ error: 'Invalid password' });
+      }
+    }
+    return {
+      ...toPublicShareLinkRecord(record),
+      url: `${config.publicAppUrl.replace(/\/$/, '')}/share/${record.token}`,
+    };
   });
 
   app.post('/v1/email/inbound', async (request) => {

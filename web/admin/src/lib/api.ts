@@ -50,6 +50,11 @@ export type ShareLink = {
   createdAt: string;
 };
 
+export type ShareLinkSummary = ShareLink & {
+  url: string;
+  expired: boolean;
+};
+
 export type AnalyticsEvent = {
   id: string;
   event: string;
@@ -72,6 +77,10 @@ export async function getSyncStats() {
     method: 'POST',
     body: JSON.stringify({ deviceId: 'admin-dashboard', sinceVersion: 0 }),
   });
+}
+
+export async function getShareLinks() {
+  return apiFetch<{ shareLinks: ShareLinkSummary[] }>('/v1/share-links');
 }
 
 export async function broadcastNotification(title: string, body: string, filter?: { isPro?: boolean }) {

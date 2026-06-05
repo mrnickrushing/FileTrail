@@ -22,5 +22,15 @@
   padding: 12px 16px; background: var(--ink2); border: 1px solid var(--ink4);
   border-radius: var(--radius-md); margin-bottom: 8px;
 }
+.docMeta { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .docTitle { font-size: 14px; color: var(--cream); }
 .docId { font-size: 11px; font-family: monospace; color: var(--faint); }
+.linkMeta { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+.linkStateActive, .linkStateExpired, .linkProtect {
+  font-size: 12px; border-radius: 999px; padding: 4px 10px; border: 1px solid transparent;
+}
+.linkStateActive { color: #8ED3A3; background: rgba(142,211,163,0.1); border-color: rgba(142,211,163,0.22); }
+.linkStateExpired { color: var(--danger, #D04B4B); background: rgba(208,75,75,0.12); border-color: rgba(208,75,75,0.24); }
+.linkProtect { color: var(--amber); background: rgba(232,160,32,0.12); border-color: rgba(232,160,32,0.24); }
+.linkUrl { font-size: 13px; color: var(--cream); text-decoration: none; }
+.linkUrl:hover { color: var(--amber); }

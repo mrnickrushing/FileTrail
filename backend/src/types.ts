@@ -56,6 +56,17 @@ export type ShareLinkRecord = {
   createdAt: string;
 };
 
+export type ShareLinkCreateInput = {
+  documentId: string;
+  title: string;
+  expiresAt: string;
+  passwordHash?: string;
+};
+
+export type ShareLinkStoreRecord = ShareLinkRecord & {
+  passwordHash?: string;
+};
+
 export type EmailInboundRecord = {
   id: string;
   sender: string;
@@ -82,7 +93,7 @@ export type AppData = {
   documents: Record<string, DocumentRecord>;
   folders: Record<string, FolderRecord>;
   tombstones: TombstoneRecord[];
-  shareLinks: Record<string, ShareLinkRecord>;
+  shareLinks: Record<string, ShareLinkStoreRecord>;
   inboundEmails: Record<string, EmailInboundRecord>;
   analytics: AnalyticsRecord[];
 };

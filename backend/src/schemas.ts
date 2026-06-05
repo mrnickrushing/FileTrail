@@ -58,6 +58,7 @@ export const syncPushSchema = z.object({
 
 export const aiSuggestSchema = z.object({
   title: z.string().optional(),
+  filename: z.string().optional(),
   ocrText: z.string().optional(),
   mimeType: z.string().optional(),
 });

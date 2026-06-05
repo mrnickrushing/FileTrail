@@ -209,8 +209,7 @@ export async function restoreBackup(
 
         documents.push(doc);
       } else {
-        // No file data — restore metadata only
-        documents.push(restoredEntry);
+        // Skip metadata-only entries because their original file path is not valid on this device.
         skipped++;
       }
     } catch {
