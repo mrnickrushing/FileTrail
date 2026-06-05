@@ -13,8 +13,9 @@ import Purchases, {
   type PurchasesStoreProduct,
 } from 'react-native-purchases';
 
-// RevenueCat iOS public SDK key
-const RC_API_KEY_IOS = 'appl_irsrRjnQozQoLjXSSQKdXKfgTQN';
+// RevenueCat iOS public SDK key — set EXPO_PUBLIC_REVENUECAT_IOS_KEY in Codemagic
+const RC_API_KEY_IOS =
+  process.env.EXPO_PUBLIC_REVENUECAT_IOS_KEY ?? 'appl_irsrRjnQozQoLjXSSQKdXKfgTQN';
 const PRO_PRODUCT_ID = 'FileTrail.monthly';
 const PRO_ENTITLEMENT_ID = 'Pro';
 
