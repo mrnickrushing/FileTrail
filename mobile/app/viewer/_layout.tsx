@@ -8,7 +8,7 @@ export default function ViewerLayout() {
         headerShown: false,
         contentStyle: { backgroundColor: C.ink1 },
         animation: 'slide_from_right',
-        gestureEnabled: true,
+        gestureEnabled: false,
       }}
     />
   );
