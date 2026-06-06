@@ -244,8 +244,8 @@ export default function DocumentReviewScreen() {
         tags: suggestedTags,
       });
 
-      logDebug('review save success -> dismissAll');
-      router.dismissAll();
+      logDebug('review save success -> dismissTo /(tabs)');
+      router.dismissTo('/(tabs)');
     } catch (err) {
       logDebug('review save failed');
       Alert.alert('Save Failed', 'Something went wrong saving your document. Please try again.');

@@ -427,20 +427,13 @@ export default function DocumentViewerScreen() {
         {/* Document preview */}
         <View style={styles.previewCard}>
           {!isPDF ? (
-            <ScrollView
-              maximumZoomScale={4}
-              minimumZoomScale={1}
-              showsHorizontalScrollIndicator={false}
-              showsVerticalScrollIndicator={false}
-              centerContent
-              style={styles.zoomScroll}
-            >
+            <View style={styles.zoomScroll}>
               <Image
                 source={{ uri: document.fileUri }}
                 style={styles.previewImage}
                 resizeMode="contain"
               />
-            </ScrollView>
+            </View>
           ) : (
             <PDFViewer
               uri={document.fileUri}
