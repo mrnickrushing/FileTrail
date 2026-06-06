@@ -12,7 +12,7 @@ const VALID_CATEGORIES: DocumentCategory[] = [
 
 const CATEGORY_KEYWORDS: Array<[DocumentCategory, RegExp]> = [
   ['receipt', /\b(receipt|subtotal|total|paid|visa|mastercard|store)\b/i],
-  ['contract', /\b(contract|agreement|signature|party|terms)\b/i],
+  ['contract', /\b(contract|agreement|signature|party|terms|stipulation|judgment|decree|counsel|plaintiff|defendant|attorney|lawsuit|affidavit|docket|subpoena|deposition)\b/i],
   ['id', /\b(driver|license|passport|identification|dob)\b/i],
   ['warranty', /\b(warranty|serial|coverage|expires)\b/i],
   ['medical', /\b(patient|medical|clinic|hospital|diagnosis|rx|emergency|urgent care)\b|\bE\.?R\.?\b/i],
@@ -146,6 +146,7 @@ const JSON_SCHEMA_PROMPT = `Analyse this document and respond with JSON containi
 - "date": most relevant date found on the document in YYYY-MM-DD format, or omit if none
 - "vendor": merchant, organization, or issuing party name, or omit if not applicable
 - "amounts": array of numeric monetary values (no currency symbols, e.g. [142.50, 9.99]), or omit if none
+- "folderName": the folder to file this in — use the standard name for the category (e.g. "Receipts", "Contracts", "Tax Documents", "Medical Records") but use a more specific name when clearly appropriate (e.g. "Court Documents" for legal filings, "Insurance" for insurance docs); keep it short
 - "subfolderName": for medical documents, the patient's full name as it appears on the document, for use as a subfolder name; omit if not a medical document or if no patient name is found`;
 
 export async function suggestDocument(input: {
@@ -273,11 +274,14 @@ export async function suggestDocument(input: {
     const amounts: number[] | undefined = Array.isArray(parsed.amounts)
       ? parsed.amounts.filter((a: unknown) => typeof a === 'number' && Number.isFinite(a) && a >= 0).slice(0, 10)
       : undefined;
+    const suggestedFolderName: string = typeof parsed.folderName === 'string' && parsed.folderName.trim()
+      ? parsed.folderName.trim().slice(0, 80)
+      : CATEGORY_FOLDER[category];
     const suggestedSubfolderName: string | undefined = typeof parsed.subfolderName === 'string' && parsed.subfolderName.trim()
       ? parsed.subfolderName.trim().slice(0, 80)
       : undefined;
 
-    return { suggestedTitle, suggestedFolderName: CATEGORY_FOLDER[category], suggestedSubfolderName, category, tags, notes, date, vendor, amounts, source: 'claude' };
+    return { suggestedTitle, suggestedFolderName, suggestedSubfolderName, category, tags, notes, date, vendor, amounts, source: 'claude' };
   } catch {
     return heuristicSuggest({ ...input, ocrText: input.ocrText?.trim() });
   }
