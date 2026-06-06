@@ -57,10 +57,10 @@ export function SwipeableCard({ children, onDelete, onFavorite, isFavorite, disa
     })
     .onEnd((e) => {
       hasFired.value = false;
-      if (e.translationX > ACTION_THRESHOLD) {
+      if (e.translationX >= ACTION_THRESHOLD) {
         translateX.value = 0;
         runOnJS(onFavorite)();
-      } else if (e.translationX < -ACTION_THRESHOLD) {
+      } else if (e.translationX <= -ACTION_THRESHOLD) {
         translateX.value = 0;
         runOnJS(onDelete)();
       } else {
