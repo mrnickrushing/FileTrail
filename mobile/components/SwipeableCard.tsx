@@ -10,7 +10,7 @@
  */
 
 import React, { useCallback } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { Alert, View, Text, StyleSheet } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   useSharedValue,
@@ -41,6 +41,21 @@ export function SwipeableCard({ children, onDelete, onFavorite, isFavorite, disa
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   }, []);
 
+  const confirmDelete = useCallback(() => {
+    Alert.alert(
+      'Delete Document',
+      'This document will be permanently deleted.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: onDelete,
+        },
+      ]
+    );
+  }, [onDelete]);
+
   const pan = Gesture.Pan()
     .enabled(!disabled)
     .activeOffsetX([-8, 8])
@@ -62,7 +77,7 @@ export function SwipeableCard({ children, onDelete, onFavorite, isFavorite, disa
         runOnJS(onFavorite)();
       } else if (e.translationX <= -ACTION_THRESHOLD) {
         translateX.value = 0;
-        runOnJS(onDelete)();
+        runOnJS(confirmDelete)();
       } else {
         translateX.value = withSpring(0);
       }
