@@ -23,6 +23,7 @@ import {
   Dimensions,
   Modal,
   Platform,
+  Animated,
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -33,7 +34,6 @@ import { apiRequest, isBackendConfigured } from '@/services/api';
 import { TagEditor } from '@/components/TagEditor';
 import { FolderPickerModal } from '@/components/FolderPickerModal';
 import { PaywallModal } from '@/components/PaywallModal';
-import { useDebugStore } from '@/store/debugStore';
 import { C, T, R, S } from '@/theme/tokens';
 import type { DocumentCategory, Folder } from '@/types/document';
 
@@ -133,8 +133,6 @@ export default function DocumentViewerScreen() {
   const toggleFavorite = useDocumentStore(s => s.toggleFavorite);
   const isPro = useProStore(s => s.isPro);
   const checkPro = useProStore(s => s.checkPro);
-  const logDebug = useDebugStore(s => s.log);
-  const setDebugScreenState = useDebugStore(s => s.setScreenState);
 
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   // Ref so title editing state can be read without stale closure
@@ -147,12 +145,8 @@ export default function DocumentViewerScreen() {
   const isMounted = useRef(true);
   useEffect(() => {
     isMounted.current = true;
-    logDebug(`viewer mount ${id ?? 'missing'}`);
-    return () => {
-      isMounted.current = false;
-      logDebug(`viewer unmount ${id ?? 'missing'}`);
-    };
-  }, [id, logDebug]);
+    return () => { isMounted.current = false; };
+  }, []);
   useEffect(() => {
     isEditingTitleRef.current = isEditingTitle;
   }, [isEditingTitle]);
@@ -176,29 +170,10 @@ export default function DocumentViewerScreen() {
 
   const titleInputRef = useRef<TextInput>(null);
 
-  useEffect(() => {
-    setDebugScreenState(
-      'viewer',
-      [
-        `doc=${id ?? 'missing'}`,
-        `tag=${showTagEditor ? '1' : '0'}`,
-        `folder=${showFolderPicker ? '1' : '0'}`,
-        `paywall=${showPaywall ? '1' : '0'}`,
-        `category=${showCategoryPicker ? '1' : '0'}`,
-        `delete=${isDeleting ? '1' : '0'}`,
-        `ai=${isAiOrganizing ? '1' : '0'}`,
-      ].join(' '),
-    );
-  }, [
-    id,
-    isAiOrganizing,
-    isDeleting,
-    setDebugScreenState,
-    showCategoryPicker,
-    showFolderPicker,
-    showPaywall,
-    showTagEditor,
-  ]);
+  // Keep Animated.View stable without attaching a PanResponder.
+  // The old swipe-to-dismiss responder could capture touches and leave the app
+  // unresponsive after navigating back from this screen.
+  const swipeY = useRef(new Animated.Value(0)).current;
 
   const handleSaveTitle = useCallback(() => {
     if (!document) return;
@@ -214,7 +189,6 @@ export default function DocumentViewerScreen() {
 
   const handleShare = useCallback(async () => {
     if (!document || isSharing) return;
-    logDebug('viewer share');
     setIsSharing(true);
     try {
       await shareDocument(document);
@@ -223,11 +197,10 @@ export default function DocumentViewerScreen() {
     } finally {
       if (isMounted.current) setIsSharing(false);
     }
-  }, [document, isSharing, logDebug]);
+  }, [document, isSharing]);
 
   const handleDelete = useCallback(() => {
     if (!document) return;
-    logDebug('viewer delete prompt');
     Alert.alert(
       'Delete Document',
       `"${document.title}" will be permanently deleted. This cannot be undone.`,
@@ -237,37 +210,32 @@ export default function DocumentViewerScreen() {
           text: 'Delete',
           style: 'destructive',
           onPress: async () => {
-            logDebug('viewer delete confirm');
             setIsDeleting(true);
             await deleteDocument(document.id);
             if (isMounted.current) setIsDeleting(false);
-            logDebug('viewer delete success -> tabs');
             router.replace('/(tabs)/');
           },
         },
       ],
     );
-  }, [deleteDocument, document, logDebug]);
+  }, [document, deleteDocument]);
 
   const handleCategorySelect = useCallback((cat: DocumentCategory) => {
     if (!document) return;
-    logDebug(`viewer category ${cat}`);
     updateDocument(document.id, { category: cat });
     setShowCategoryPicker(false);
-  }, [document, logDebug, updateDocument]);
+  }, [document, updateDocument]);
 
   const handleFolderSelect = useCallback((folderId: string | null) => {
     if (!document) return;
-    logDebug(`viewer folder ${folderId ?? 'unfiled'}`);
     moveDocumentToFolder(document.id, folderId);
     setShowFolderPicker(false);
-  }, [document, logDebug, moveDocumentToFolder]);
+  }, [document, moveDocumentToFolder]);
 
   const handleAiOrganize = useCallback(async () => {
     if (!document || isAiOrganizing) return;
 
     if (!isPro) {
-      logDebug('viewer ai blocked by paywall');
       setShowPaywall(true);
       return;
     }
@@ -280,7 +248,6 @@ export default function DocumentViewerScreen() {
       return;
     }
 
-    logDebug('viewer ai start');
     setIsAiOrganizing(true);
     setAiSummary(null);
 
@@ -330,11 +297,9 @@ export default function DocumentViewerScreen() {
       const summaryParts = ['updated the name', 'set the category'];
       if (nextTags.length > 0) summaryParts.push('applied tags');
       if (suggestedFolder) summaryParts.push(`moved it to ${suggestedFolder.name}`);
-      logDebug(`viewer ai success category=${nextCategory} folder=${suggestedFolderId ?? 'none'}`);
       if (isMounted.current) setAiSummary(`AI ${summaryParts.join(', ')}.`);
     } catch (err: unknown) {
       if (isMounted.current) {
-        logDebug('viewer ai failed');
         Alert.alert('AI Organize Failed', errorMessage(err, 'Could not analyze this document.'));
       }
     } finally {
@@ -354,10 +319,7 @@ export default function DocumentViewerScreen() {
     return (
       <View style={[styles.notFound, { paddingTop: insets.top }]}>
         <Text style={styles.notFoundText}>Document not found.</Text>
-        <Pressable onPress={() => {
-          logDebug('viewer missing doc back');
-          router.back();
-        }} style={styles.backLink}>
+        <Pressable onPress={() => router.back()} style={styles.backLink}>
           <Text style={styles.backLinkText}>← Go Back</Text>
         </Pressable>
       </View>
@@ -370,17 +332,12 @@ export default function DocumentViewerScreen() {
     : null;
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <Animated.View
+      style={[styles.container, { paddingTop: insets.top, transform: [{ translateY: swipeY }] }]}
+    >
       {/* ── Header ── */}
       <View style={styles.header}>
-        <Pressable style={styles.headerBtn} onPress={() => {
-          logDebug('viewer back');
-          if (router.canGoBack()) {
-            router.back();
-          } else {
-            router.replace('/(tabs)/');
-          }
-        }} hitSlop={8}>
+        <Pressable style={styles.headerBtn} onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)/')} hitSlop={8}>
           <Text style={styles.headerBtnText}>‹</Text>
         </Pressable>
 
@@ -396,10 +353,7 @@ export default function DocumentViewerScreen() {
         <View style={styles.headerActions}>
           <Pressable
             style={styles.headerIconBtn}
-            onPress={() => {
-              logDebug('viewer favorite');
-              toggleFavorite(document.id);
-            }}
+            onPress={() => toggleFavorite(document.id)}
             hitSlop={8}
           >
             <Text style={[styles.headerIcon, document.isFavorite && { color: C.amber }]}>
@@ -448,7 +402,6 @@ export default function DocumentViewerScreen() {
         <View style={styles.metaSection}>
           <Pressable
             onPress={() => {
-              logDebug('viewer title edit start');
               isEditingTitleRef.current = true;
               setIsEditingTitle(true);
               setTimeout(() => titleInputRef.current?.focus(), 50);
@@ -478,10 +431,7 @@ export default function DocumentViewerScreen() {
           {/* Category */}
           <Pressable
             style={styles.categoryRow}
-            onPress={() => {
-              logDebug('viewer category picker open');
-              setShowCategoryPicker(true);
-            }}
+            onPress={() => setShowCategoryPicker(true)}
           >
             <Text style={styles.categoryLabel}>
               {CATEGORY_LABELS[document.category]}
@@ -515,10 +465,7 @@ export default function DocumentViewerScreen() {
                   styles.organizeBtnSecondary,
                   pressed && { opacity: 0.8 },
                 ]}
-                onPress={() => {
-                  logDebug('viewer folder picker open');
-                  setShowFolderPicker(true);
-                }}
+                onPress={() => setShowFolderPicker(true)}
               >
                 <Text style={styles.organizeBtnSecondaryText}>Move Folder</Text>
               </Pressable>
@@ -541,10 +488,7 @@ export default function DocumentViewerScreen() {
           </View>
 
           {/* Tags */}
-          <Pressable style={styles.tagsRow} onPress={() => {
-            logDebug('viewer tag editor open');
-            setShowTagEditor(true);
-          }}>
+          <Pressable style={styles.tagsRow} onPress={() => setShowTagEditor(true)}>
             {document.tags.length > 0 ? (
               <>
                 {document.tags.map(tag => (
@@ -569,10 +513,7 @@ export default function DocumentViewerScreen() {
           <View style={styles.ocrSection}>
             <Pressable
               style={styles.ocrHeader}
-              onPress={() => {
-                logDebug(`viewer ocr toggle ${showOCR ? 'close' : 'open'}`);
-                setShowOCR(v => !v);
-              }}
+              onPress={() => setShowOCR(v => !v)}
             >
               <Text style={styles.ocrTitle}>
                 {document.ocrStatus === 'pending'
@@ -599,105 +540,80 @@ export default function DocumentViewerScreen() {
       </ScrollView>
 
       {/* ── Tag Editor ── */}
-      {showTagEditor && (
-        <TagEditor
-          visible={showTagEditor}
-          initialTags={document.tags}
-          allTags={allDocumentTags}
-          onConfirm={(tags) => {
-            logDebug(`viewer tags confirm count=${tags.length}`);
-            updateDocumentTags(document.id, tags);
-            setShowTagEditor(false);
-          }}
-          onCancel={() => {
-            logDebug('viewer tag editor close');
-            setShowTagEditor(false);
-          }}
-        />
-      )}
+      <TagEditor
+        visible={showTagEditor}
+        initialTags={document.tags}
+        allTags={allDocumentTags}
+        onConfirm={(tags) => {
+          updateDocumentTags(document.id, tags);
+          setShowTagEditor(false);
+        }}
+        onCancel={() => setShowTagEditor(false)}
+      />
 
-      {showFolderPicker && (
-        <FolderPickerModal
-          visible={showFolderPicker}
-          folders={folders}
-          onSelect={handleFolderSelect}
-          onCancel={() => {
-            logDebug('viewer folder picker close');
-            setShowFolderPicker(false);
-          }}
-        />
-      )}
+      <FolderPickerModal
+        visible={showFolderPicker}
+        folders={folders}
+        onSelect={handleFolderSelect}
+        onCancel={() => setShowFolderPicker(false)}
+      />
 
-      {showPaywall && (
-        <PaywallModal
-          visible={showPaywall}
-          onClose={() => {
-            logDebug('viewer paywall close');
-            setShowPaywall(false);
-          }}
-          onSuccess={() => {
-            logDebug('viewer paywall success');
-            setShowPaywall(false);
-            void checkPro();
-          }}
-        />
-      )}
+      <PaywallModal
+        visible={showPaywall}
+        onClose={() => setShowPaywall(false)}
+        onSuccess={() => {
+          setShowPaywall(false);
+          void checkPro();
+        }}
+      />
 
       {/* ── Category Picker Modal ── */}
-      {showCategoryPicker && (
-        <Modal
-          visible={showCategoryPicker}
-          transparent
-          animationType="slide"
-          onRequestClose={() => {
-            logDebug('viewer category picker close');
-            setShowCategoryPicker(false);
-          }}
+      <Modal
+        visible={showCategoryPicker}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowCategoryPicker(false)}
+      >
+        <Pressable
+          style={styles.modalBackdrop}
+          onPress={() => setShowCategoryPicker(false)}
         >
           <Pressable
-            style={styles.modalBackdrop}
-            onPress={() => {
-              logDebug('viewer category picker backdrop close');
-              setShowCategoryPicker(false);
-            }}
+            style={[styles.categorySheet, { paddingBottom: insets.bottom + S[4] }]}
+            onPress={() => {}}
           >
-            <Pressable
-              style={[styles.categorySheet, { paddingBottom: insets.bottom + S[4] }]}
-              onPress={() => {}}
-            >
-              <View style={styles.sheetHandle} />
-              <Text style={styles.sheetTitle}>Change Category</Text>
-              {CATEGORIES.map(cat => (
-                <Pressable
-                  key={cat}
-                  style={[
-                    styles.categoryOption,
-                    document.category === cat && styles.categoryOptionSelected,
-                  ]}
-                  onPress={() => handleCategorySelect(cat)}
-                >
-                  <Text style={[
-                    styles.categoryOptionText,
-                    document.category === cat && styles.categoryOptionTextSelected,
-                  ]}>
-                    {CATEGORY_LABELS[cat]}
-                  </Text>
-                  {document.category === cat && (
-                    <Text style={styles.categoryCheck}>✓</Text>
-                  )}
-                </Pressable>
-              ))}
-            </Pressable>
+            <View style={styles.sheetHandle} />
+            <Text style={styles.sheetTitle}>Change Category</Text>
+            {CATEGORIES.map(cat => (
+              <Pressable
+                key={cat}
+                style={[
+                  styles.categoryOption,
+                  document.category === cat && styles.categoryOptionSelected,
+                ]}
+                onPress={() => handleCategorySelect(cat)}
+              >
+                <Text style={[
+                  styles.categoryOptionText,
+                  document.category === cat && styles.categoryOptionTextSelected,
+                ]}>
+                  {CATEGORY_LABELS[cat]}
+                </Text>
+                {document.category === cat && (
+                  <Text style={styles.categoryCheck}>✓</Text>
+                )}
+              </Pressable>
+            ))}
           </Pressable>
-        </Modal>
-      )}
+        </Pressable>
+      </Modal>
 
       {isDeleting && (
         <View style={styles.deletingOverlay}>
           <ActivityIndicator color={C.amber} size="large" />
         </View>
       )}
-    </View>
+    </Animated.View>
   );
 }
 

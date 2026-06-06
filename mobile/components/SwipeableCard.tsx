@@ -21,6 +21,7 @@ import { Feather } from '@expo/vector-icons';
 import { C, R, S, T } from '@/theme/tokens';
 
 const ACTION_THRESHOLD = 72; // px drag needed to trigger action
+const SNAP_DISTANCE = 80;    // px the card travels before snapping back
 
 interface Props {
   children: React.ReactNode;
