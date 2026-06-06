@@ -9,7 +9,7 @@
  * Footer: expandable OCR text panel.
  */
 
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -107,17 +107,6 @@ function suggestFolderId(
   return bestScore > 0 ? bestFolderId : null;
 }
 
-// Module-level selector — stable reference, never re-created.
-// Defining it outside the component means Zustand gets the same function
-// object every render, so it can skip re-subscribing. Returning a new array
-// from .sort() is fine because Zustand uses Object.is for the VALUE comparison;
-// the tags array contents rarely change so re-renders are minimal.
-function selectAllTags(s: { documents: { tags: string[] }[] }): string[] {
-  const tagSet = new Set<string>();
-  for (const doc of s.documents) for (const tag of doc.tags) tagSet.add(tag);
-  return Array.from(tagSet).sort();
-}
-
 export default function DocumentViewerScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const insets = useSafeAreaInsets();
@@ -127,7 +116,12 @@ export default function DocumentViewerScreen() {
   const updateDocument = useDocumentStore(s => s.updateDocument);
   const updateDocumentTags = useDocumentStore(s => s.updateDocumentTags);
   const moveDocumentToFolder = useDocumentStore(s => s.moveDocumentToFolder);
-  const allDocumentTags = useDocumentStore(selectAllTags);
+  const allDocuments = useDocumentStore(s => s.documents);
+  const allDocumentTags = useMemo(() => {
+    const tagSet = new Set<string>();
+    for (const doc of allDocuments) for (const tag of doc.tags) tagSet.add(tag);
+    return Array.from(tagSet).sort();
+  }, [allDocuments]);
   const deleteDocument = useDocumentStore(s => s.deleteDocument);
   const toggleFavorite = useDocumentStore(s => s.toggleFavorite);
   const isPro = useProStore(s => s.isPro);
