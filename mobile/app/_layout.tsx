@@ -9,7 +9,6 @@ import { Colors } from '@/theme';
 import { useDocumentStore } from '@/store/documentStore';
 import { useAppStore } from '@/store/appStore';
 import { LockScreen } from '@/components/LockScreen';
-import { DebugOverlay } from '@/components/DebugOverlay';
 import { track } from '@/services/analytics';
 import { getApiBaseUrl } from '@/services/api';
 import { initializePurchases } from '@/services/purchases';
@@ -171,7 +170,6 @@ export default function RootLayout() {
           <LockScreen onUnlocked={() => setLocked(false)} />
         )}
 
-        <DebugOverlay routeLabel={routeLabel} />
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

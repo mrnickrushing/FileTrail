@@ -279,7 +279,6 @@ export default function DocumentReviewScreen() {
     } catch (err) {
       logDebug('review save failed');
       Alert.alert('Save Failed', 'Something went wrong saving your document. Please try again.');
-      console.error('[Review] save error:', err);
     } finally {
       if (isMounted.current) setIsSaving(false);
     }
