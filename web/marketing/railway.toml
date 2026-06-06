@@ -1,0 +1,9 @@
+[build]
+builder = "NIXPACKS"
+buildCommand = "npm run build && cp -r .next/static .next/standalone/.next/static && mkdir -p .next/standalone/public && [ -d public ] && cp -r public/. .next/standalone/public/ || true"
+
+[deploy]
+startCommand = "HOSTNAME=0.0.0.0 node .next/standalone/server.js"
+healthcheckPath = "/"
+healthcheckTimeout = 30
+restartPolicyType = "ON_FAILURE"
