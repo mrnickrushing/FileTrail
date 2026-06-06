@@ -15,6 +15,7 @@ import {
 import { Redirect, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
+import * as FileSystem from 'expo-file-system';
 import { Feather } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAppStore, useDocumentStore } from '@/store';
@@ -248,6 +249,23 @@ export default function VaultScreen() {
               const doc = documents.find(d => d.id === docId);
               if (!doc) continue;
               try {
+                const PDF_BASE64_SIZE_LIMIT = 4 * 1024 * 1024;
+                let pdfBase64: string | undefined;
+                if (
+                  !doc.ocrText &&
+                  doc.mimeType === 'application/pdf' &&
+                  doc.fileUri &&
+                  (doc.fileSizeBytes ?? 0) <= PDF_BASE64_SIZE_LIMIT
+                ) {
+                  try {
+                    pdfBase64 = await FileSystem.readAsStringAsync(doc.fileUri, {
+                      encoding: FileSystem.EncodingType.Base64,
+                    });
+                  } catch {
+                    // proceed without it
+                  }
+                }
+
                 const suggestion = await apiRequest<{
                   suggestedTitle: string;
                   category: DocumentCategory;
@@ -261,6 +279,7 @@ export default function VaultScreen() {
                     filename: doc.title,
                     ocrText: doc.ocrText,
                     mimeType: doc.mimeType,
+                    pdfBase64,
                   },
                   timeoutMs: 30000,
                 });
@@ -269,7 +288,10 @@ export default function VaultScreen() {
                 const nextTags = Array.isArray(suggestion.tags)
                   ? Array.from(new Set(suggestion.tags.map((t: string) => t.trim()).filter(Boolean)))
                   : doc.tags;
-                updateDocument(docId, { title: nextTitle, category: nextCategory });
+                const nextNotes = typeof suggestion.notes === 'string' && suggestion.notes.trim()
+                  ? suggestion.notes.trim()
+                  : undefined;
+                updateDocument(docId, { title: nextTitle, category: nextCategory, ...(nextNotes ? { notes: nextNotes } : {}) });
                 updateDocumentTags(docId, nextTags);
                 if (suggestion.suggestedFolderName) {
                   const existing = folders.find(
