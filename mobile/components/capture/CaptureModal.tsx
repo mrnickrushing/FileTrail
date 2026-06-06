@@ -61,7 +61,6 @@ export function CaptureModal({ visible, onClose }: CaptureModalProps) {
         params: { uri: result.uri, source: 'camera' },
       });
     } else if (result.status === 'denied') {
-      // TODO: show settings prompt — Phase 3
     } else if (result.status === 'error') {
       logDebug(`capture camera error ${result.message}`);
       Alert.alert('Camera Failed', result.message);
