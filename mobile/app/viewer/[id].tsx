@@ -667,7 +667,6 @@ function PDFViewer({
           PDF preview is temporarily disabled in this TestFlight build.
           You can still share or export the file.
         </Text>
-        <Text style={pdfStyles.code}>{uri}</Text>
       </View>
 
       {/* Floating page counter overlay */}
