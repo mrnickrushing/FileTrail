@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "1.23.1",
+    "@react-native-google-mlkit/text-recognition": "^0.4.0",
     "@tanstack/react-query": "^5.0.0",
     "date-fns": "^3.6.0",
     "expo": "~52.0.0",
