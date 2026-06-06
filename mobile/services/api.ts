@@ -24,6 +24,11 @@ function getApiKey(): string | null {
   return raw || null;
 }
 
+export function getAnthropicApiKey(): string | null {
+  const raw = process?.env?.EXPO_PUBLIC_ANTHROPIC_API_KEY?.trim();
+  return raw || null;
+}
+
 export function isBackendConfigured(): boolean {
   return true;
 }

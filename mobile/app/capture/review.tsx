@@ -37,7 +37,7 @@ import { PaywallModal } from '@/components/PaywallModal';
 import { saveDocumentFile, generateThumbnail, getFileSize, getExtension } from '@/services/fileStorage';
 import { extractText, isOCRAvailable } from '@/services/ocr';
 import { isPDFLike } from '@/services/pdfService';
-import { apiRequest, isBackendConfigured } from '@/services/api';
+import { apiRequest, isBackendConfigured, getAnthropicApiKey } from '@/services/api';
 import { C, T, R, S } from '@/theme/tokens';
 import type { DocumentCategory } from '@/types/document';
 
@@ -136,7 +136,7 @@ export default function DocumentReviewScreen() {
           amounts?: number[];
         }>('/v1/ai/suggest-document', {
           method: 'POST',
-          body: { title, filename: params.name, mimeType: params.mimeType, pdfBase64 },
+          body: { title, filename: params.name, mimeType: params.mimeType, pdfBase64, anthropicApiKey: getAnthropicApiKey() ?? undefined },
         }))
           .then((suggestion) => {
             if (!isMounted.current) return;
@@ -202,7 +202,7 @@ export default function DocumentReviewScreen() {
             source?: string; date?: string; vendor?: string; amounts?: number[];
           }>('/v1/ai/suggest-document', {
             method: 'POST',
-            body: { title, filename: params.name, mimeType: params.mimeType, imageBase64, imageMimeType: imageBase64 ? params.mimeType : undefined },
+            body: { title, filename: params.name, mimeType: params.mimeType, imageBase64, imageMimeType: imageBase64 ? params.mimeType : undefined, anthropicApiKey: getAnthropicApiKey() ?? undefined },
           })
         ).then((suggestion) => {
           if (!isMounted.current) return;
@@ -243,6 +243,7 @@ export default function DocumentReviewScreen() {
                 mimeType: params.mimeType,
                 imageBase64,
                 imageMimeType: imageBase64 ? params.mimeType : undefined,
+                anthropicApiKey: getAnthropicApiKey() ?? undefined,
               },
             });
             if (!isMounted.current) return;

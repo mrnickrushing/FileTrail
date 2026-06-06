@@ -157,8 +157,9 @@ export async function suggestDocument(input: {
   pdfBase64?: string;
   imageBase64?: string;
   imageMimeType?: string;
+  anthropicApiKey?: string;
 }): Promise<SuggestResult> {
-  const apiKey = process.env.ANTHROPIC_API_KEY?.trim();
+  const apiKey = process.env.ANTHROPIC_API_KEY?.trim() || input.anthropicApiKey?.trim();
 
   // Heuristic path: no API key, so extract PDF text the old way for keyword matching
   if (!apiKey) {

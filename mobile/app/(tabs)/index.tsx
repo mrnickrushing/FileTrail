@@ -20,7 +20,7 @@ import { Feather } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAppStore, useDocumentStore } from '@/store';
 import { useProStore } from '@/store/proStore';
-import { apiRequest, isBackendConfigured } from '@/services/api';
+import { apiRequest, isBackendConfigured, getAnthropicApiKey } from '@/services/api';
 import { DocumentCard } from '@/components/DocumentCard';
 import { BulkActionBar } from '@/components/BulkActionBar';
 import { TagEditor } from '@/components/TagEditor';
@@ -292,6 +292,7 @@ export default function VaultScreen() {
                     pdfBase64,
                     imageBase64,
                     imageMimeType: imageBase64 ? doc.mimeType : undefined,
+                    anthropicApiKey: getAnthropicApiKey() ?? undefined,
                   },
                   timeoutMs: 30000,
                 });

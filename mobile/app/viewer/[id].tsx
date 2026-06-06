@@ -30,7 +30,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useDocumentStore } from '@/store/documentStore';
 import { useProStore } from '@/store/proStore';
 import { shareDocument } from '@/services/exportService';
-import { apiRequest, isBackendConfigured } from '@/services/api';
+import { apiRequest, isBackendConfigured, getAnthropicApiKey } from '@/services/api';
 import { TagEditor } from '@/components/TagEditor';
 import { FolderPickerModal } from '@/components/FolderPickerModal';
 import { PaywallModal } from '@/components/PaywallModal';
@@ -307,6 +307,7 @@ export default function DocumentViewerScreen() {
           pdfBase64,
           imageBase64,
           imageMimeType: imageBase64 ? document.mimeType : undefined,
+          anthropicApiKey: getAnthropicApiKey() ?? undefined,
         },
         timeoutMs: 30000,
       });
