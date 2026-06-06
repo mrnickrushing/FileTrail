@@ -12,9 +12,11 @@ export type BackendConfig = {
   integrations: Record<string, boolean>;
 };
 
-export function getApiBaseUrl(): string | null {
+const PRODUCTION_API_URL = 'https://papertrail-production-de23.up.railway.app';
+
+export function getApiBaseUrl(): string {
   const raw = process?.env?.EXPO_PUBLIC_API_URL?.trim();
-  return raw ? raw.replace(/\/$/, '') : null;
+  return (raw || PRODUCTION_API_URL).replace(/\/$/, '');
 }
 
 function getApiKey(): string | null {
@@ -23,7 +25,7 @@ function getApiKey(): string | null {
 }
 
 export function isBackendConfigured(): boolean {
-  return Boolean(getApiBaseUrl());
+  return true;
 }
 
 export async function apiRequest<T>(path: string, options: ApiOptions = {}): Promise<T> {
