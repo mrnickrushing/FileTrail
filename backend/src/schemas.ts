@@ -61,6 +61,7 @@ export const aiSuggestSchema = z.object({
   filename: z.string().optional(),
   ocrText: z.string().optional(),
   mimeType: z.string().optional(),
+  pdfBase64: z.string().optional(),
 });
 
 export const shareLinkCreateSchema = z.object({

@@ -1,4 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+const pdfParse = require('pdf-parse') as (buffer: Buffer, options?: { max?: number }) => Promise<{ text: string }>;
 import type { DocumentCategory } from './types.js';
 
 const DEFAULT_ANTHROPIC_MODEL = process.env.ANTHROPIC_MODEL?.trim() || 'claude-3-5-haiku-20241022';
@@ -63,15 +66,32 @@ function heuristicSuggest(input: { title?: string; filename?: string; ocrText?: 
   return { suggestedTitle: baseTitle.slice(0, 120), category, tags: Array.from(tags), source: 'heuristic' };
 }
 
+async function extractPdfText(base64: string): Promise<string> {
+  try {
+    const buffer = Buffer.from(base64, 'base64');
+    const result = await pdfParse(buffer, { max: 5 });
+    return result.text?.trim() ?? '';
+  } catch {
+    return '';
+  }
+}
+
 export async function suggestDocument(input: {
   title?: string;
   filename?: string;
   ocrText?: string;
   mimeType?: string;
+  pdfBase64?: string;
 }): Promise<SuggestResult> {
   const apiKey = process.env.ANTHROPIC_API_KEY?.trim();
-  if (!apiKey || !input.ocrText?.trim()) {
-    return heuristicSuggest(input);
+
+  let ocrText = input.ocrText?.trim();
+  if (!ocrText && input.pdfBase64) {
+    ocrText = await extractPdfText(input.pdfBase64);
+  }
+
+  if (!apiKey || !ocrText) {
+    return heuristicSuggest({ ...input, ocrText });
   }
 
   try {
@@ -88,7 +108,7 @@ export async function suggestDocument(input: {
 - "tags": array of 1-4 lowercase keyword tags
 
 Document text:
-${input.ocrText.slice(0, 2000)}`,
+${ocrText.slice(0, 2000)}`,
       }],
     });
 

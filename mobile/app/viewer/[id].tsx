@@ -25,6 +25,7 @@ import {
   Platform,
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
+import * as FileSystem from 'expo-file-system';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useDocumentStore } from '@/store/documentStore';
 import { useProStore } from '@/store/proStore';
@@ -241,6 +242,23 @@ export default function DocumentViewerScreen() {
     setAiSummary(null);
 
     try {
+      const PDF_BASE64_SIZE_LIMIT = 4 * 1024 * 1024;
+      let pdfBase64: string | undefined;
+      if (
+        !document.ocrText &&
+        document.mimeType === 'application/pdf' &&
+        document.fileUri &&
+        (document.fileSizeBytes ?? 0) <= PDF_BASE64_SIZE_LIMIT
+      ) {
+        try {
+          pdfBase64 = await FileSystem.readAsStringAsync(document.fileUri, {
+            encoding: FileSystem.EncodingType.Base64,
+          });
+        } catch {
+          // proceed without it
+        }
+      }
+
       const suggestion = await apiRequest<{
         suggestedTitle: string;
         category: DocumentCategory;
@@ -253,8 +271,9 @@ export default function DocumentViewerScreen() {
           filename: document.title,
           ocrText: document.ocrText,
           mimeType: document.mimeType,
+          pdfBase64,
         },
-        timeoutMs: 15000,
+        timeoutMs: 30000,
       });
 
       if (!isMounted.current) return;
