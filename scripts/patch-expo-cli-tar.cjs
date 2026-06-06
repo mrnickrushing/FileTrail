@@ -75,16 +75,30 @@ if (!cjsEntry) {
 console.log('[patch-tar] Target:', path.relative(mobileModules, cjsEntry));
 
 let src = fs.readFileSync(cjsEntry, 'utf8');
-if (src.includes('exports.extract')) {
-  console.log('[patch-tar] .extract already present – nothing to do');
-  process.exit(0);
+// Remove any previous (broken) patch attempt before re-applying
+const patchMarker = '// patch-expo-cli-tar:';
+if (src.includes(patchMarker)) {
+  // Strip everything from the marker to end of file and re-patch
+  src = src.slice(0, src.indexOf('\n' + patchMarker)).trimEnd() + '\n';
+  console.log('[patch-tar] Removing previous patch attempt, re-applying with Object.defineProperty');
 }
 
 // Append the compat alias and write back.
+// IMPORTANT: tar v7 uses Object.defineProperty with getter descriptors on exports.
+// Simple assignment (exports.extract = ...) silently fails on sealed property objects.
+// Must use Object.defineProperty with configurable:true to override.
 src += '\n// patch-expo-cli-tar: .extract alias for @expo/cli compat (tar v7)\n';
-src += 'if (typeof exports.x === "function" && !exports.extract) {\n';
-src += '  exports.extract = exports.x;\n';
-src += '}\n';
+src += '(function() {\n';
+src += '  if (typeof exports.x !== "function") return;\n';
+src += '  try {\n';
+src += '    Object.defineProperty(exports, "extract", {\n';
+src += '      configurable: true, enumerable: true,\n';
+src += '      get: function() { return exports.x; }\n';
+src += '    });\n';
+src += '  } catch(_) {\n';
+src += '    exports.extract = exports.x;\n';
+src += '  }\n';
+src += '})();\n';
 
 fs.writeFileSync(cjsEntry, src);
 console.log('[patch-tar] Patched – exports.extract = exports.x added ✓');
