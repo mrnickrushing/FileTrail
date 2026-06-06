@@ -144,8 +144,48 @@ export default function DocumentReviewScreen() {
       }
       return;
     }
+    const FILE_SIZE_LIMIT = 4 * 1024 * 1024;
+    const fileSizeBytes = params.size ? parseInt(params.size, 10) : 0;
+    const canReadImage = !!params.uri && (!fileSizeBytes || fileSizeBytes <= FILE_SIZE_LIMIT);
+
+    const applySuggestion = (suggestion: {
+      suggestedTitle?: string;
+      category?: DocumentCategory;
+      tags?: string[];
+      notes?: string;
+      suggestedFolderName?: string;
+    }) => {
+      if (suggestion.suggestedTitle) setTitle(suggestion.suggestedTitle);
+      if (suggestion.category) setCategory(suggestion.category);
+      setSuggestedTags(Array.isArray(suggestion.tags) ? suggestion.tags : []);
+      if (suggestion.notes) setSuggestedNotes(suggestion.notes);
+      if (suggestion.suggestedFolderName) setSuggestedFolderName(suggestion.suggestedFolderName);
+    };
+
     if (!autoOcr || !isOCRAvailable()) {
       setOCRStatus('unavailable');
+      // Call AI with image vision — no OCR available but Claude can read the file directly
+      if (isPro && isBackendConfigured() && params.uri) {
+        setAiStatus('processing');
+        (canReadImage
+          ? FileSystem.readAsStringAsync(params.uri, { encoding: FileSystem.EncodingType.Base64 }).catch(() => undefined)
+          : Promise.resolve(undefined)
+        ).then((imageBase64) =>
+          apiRequest<{
+            suggestedTitle: string; category: DocumentCategory;
+            tags: string[]; notes: string; suggestedFolderName: string; source: string;
+          }>('/v1/ai/suggest-document', {
+            method: 'POST',
+            body: { title, filename: params.name, mimeType: params.mimeType, imageBase64, imageMimeType: imageBase64 ? params.mimeType : undefined },
+          })
+        ).then((suggestion) => {
+          if (!isMounted.current) return;
+          applySuggestion(suggestion);
+          setAiStatus('done');
+        }).catch(() => {
+          if (isMounted.current) setAiStatus('idle');
+        });
+      }
       return;
     }
 
@@ -157,27 +197,28 @@ export default function DocumentReviewScreen() {
         setOCRText(text);
         setOCRStatus('done');
 
-        // Call backend AI to suggest title + category + tags (pro only)
-        if (isPro && text && isBackendConfigured()) {
+        if (isPro && isBackendConfigured()) {
           setAiStatus('processing');
           try {
+            // Read image for vision — Claude uses it alongside OCR text for best results
+            const imageBase64 = canReadImage
+              ? await FileSystem.readAsStringAsync(params.uri, { encoding: FileSystem.EncodingType.Base64 }).catch(() => undefined)
+              : undefined;
             const suggestion = await apiRequest<{
-              suggestedTitle: string;
-              category: DocumentCategory;
-              tags: string[];
-              notes: string;
-              suggestedFolderName: string;
-              source: string;
+              suggestedTitle: string; category: DocumentCategory;
+              tags: string[]; notes: string; suggestedFolderName: string; source: string;
             }>('/v1/ai/suggest-document', {
               method: 'POST',
-              body: { title, filename: params.name, ocrText: text, mimeType: params.mimeType },
+              body: {
+                title, filename: params.name,
+                ocrText: text || undefined,
+                mimeType: params.mimeType,
+                imageBase64,
+                imageMimeType: imageBase64 ? params.mimeType : undefined,
+              },
             });
             if (!isMounted.current) return;
-            if (suggestion.suggestedTitle) setTitle(suggestion.suggestedTitle);
-            if (suggestion.category) setCategory(suggestion.category);
-            setSuggestedTags(Array.isArray(suggestion.tags) ? suggestion.tags : []);
-            if (suggestion.notes) setSuggestedNotes(suggestion.notes);
-            if (suggestion.suggestedFolderName) setSuggestedFolderName(suggestion.suggestedFolderName);
+            applySuggestion(suggestion);
             setAiStatus('done');
           } catch {
             if (isMounted.current) setAiStatus('idle');

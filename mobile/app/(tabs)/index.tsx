@@ -249,18 +249,21 @@ export default function VaultScreen() {
               const doc = documents.find(d => d.id === docId);
               if (!doc) continue;
               try {
-                const PDF_BASE64_SIZE_LIMIT = 4 * 1024 * 1024;
+                const FILE_SIZE_LIMIT = 4 * 1024 * 1024;
+                const canReadFile = !!doc.fileUri && (doc.fileSizeBytes ?? 0) <= FILE_SIZE_LIMIT;
                 let pdfBase64: string | undefined;
-                if (
-                  !doc.ocrText &&
-                  doc.mimeType === 'application/pdf' &&
-                  doc.fileUri &&
-                  (doc.fileSizeBytes ?? 0) <= PDF_BASE64_SIZE_LIMIT
-                ) {
+                let imageBase64: string | undefined;
+                if (!doc.ocrText && canReadFile) {
                   try {
-                    pdfBase64 = await FileSystem.readAsStringAsync(doc.fileUri, {
-                      encoding: FileSystem.EncodingType.Base64,
-                    });
+                    if (doc.mimeType === 'application/pdf') {
+                      pdfBase64 = await FileSystem.readAsStringAsync(doc.fileUri!, {
+                        encoding: FileSystem.EncodingType.Base64,
+                      });
+                    } else if (doc.mimeType.startsWith('image/')) {
+                      imageBase64 = await FileSystem.readAsStringAsync(doc.fileUri!, {
+                        encoding: FileSystem.EncodingType.Base64,
+                      });
+                    }
                   } catch {
                     // proceed without it
                   }
@@ -280,6 +283,8 @@ export default function VaultScreen() {
                     ocrText: doc.ocrText,
                     mimeType: doc.mimeType,
                     pdfBase64,
+                    imageBase64,
+                    imageMimeType: imageBase64 ? doc.mimeType : undefined,
                   },
                   timeoutMs: 30000,
                 });

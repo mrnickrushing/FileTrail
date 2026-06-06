@@ -243,20 +243,29 @@ export default function DocumentViewerScreen() {
     setAiSummary(null);
 
     try {
-      const PDF_BASE64_SIZE_LIMIT = 4 * 1024 * 1024;
+      const FILE_SIZE_LIMIT = 4 * 1024 * 1024;
+      const canReadFile = !!document.fileUri && (document.fileSizeBytes ?? 0) <= FILE_SIZE_LIMIT;
+
       let pdfBase64: string | undefined;
-      if (
-        !document.ocrText &&
-        document.mimeType === 'application/pdf' &&
-        document.fileUri &&
-        (document.fileSizeBytes ?? 0) <= PDF_BASE64_SIZE_LIMIT
-      ) {
-        try {
-          pdfBase64 = await FileSystem.readAsStringAsync(document.fileUri, {
-            encoding: FileSystem.EncodingType.Base64,
-          });
-        } catch {
-          // proceed without it
+      let imageBase64: string | undefined;
+
+      if (!document.ocrText && canReadFile) {
+        if (document.mimeType === 'application/pdf') {
+          try {
+            pdfBase64 = await FileSystem.readAsStringAsync(document.fileUri!, {
+              encoding: FileSystem.EncodingType.Base64,
+            });
+          } catch {
+            // proceed without it
+          }
+        } else if (document.mimeType.startsWith('image/')) {
+          try {
+            imageBase64 = await FileSystem.readAsStringAsync(document.fileUri!, {
+              encoding: FileSystem.EncodingType.Base64,
+            });
+          } catch {
+            // proceed without it
+          }
         }
       }
 
@@ -275,6 +284,8 @@ export default function DocumentViewerScreen() {
           ocrText: document.ocrText,
           mimeType: document.mimeType,
           pdfBase64,
+          imageBase64,
+          imageMimeType: imageBase64 ? document.mimeType : undefined,
         },
         timeoutMs: 30000,
       });
