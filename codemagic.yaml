@@ -137,7 +137,7 @@ workflows:
         script: |
           cd mobile/ios
           agvtool new-marketing-version 1.4.0
-          agvtool new-version -all 1
+          agvtool new-version -all $((BUILD_NUMBER - 70))
       - name: Build and sign IPA
         script: |
           xcode-project build-ipa \
