@@ -118,6 +118,10 @@ workflows:
       - name: Install dependencies
         script: |
           npm run install:mobile
+      - name: Write .env for Metro bundler
+        script: |
+          echo "EXPO_PUBLIC_API_URL=$EXPO_PUBLIC_API_URL" > mobile/.env
+          echo "EXPO_PUBLIC_API_KEY=$EXPO_PUBLIC_API_KEY" >> mobile/.env
       - name: Set up keychain
         script: keychain initialize
       - name: Fetch signing files
