@@ -17,17 +17,20 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { Feather } from '@expo/vector-icons';
 import { useAppStore, useDocumentStore } from '@/store';
+import { useProStore } from '@/store/proStore';
+import { apiRequest, isBackendConfigured } from '@/services/api';
 import { DocumentCard } from '@/components/DocumentCard';
 import { BulkActionBar } from '@/components/BulkActionBar';
 import { TagEditor } from '@/components/TagEditor';
 import { FolderPickerModal } from '@/components/FolderPickerModal';
+import { PaywallModal } from '@/components/PaywallModal';
 import { SkeletonList } from '@/components/SkeletonLoader';
 import { FAB } from '@/components/FAB';
 import { EmptyState } from '@/components/EmptyState';
 import { SwipeableCard } from '@/components/SwipeableCard';
 import { Colors, Typography, Spacing } from '@/theme';
 import { C, T, S, R } from '@/theme/tokens';
-import type { SearchFilters } from '@/types/document';
+import type { SearchFilters, DocumentCategory } from '@/types/document';
 
 // Enable LayoutAnimation on Android
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -74,6 +77,10 @@ export default function VaultScreen() {
     bulkSetTags,
     deleteDocument,
     toggleFavorite,
+    updateDocument,
+    updateDocumentTags,
+    moveDocumentToFolder,
+    addFolder,
   } = useDocumentStore();
 
   const sortBy = useAppStore(s => s.sortBy);
@@ -84,6 +91,9 @@ export default function VaultScreen() {
   const setViewMode = useAppStore(s => s.setViewMode);
   const hasOnboarded = useAppStore(s => s.hasOnboarded);
   const isAccountAuthenticated = useAppStore(s => s.isAccountAuthenticated);
+
+  const isPro = useProStore(s => s.isPro);
+  const checkPro = useProStore(s => s.checkPro);
 
   // ── Filter logic ──────────────────────────────────────────────────────────
 
@@ -111,15 +121,22 @@ export default function VaultScreen() {
     return docs;
   }, [documents, filters, sortBy, sortDir]);
 
+  // Docs without a folder
+  const unfiledCount = useMemo(
+    () => documents.filter(d => !d.folderId).length,
+    [documents]
+  );
+
   // ── Multi-select state ─────────────────────────────────────────────────────
 
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showTagEditor, setShowTagEditor] = useState(false);
   const [showFolderPicker, setShowFolderPicker] = useState(false);
+  const [showPaywall, setShowPaywall] = useState(false);
 
   const enterSelectionMode = useCallback((id: string) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); // medium = mode enter
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setSelectionMode(true);
     setSelectedIds(new Set([id]));
@@ -182,6 +199,82 @@ export default function VaultScreen() {
     exitSelectionMode();
   }, [selectedIds, bulkSetTags, exitSelectionMode]);
 
+  const handleBulkAiOrganize = useCallback(async () => {
+    if (selectedIds.size === 0) return;
+    if (!isPro) {
+      setShowPaywall(true);
+      return;
+    }
+    if (!isBackendConfigured()) {
+      Alert.alert('AI Unavailable', 'Configure EXPO_PUBLIC_API_URL to use AI Organize.');
+      return;
+    }
+    const count = selectedIds.size;
+    Alert.alert(
+      `AI Organize ${count} Document${count !== 1 ? 's' : ''}?`,
+      'AI will rename, categorize, tag, and file each document. This may take a moment.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Organize',
+          onPress: async () => {
+            const ids = Array.from(selectedIds);
+            exitSelectionMode();
+            let succeeded = 0;
+            for (const docId of ids) {
+              const doc = documents.find(d => d.id === docId);
+              if (!doc) continue;
+              try {
+                const suggestion = await apiRequest<{
+                  suggestedTitle: string;
+                  category: DocumentCategory;
+                  tags: string[];
+                  notes: string;
+                  suggestedFolderName: string;
+                }>('/v1/ai/suggest-document', {
+                  method: 'POST',
+                  body: {
+                    title: doc.title,
+                    filename: doc.title,
+                    ocrText: doc.ocrText,
+                    mimeType: doc.mimeType,
+                  },
+                  timeoutMs: 30000,
+                });
+                const nextTitle = suggestion.suggestedTitle?.trim() || doc.title;
+                const nextCategory = (suggestion.category || doc.category) as DocumentCategory;
+                const nextTags = Array.isArray(suggestion.tags)
+                  ? Array.from(new Set(suggestion.tags.map((t: string) => t.trim()).filter(Boolean)))
+                  : doc.tags;
+                updateDocument(docId, { title: nextTitle, category: nextCategory });
+                updateDocumentTags(docId, nextTags);
+                if (suggestion.suggestedFolderName) {
+                  const existing = folders.find(
+                    f => f.name.toLowerCase() === suggestion.suggestedFolderName.toLowerCase()
+                  );
+                  const folder = existing ?? addFolder(suggestion.suggestedFolderName);
+                  moveDocumentToFolder(docId, folder.id);
+                }
+                succeeded++;
+              } catch {
+                // continue with next document
+              }
+            }
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            Alert.alert(
+              'Done',
+              `AI organized ${succeeded} of ${ids.length} document${ids.length !== 1 ? 's' : ''}.`
+            );
+          },
+        },
+      ]
+    );
+  }, [
+    selectedIds, isPro, documents, folders,
+    updateDocument, updateDocumentTags, moveDocumentToFolder, addFolder,
+    exitSelectionMode,
+  ]);
+
   // ── Filter actions ────────────────────────────────────────────────────────
 
   const toggleFavoriteFilter = useCallback(() => {
@@ -198,7 +291,6 @@ export default function VaultScreen() {
 
   // ── Render ────────────────────────────────────────────────────────────────
 
-  // Shared initial tags for bulk tag editing (intersection of selected docs' tags)
   const bulkInitialTags = useMemo(() => {
     if (selectedIds.size === 0) return [];
     const sets = Array.from(selectedIds).map(
@@ -236,7 +328,6 @@ export default function VaultScreen() {
               </Text>
             </View>
             <View style={styles.headerControls}>
-              {/* Sort cycle: updatedAt → createdAt → title → category */}
               <Pressable
                 style={styles.headerControlBtn}
                 hitSlop={8}
@@ -290,6 +381,23 @@ export default function VaultScreen() {
         onToggleFavorite={toggleFavoriteFilter}
         onToggleTag={toggleTagFilter}
       />
+
+      {/* Unfiled nudge — shown when docs exist without a folder */}
+      {!selectionMode && !filters.category && !filters.isFavorite && unfiledCount > 0 && (
+        <Pressable
+          style={styles.unfiledBanner}
+          onPress={() => router.push('/(tabs)/folders')}
+          hitSlop={4}
+          accessibilityRole="button"
+          accessibilityLabel={`${unfiledCount} unfiled documents — tap to file them`}
+        >
+          <Feather name="inbox" size={14} color={C.amber} />
+          <Text style={styles.unfiledBannerText}>
+            {unfiledCount} document{unfiledCount !== 1 ? 's' : ''} unfiled
+          </Text>
+          <Text style={styles.unfiledBannerAction}>File now →</Text>
+        </Pressable>
+      )}
 
       {/* Document list */}
       {isLoading && visibleDocuments.length === 0 ? (
@@ -369,6 +477,7 @@ export default function VaultScreen() {
           count={selectedIds.size}
           onMove={() => setShowFolderPicker(true)}
           onTag={() => setShowTagEditor(true)}
+          onAiOrganize={handleBulkAiOrganize}
           onDelete={handleBulkDelete}
           onCancel={exitSelectionMode}
         />
@@ -393,6 +502,18 @@ export default function VaultScreen() {
           folders={folders}
           onSelect={handleBulkMove}
           onCancel={() => setShowFolderPicker(false)}
+        />
+      )}
+
+      {/* Paywall */}
+      {showPaywall && (
+        <PaywallModal
+          visible={showPaywall}
+          onClose={() => setShowPaywall(false)}
+          onSuccess={() => {
+            setShowPaywall(false);
+            void checkPro();
+          }}
         />
       )}
     </View>
@@ -420,7 +541,6 @@ function FilterBar({ filters, allTags, onCategoryChange, onToggleFavorite, onTog
       showsHorizontalScrollIndicator={false}
       contentContainerStyle={styles.chips}
     >
-      {/* Category chips */}
       {CATEGORIES.map((c) => {
         const isActive = activeCategory === c.key;
         const chipColor = c.color ?? C.amber;
@@ -455,10 +575,8 @@ function FilterBar({ filters, allTags, onCategoryChange, onToggleFavorite, onTog
         );
       })}
 
-      {/* Separator */}
       <View style={styles.chipDivider} />
 
-      {/* Favorites chip */}
       <Pressable
         style={[
           styles.chip,
@@ -484,7 +602,6 @@ function FilterBar({ filters, allTags, onCategoryChange, onToggleFavorite, onTog
         </Text>
       </Pressable>
 
-      {/* Tag chips */}
       {allTags.map((tag) => {
         const isActive = activeTags.includes(tag);
         return (
@@ -601,6 +718,29 @@ const styles = StyleSheet.create({
     color:      Colors.textMuted,
   },
   chipTagTextActive: { color: C.amber },
+  unfiledBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: S[2],
+    marginHorizontal: Spacing['4'],
+    marginBottom: Spacing['2'],
+    backgroundColor: C.amberDim,
+    borderRadius: R.lg,
+    paddingHorizontal: S[3],
+    paddingVertical: S[2],
+    borderWidth: 1,
+    borderColor: C.amber + '33',
+  },
+  unfiledBannerText: {
+    flex: 1,
+    fontSize: T.sm,
+    color: C.amber,
+  },
+  unfiledBannerAction: {
+    fontSize: T.sm,
+    color: C.amber,
+    fontWeight: '700',
+  },
   list:      { paddingHorizontal: Spacing['4'], paddingBottom: 160 },
   listEmpty: { flex: 1, justifyContent: 'center' },
   listBulk:  { paddingBottom: 200 },
