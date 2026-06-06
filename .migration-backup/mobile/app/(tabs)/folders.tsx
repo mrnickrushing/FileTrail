@@ -214,7 +214,7 @@ export default function FoldersScreen() {
           <View style={styles.countBadge}>
             <Text style={styles.countBadgeText}>{unfiledCount}</Text>
           </View>
-          <Text style={styles.folderChevron}>›</Text>
+          <Feather name="chevron-right" size={18} color={C.ink4} />
         </Pressable>
 
         {folders.length === 0 ? (
@@ -243,7 +243,10 @@ export default function FoldersScreen() {
                     {count} document{count === 1 ? '' : 's'}
                   </Text>
                 </View>
-                <Text style={styles.folderChevron}>›</Text>
+                <View style={[styles.countBadge, { backgroundColor: folder.color + '22', borderWidth: 1, borderColor: folder.color + '44' }]}>
+                  <Text style={[styles.countBadgeText, { color: folder.color }]}>{count}</Text>
+                </View>
+                <Feather name="chevron-right" size={18} color={C.ink4} />
               </Pressable>
             );
           })
@@ -398,7 +401,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   countBadgeText: { fontSize: T.xs, color: C.cream, fontWeight: '700' },
-  folderChevron: { fontSize: T.xl, color: C.ink4 },
   noFolders: {
     paddingVertical: S[8],
     alignItems: 'center',

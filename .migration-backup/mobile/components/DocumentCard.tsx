@@ -1,10 +1,11 @@
 /**
- * DocumentCard.tsx — Reusable document card component (UI overhaul)
+ * DocumentCard.tsx — Reusable document card component
  *
- * Changes:
- *   - Category dot replaces side accent bar
- *   - OCR status badge: pulsing dot (processing), ! (failed), hidden (done/unavailable)
- *   - Compact mode preserved for search results
+ * Visual highlights:
+ *   - 4px colored left accent strip keyed to document category
+ *   - Category shown as a tinted pill badge instead of plain text
+ *   - 78px thumbnail (up from 68px)
+ *   - Subtle 1px card border for definition on dark backgrounds
  *   - Animated checkbox spring on selection mode enter
  */
 
@@ -119,17 +120,20 @@ export function DocumentCard({
       accessibilityState={{ selected: isSelected }}
       accessibilityHint={selectionMode ? 'Double tap to toggle selection' : 'Double tap to open document'}
     >
-      <View style={styles.content}>
-        {/* Left: checkbox (selection) or category dot */}
-        <View style={styles.leftCol}>
-          {selectionMode ? (
+      {/* Colored left accent strip — hidden in selection mode (checkbox takes its place) */}
+      {!selectionMode && (
+        <View style={[styles.accentStrip, { backgroundColor: accentColor }]} />
+      )}
+
+      <View style={[styles.content, !selectionMode && styles.contentWithStrip]}>
+        {/* Checkbox — only visible in selection mode */}
+        {selectionMode && (
+          <View style={styles.leftCol}>
             <View style={[styles.checkbox, isSelected && styles.checkboxSelected]}>
               {isSelected && <Feather name="check" size={14} color={C.ink1} />}
             </View>
-          ) : (
-            <View style={[styles.categoryDotLarge, { backgroundColor: accentColor }]} />
-          )}
-        </View>
+          </View>
+        )}
 
         {/* Center: text */}
         <View style={styles.info}>
@@ -146,9 +150,12 @@ export function DocumentCard({
           </View>
 
           <View style={styles.metaRow}>
-            <Text style={[styles.categoryLabel, { color: accentColor }]}>
-              {CATEGORY_LABELS[document.category]}
-            </Text>
+            {/* Category pill badge */}
+            <View style={[styles.categoryPill, { backgroundColor: accentColor + '28', borderColor: accentColor + '55' }]}>
+              <Text style={[styles.categoryPillText, { color: accentColor }]}>
+                {CATEGORY_LABELS[document.category]}
+              </Text>
+            </View>
             <Text style={styles.metaSep}>·</Text>
             <Text style={styles.dateStr}>{dateStr}</Text>
           </View>
@@ -180,7 +187,7 @@ export function DocumentCard({
             <Image source={{ uri: document.thumbnailUri }} style={styles.thumb} resizeMode="cover" />
           ) : (
             <View style={[styles.thumbPlaceholder, { backgroundColor: accentColor + '22' }]}>
-              <Feather name={document.mimeType.includes('pdf') ? 'file-text' : 'image'} size={24} color={accentColor} />
+              <Feather name={document.mimeType.includes('pdf') ? 'file-text' : 'image'} size={26} color={accentColor} />
             </View>
           )}
         </View>
@@ -196,41 +203,51 @@ function formatBytes(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
 }
 
+const THUMB = 78;
+
 const styles = StyleSheet.create({
   card: {
     backgroundColor: C.ink2,
     borderRadius: R.lg,
     overflow: 'hidden',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.14,
-    shadowRadius: 8,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.18,
+    shadowRadius: 10,
+    elevation: 5,
+    borderWidth: 1,
+    borderColor: C.ink3,
   },
   cardSelected: {
     borderWidth: 1.5,
     borderColor: C.amber,
   },
   cardPressed: {
-    opacity: 0.85,
+    opacity: 0.82,
+  },
+  accentStrip: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: 4,
   },
   content: {
     flexDirection: 'row',
-    padding: S[3],
-    gap: S[3],
+    paddingVertical: S[3],
+    paddingRight: S[3],
+    paddingLeft: S[3],
+    gap: S[2],
     alignItems: 'center',
+  },
+  contentWithStrip: {
+    paddingLeft: S[3] + 8,
   },
   leftCol: {
     alignItems: 'center',
     justifyContent: 'flex-start',
     paddingTop: 2,
-    width: 24,
-  },
-  categoryDotLarge: {
-    width: 10,
-    height: 10,
-    borderRadius: R.full,
-    marginTop: 6,
+    width: 28,
   },
   checkbox: {
     width: 22,
@@ -250,7 +267,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: S[2],
-    marginBottom: 3,
+    marginBottom: S[1] + 2,
   },
   title: {
     flex: 1,
@@ -283,9 +300,16 @@ const styles = StyleSheet.create({
     gap: S[1],
     marginBottom: S[2],
   },
-  categoryLabel: {
-    fontSize: T.sm,
-    fontWeight: '600',
+  categoryPill: {
+    borderRadius: R.full,
+    paddingHorizontal: S[2],
+    paddingVertical: 2,
+    borderWidth: 1,
+  },
+  categoryPillText: {
+    fontSize: T.xs,
+    fontWeight: '700',
+    letterSpacing: 0.2,
   },
   metaSep: {
     fontSize: T.sm,
@@ -320,16 +344,17 @@ const styles = StyleSheet.create({
   tagPillText: { fontSize: T.xs, color: C.ash },
   fileSize: { fontSize: T.xs, color: C.ink4, marginLeft: 'auto' },
   thumbContainer: {
-    width: 68,
-    height: 68,
+    width: THUMB,
+    height: THUMB,
     borderRadius: R.md,
     overflow: 'hidden',
     alignSelf: 'center',
     flexShrink: 0,
   },
-  thumb: { width: 68, height: 68 },
+  thumb: { width: THUMB, height: THUMB },
   thumbPlaceholder: {
-    width: 68, height: 68,
+    width: THUMB,
+    height: THUMB,
     alignItems: 'center',
     justifyContent: 'center',
   },

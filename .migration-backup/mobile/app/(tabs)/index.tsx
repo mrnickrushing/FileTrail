@@ -35,13 +35,13 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 }
 
 const CATEGORIES = [
-  { key: undefined,    label: 'All' },
-  { key: 'receipt',   label: 'Receipts' },
-  { key: 'contract',  label: 'Contracts' },
-  { key: 'id',        label: 'IDs' },
-  { key: 'warranty',  label: 'Warranties' },
-  { key: 'medical',   label: 'Medical' },
-  { key: 'tax',       label: 'Tax' },
+  { key: undefined,    label: 'All',        color: undefined },
+  { key: 'receipt',   label: 'Receipts',   color: C.category.receipt },
+  { key: 'contract',  label: 'Contracts',  color: C.category.contract },
+  { key: 'id',        label: 'IDs',        color: C.category.id },
+  { key: 'warranty',  label: 'Warranties', color: C.category.warranty },
+  { key: 'medical',   label: 'Medical',    color: C.category.medical },
+  { key: 'tax',       label: 'Tax',        color: C.category.tax },
 ] as const;
 
 const SORT_LABELS: Record<ReturnType<typeof useAppStore.getState>['sortBy'], string> = {
@@ -423,17 +423,32 @@ function FilterBar({ filters, allTags, onCategoryChange, onToggleFavorite, onTog
       {/* Category chips */}
       {CATEGORIES.map((c) => {
         const isActive = activeCategory === c.key;
+        const chipColor = c.color ?? C.amber;
         return (
           <Pressable
             key={c.label}
-            style={[styles.chip, isActive && styles.chipActive]}
+            style={[
+              styles.chip,
+              isActive && {
+                backgroundColor: chipColor + '22',
+                borderColor: chipColor + '88',
+                shadowColor: chipColor,
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.28,
+                shadowRadius: 6,
+                elevation: 4,
+              },
+            ]}
             onPress={() => onCategoryChange(c.key)}
             hitSlop={6}
             accessibilityRole="button"
             accessibilityState={{ selected: isActive }}
             accessibilityLabel={`${c.label} filter${isActive ? ', active' : ''}`}
           >
-            <Text style={[styles.chipText, isActive && styles.chipTextActive]}>
+            {c.color && isActive && (
+              <View style={[styles.chipDot, { backgroundColor: c.color }]} />
+            )}
+            <Text style={[styles.chipText, isActive && { color: chipColor, fontWeight: '700' }]}>
               {c.label}
             </Text>
           </Pressable>
@@ -445,15 +460,27 @@ function FilterBar({ filters, allTags, onCategoryChange, onToggleFavorite, onTog
 
       {/* Favorites chip */}
       <Pressable
-        style={[styles.chip, favoriteActive && styles.chipActive]}
+        style={[
+          styles.chip,
+          favoriteActive && {
+            backgroundColor: C.amberDim,
+            borderColor: C.amber + '88',
+            shadowColor: C.amber,
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.25,
+            shadowRadius: 6,
+            elevation: 4,
+          },
+        ]}
         onPress={onToggleFavorite}
         hitSlop={6}
         accessibilityRole="button"
         accessibilityState={{ selected: favoriteActive }}
         accessibilityLabel={`Favorites filter${favoriteActive ? ', active' : ''}`}
       >
-        <Text style={[styles.chipText, favoriteActive && styles.chipTextActive]}>
-          {favoriteActive ? 'Favorites ×' : 'Favorites'}
+        <Feather name="star" size={12} color={favoriteActive ? C.amber : Colors.textMuted} />
+        <Text style={[styles.chipText, favoriteActive && { color: C.amber, fontWeight: '700' }]}>
+          {favoriteActive ? 'Saved ×' : 'Saved'}
         </Text>
       </Pressable>
 
@@ -549,16 +576,15 @@ const styles = StyleSheet.create({
     borderWidth:       1,
     borderColor:       Colors.border,
     minHeight:         36,
+    flexDirection:     'row',
+    alignItems:        'center',
+    gap:               5,
     justifyContent:    'center',
   },
-  chipActive: {
-    backgroundColor: Colors.primaryHighlight,
-    borderColor:     Colors.primary,
-    shadowColor:     Colors.primary,
-    shadowOffset:    { width: 0, height: 2 },
-    shadowOpacity:   0.25,
-    shadowRadius:    6,
-    elevation:       4,
+  chipDot: {
+    width:        6,
+    height:       6,
+    borderRadius: 3,
   },
   chipTagActive: {
     backgroundColor: C.amberDim,
@@ -574,7 +600,6 @@ const styles = StyleSheet.create({
     fontWeight: Typography.medium,
     color:      Colors.textMuted,
   },
-  chipTextActive: { color: Colors.primary },
   chipTagTextActive: { color: C.amber },
   list:      { paddingHorizontal: Spacing['4'], paddingBottom: 160 },
   listEmpty: { flex: 1, justifyContent: 'center' },
