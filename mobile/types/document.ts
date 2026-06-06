@@ -42,6 +42,8 @@ export interface Document {
   folderId: string | null;
   tags: string[];
   notes?: string;
+  aiSource?: 'heuristic' | 'claude';
+  aiOrganizedAt?: string;
 
   // Timestamps (ISO strings)
   createdAt: string;

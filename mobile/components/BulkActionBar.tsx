@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { View, Text, Pressable, StyleSheet, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { C, T, S, R } from '@/theme/tokens';
@@ -10,10 +10,11 @@ interface BulkActionBarProps {
   onTag: () => void;
   onDelete: () => void;
   onAiOrganize?: () => void;
+  isAiOrganizing?: boolean;
   onCancel: () => void;
 }
 
-export function BulkActionBar({ count, onMove, onTag, onDelete, onAiOrganize, onCancel }: BulkActionBarProps) {
+export function BulkActionBar({ count, onMove, onTag, onDelete, onAiOrganize, isAiOrganizing, onCancel }: BulkActionBarProps) {
   const insets = useSafeAreaInsets();
 
   return (
@@ -28,7 +29,7 @@ export function BulkActionBar({ count, onMove, onTag, onDelete, onAiOrganize, on
         <ActionButton label="Move" icon="folder" onPress={onMove} />
         <ActionButton label="Tag" icon="tag" onPress={onTag} />
         {onAiOrganize && (
-          <ActionButton label="AI Org." icon="cpu" onPress={onAiOrganize} amber />
+          <ActionButton label="AI Organize" icon="cpu" onPress={onAiOrganize} amber loading={isAiOrganizing} />
         )}
         <ActionButton label="Delete" icon="trash-2" onPress={onDelete} danger />
       </View>
@@ -42,20 +43,29 @@ function ActionButton({
   onPress,
   danger = false,
   amber = false,
+  loading = false,
 }: {
   label: string;
   icon: React.ComponentProps<typeof Feather>['name'];
   onPress: () => void;
   danger?: boolean;
   amber?: boolean;
+  loading?: boolean;
 }) {
   return (
     <Pressable
       style={({ pressed }) => [styles.btn, danger && styles.btnDanger, amber && styles.btnAmber, pressed && styles.btnPressed]}
       onPress={onPress}
+      disabled={loading}
     >
-      <Feather name={icon} size={20} color={danger ? '#EF4444' : amber ? C.amber : C.ash} style={styles.btnIcon} />
-      <Text style={[styles.btnLabel, danger && styles.btnLabelDanger, amber && styles.btnLabelAmber]}>{label}</Text>
+      {loading ? (
+        <ActivityIndicator size="small" color={amber ? C.amber : C.ash} style={styles.btnIcon} />
+      ) : (
+        <Feather name={icon} size={20} color={danger ? '#EF4444' : amber ? C.amber : C.ash} style={styles.btnIcon} />
+      )}
+      <Text style={[styles.btnLabel, danger && styles.btnLabelDanger, amber && styles.btnLabelAmber]}>
+        {loading ? 'Organizing…' : label}
+      </Text>
     </Pressable>
   );
 }
