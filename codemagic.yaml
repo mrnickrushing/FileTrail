@@ -122,6 +122,8 @@ workflows:
         script: |
           echo "EXPO_PUBLIC_API_URL=$EXPO_PUBLIC_API_URL" > mobile/.env
           echo "EXPO_PUBLIC_API_KEY=$EXPO_PUBLIC_API_KEY" >> mobile/.env
+          echo "--- mobile/.env contents (keys only) ---"
+          grep -o '^[^=]*=.' mobile/.env || true
       - name: Set up keychain
         script: keychain initialize
       - name: Fetch signing files
