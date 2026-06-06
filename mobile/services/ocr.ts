@@ -1,22 +1,42 @@
 /**
- * ocr.ts — On-device OCR service
+ * ocr.ts — On-device OCR service (iOS only)
  *
- * iOS:     expo-camera + Apple Vision via expo-image-manipulator (no native module needed;
- *          actual Vision API is called via a Expo bare workflow native module stub here)
- * Android: ML Kit Text Recognition via @react-native-ml-kit/text-recognition
+ * Uses @react-native-google-mlkit/text-recognition which wraps Apple Vision
+ * (VisionKit) on iOS for high-quality on-device text recognition.
  *
- * In managed Expo workflow we use a JS-compatible approach:
- * - expo-document-scanner is not available in managed workflow
- * - We use base64 image data + a lightweight WASM tesseract for the JS fallback
- * - Native OCR (Vision / ML Kit) is wired in the bare/dev-client build via
- *   the `ocr-native` module stub below — replace with actual native calls in EAS build
+ * Android: OCR is not enabled — isOCRAvailable() returns false on Android.
+ *
+ * Graceful degradation: if the native module is not linked (Expo Go, simulator
+ * without the module, or any non-iOS build) the service returns empty results
+ * and isOCRAvailable() returns false so the UI shows the correct fallback.
  */
 
 import * as ImageManipulator from 'expo-image-manipulator';
+import { Platform } from 'react-native';
+
+// Dynamic require so the app does not crash when the native module is not linked
+// (Expo Go, Android, web). The try/catch is intentional.
+let TextRecognition: null | {
+  recognize: (uri: string, script: unknown) => Promise<{
+    blocks: Array<{ text: string; lines: Array<{ text: string }> }>;
+  }>;
+} = null;
+let TextRecognitionScript: Record<string, unknown> | null = null;
+
+if (Platform.OS === 'ios') {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const mod = require('@react-native-google-mlkit/text-recognition');
+    TextRecognition = mod.default ?? mod;
+    TextRecognitionScript = mod.TextRecognitionScript ?? { LATIN: 0 };
+  } catch {
+    // Native module not linked — isOCRAvailable() will return false
+  }
+}
 
 export interface OCRResult {
   text: string;
-  confidence: number; // 0–1
+  confidence: number;
   lines: string[];
   processingMs: number;
 }
@@ -29,87 +49,71 @@ export interface OCROptions {
 }
 
 /**
+ * Returns true if OCR is available on this device/build.
+ * Only true on iOS builds where the native ML Kit module is linked.
+ */
+export function isOCRAvailable(): boolean {
+  return Platform.OS === 'ios' && TextRecognition !== null;
+}
+
+/**
  * Preprocesses an image URI for OCR:
  * - Resizes to maxDimension (preserving aspect ratio)
- * - Converts to grayscale
- * - Returns base64 string
+ * - Converts to JPEG for consistent format
  */
-async function preprocessImage(
-  uri: string,
-  maxDimension = 1600
-): Promise<{ uri: string; base64: string }> {
+async function preprocessImage(uri: string, maxDimension = 1600): Promise<string> {
   const result = await ImageManipulator.manipulateAsync(
     uri,
-    [
-      { resize: { width: maxDimension } },
-    ],
-    {
-      compress: 0.92,
-      format: ImageManipulator.SaveFormat.JPEG,
-      base64: true,
-    }
+    [{ resize: { width: maxDimension } }],
+    { compress: 0.92, format: ImageManipulator.SaveFormat.JPEG }
   );
-  return { uri: result.uri, base64: result.base64 ?? '' };
+  return result.uri;
 }
 
 /**
- * Stub for native OCR — replaced by actual Vision/ML Kit calls in EAS bare build.
- * Returns a mock result in development so the rest of the app can be developed
- * without a native build.
- */
-async function runNativeOCR(base64: string, language: string): Promise<OCRResult> {
-  void base64;
-  void language;
-  // In a real EAS build this calls:
-  //   iOS:     NativeModules.VisionOCR.recognize(base64, language)
-  //   Android: NativeModules.MLKitOCR.recognize(base64, language)
-  //
-  // For managed workflow / Expo Go, we return a placeholder that signals
-  // the app to show "OCR will be available in the full build" in the UI.
-  return {
-    text: '',
-    confidence: 0,
-    lines: [],
-    processingMs: 0,
-  };
-}
-
-/**
- * Main OCR entry point. Call with any image URI (camera, picker, PDF page).
+ * Main OCR entry point. Call with any image URI (camera, picker, photo).
+ * Returns empty result on Android or when native module is not linked.
  */
 export async function extractText(
   imageUri: string,
   options: OCROptions = {}
 ): Promise<OCRResult> {
-  const { maxDimension = 1600, language = 'en' } = options;
+  const { maxDimension = 1600 } = options;
   const start = Date.now();
 
+  if (!TextRecognition || !TextRecognitionScript) {
+    return { text: '', confidence: 0, lines: [], processingMs: 0 };
+  }
+
   try {
-    const { base64 } = await preprocessImage(imageUri, maxDimension);
-    const result = await runNativeOCR(base64, language);
+    const processedUri = await preprocessImage(imageUri, maxDimension);
+    const result = await TextRecognition.recognize(
+      processedUri,
+      TextRecognitionScript['LATIN']
+    );
+
+    const lines: string[] = [];
+    let fullText = '';
+
+    for (const block of result.blocks ?? []) {
+      for (const line of block.lines ?? []) {
+        const t = line.text?.trim();
+        if (t) lines.push(t);
+      }
+      if (block.text) fullText += block.text + '
+';
+    }
+
     return {
-      ...result,
+      text: fullText.trim(),
+      confidence: 0.9,
+      lines,
       processingMs: Date.now() - start,
     };
   } catch (err) {
     console.warn('[OCR] extraction failed:', err);
-    return {
-      text: '',
-      confidence: 0,
-      lines: [],
-      processingMs: Date.now() - start,
-    };
+    return { text: '', confidence: 0, lines: [], processingMs: Date.now() - start };
   }
-}
-
-/**
- * Returns true if OCR is likely available on this device/build.
- * Used to conditionally show the OCR status badge in the UI.
- */
-export function isOCRAvailable(): boolean {
-  // In a real bare build, check if the native module is linked:
-  // return !!NativeModules.VisionOCR || !!NativeModules.MLKitOCR
-  return false;
 }
 
 // ─── Metadata extraction ──────────────────────────────────────────────────────
@@ -125,18 +129,16 @@ export interface ExtractedMeta {
 
 /**
  * Parses lightweight structured metadata out of raw OCR text.
- * No ML required — pure regex heuristics that work well for receipts and
- * invoices.
+ * Pure regex heuristics — works well for receipts and invoices.
  */
 export function extractMetadata(text: string): ExtractedMeta {
   const meta: ExtractedMeta = {};
 
   // ── Dates ──────────────────────────────────────────────────────────────────
-  // Match: 01/15/2024  |  Jan 15, 2024  |  2024-01-15
   const datePatterns = [
-    /\b(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})\b/,
-    /\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\.?\s+(\d{1,2}),?\s+(\d{4})\b/i,
-    /\b(\d{4})[/-](\d{2})[/-](\d{2})\b/,
+    /(d{1,2})[/-](d{1,2})[/-](d{2,4})/,
+    /(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*.?s+(d{1,2}),?s+(d{4})/i,
+    /(d{4})[/-](d{2})[/-](d{2})/,
   ];
   for (const pat of datePatterns) {
     const m = text.match(pat);
@@ -150,7 +152,7 @@ export function extractMetadata(text: string): ExtractedMeta {
   }
 
   // ── Currency amounts ───────────────────────────────────────────────────────
-  const amountMatches = text.matchAll(/\$\s?(\d{1,6}(?:,\d{3})*(?:\.\d{2})?)/g);
+  const amountMatches = text.matchAll(/$s?(d{1,6}(?:,d{3})*(?:.d{2})?)/g);
   const amounts: number[] = [];
   for (const m of amountMatches) {
     const n = parseFloat(m[1].replace(/,/g, ''));
@@ -159,9 +161,10 @@ export function extractMetadata(text: string): ExtractedMeta {
   if (amounts.length) meta.amounts = amounts;
 
   // ── Vendor (first non-empty capitalised-word line, ≤ 40 chars) ────────────
-  const lines = text.split('\n').map((l) => l.trim()).filter(Boolean);
+  const lines = text.split('
+').map((l) => l.trim()).filter(Boolean);
   for (const line of lines.slice(0, 5)) {
-    if (line.length <= 40 && /^[A-Z]/.test(line) && !/^\d/.test(line)) {
+    if (line.length <= 40 && /^[A-Z]/.test(line) && !/^d/.test(line)) {
       meta.vendor = line;
       break;
     }
