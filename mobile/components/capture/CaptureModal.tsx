@@ -6,17 +6,20 @@
  *   2. 🖼️ Photo  — Photo library → review → save
  *   3. 📄 File   — Document picker (PDF / image) → save
  *
- * After capture the user lands on the DocumentReviewScreen before saving.
+ * The capture route itself is already presented as a transparent modal in
+ * Expo Router, so this component intentionally avoids wrapping itself in a
+ * second native Modal. That keeps the responder stack simpler and prevents
+ * stale invisible backdrops after file import navigation.
  */
 
 import React, { useCallback } from 'react';
 import {
   View,
   Text,
-  Modal,
   Pressable,
   StyleSheet,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -35,35 +38,38 @@ export function CaptureModal({ visible, onClose }: CaptureModalProps) {
   const { pickFile, pickPhoto, isLoading: pickerLoading } = useDocumentPicker();
   const isLoading = cameraLoading || pickerLoading;
 
+  if (!visible) return null;
+
   const handleCamera = useCallback(async () => {
     const result = await capture();
     if (result.status === 'captured') {
-      onClose();
-      router.push({
+      router.replace({
         pathname: '/capture/review',
         params: { uri: result.uri, source: 'camera' },
       });
     } else if (result.status === 'denied') {
       // TODO: show settings prompt — Phase 3
+    } else if (result.status === 'error') {
+      Alert.alert('Camera Failed', result.message);
     }
-  }, [capture, onClose]);
+  }, [capture]);
 
   const handlePhoto = useCallback(async () => {
     const result = await pickPhoto();
     if (result.status === 'picked') {
-      onClose();
-      router.push({
+      router.replace({
         pathname: '/capture/review',
         params: { uri: result.uri, name: result.name, source: 'photo' },
       });
+    } else if (result.status === 'error') {
+      Alert.alert('Photo Import Failed', result.message);
     }
-  }, [pickPhoto, onClose]);
+  }, [pickPhoto]);
 
   const handleFile = useCallback(async () => {
     const result = await pickFile();
     if (result.status === 'picked') {
-      onClose();
-      router.push({
+      router.replace({
         pathname: '/capture/review',
         params: {
           uri: result.uri,
@@ -73,61 +79,54 @@ export function CaptureModal({ visible, onClose }: CaptureModalProps) {
           source: 'file',
         },
       });
+    } else if (result.status === 'error') {
+      Alert.alert('File Import Failed', result.message);
     }
-  }, [pickFile, onClose]);
+  }, [pickFile]);
 
   return (
-    <Modal
-      visible={visible}
-      animationType="slide"
-      transparent
-      statusBarTranslucent
-      onRequestClose={onClose}
-    >
-      <Pressable style={styles.backdrop} onPress={onClose}>
-        <Pressable
-          style={[styles.sheet, { paddingBottom: insets.bottom + S[4] }]}
-          onPress={() => {}} // prevent backdrop close when pressing sheet
-        >
-          {/* Handle bar */}
-          <View style={styles.handle} />
+    <Pressable style={styles.backdrop} onPress={onClose}>
+      <Pressable
+        style={[styles.sheet, { paddingBottom: insets.bottom + S[4] }]}
+        onPress={() => {}}
+      >
+        <View style={styles.handle} />
 
-          <Text style={styles.title}>Add Document</Text>
+        <Text style={styles.title}>Add Document</Text>
 
-          {isLoading ? (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color={C.amber} />
-              <Text style={styles.loadingText}>Opening…</Text>
-            </View>
-          ) : (
-            <View style={styles.options}>
-              <CaptureOption
-                emoji="📷"
-                label="Scan Document"
-                description="Use your camera"
-                onPress={handleCamera}
-              />
-              <CaptureOption
-                emoji="🖼️"
-                label="Choose Photo"
-                description="From your photo library"
-                onPress={handlePhoto}
-              />
-              <CaptureOption
-                emoji="📄"
-                label="Import File"
-                description="PDF or image from Files"
-                onPress={handleFile}
-              />
-            </View>
-          )}
+        {isLoading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={C.amber} />
+            <Text style={styles.loadingText}>Opening…</Text>
+          </View>
+        ) : (
+          <View style={styles.options}>
+            <CaptureOption
+              emoji="📷"
+              label="Scan Document"
+              description="Use your camera"
+              onPress={handleCamera}
+            />
+            <CaptureOption
+              emoji="🖼️"
+              label="Choose Photo"
+              description="From your photo library"
+              onPress={handlePhoto}
+            />
+            <CaptureOption
+              emoji="📄"
+              label="Import File"
+              description="PDF or image from Files"
+              onPress={handleFile}
+            />
+          </View>
+        )}
 
-          <Pressable style={styles.cancelBtn} onPress={onClose}>
-            <Text style={styles.cancelText}>Cancel</Text>
-          </Pressable>
+        <Pressable style={styles.cancelBtn} onPress={onClose}>
+          <Text style={styles.cancelText}>Cancel</Text>
         </Pressable>
       </Pressable>
-    </Modal>
+    </Pressable>
   );
 }
 
@@ -229,15 +228,17 @@ const styles = StyleSheet.create({
     color: C.ash,
   },
   chevron: {
-    fontSize: 22,
-    color: C.ash,
-    lineHeight: 26,
+    fontSize: 24,
+    color: C.ink4,
+    marginLeft: S[2],
   },
   cancelBtn: {
+    backgroundColor: C.ink3,
+    borderRadius: R.lg,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: S[4],
-    minHeight: 52,
+    height: 52,
+    marginBottom: S[2],
   },
   cancelText: {
     fontSize: T.base,
@@ -246,7 +247,8 @@ const styles = StyleSheet.create({
   },
   loadingContainer: {
     alignItems: 'center',
-    paddingVertical: S[12],
+    justifyContent: 'center',
+    paddingVertical: S[8],
     gap: S[3],
   },
   loadingText: {
