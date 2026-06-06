@@ -245,7 +245,7 @@ export default function DocumentReviewScreen() {
       });
 
       logDebug('review save success -> tabs');
-      router.replace('/(tabs)/');
+      router.dismissAll();
     } catch (err) {
       logDebug('review save failed');
       Alert.alert('Save Failed', 'Something went wrong saving your document. Please try again.');
