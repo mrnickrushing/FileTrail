@@ -266,13 +266,16 @@ export default function DocumentReviewScreen() {
         moveDocumentToFolder(documentId, targetFolder.id);
       }
 
-      // Navigate explicitly to the new document's viewer.
+      // Navigate to the new document's viewer.
       // router.dismissAll() from inside the /capture nested stack does NOT remove
-      // the transparent /capture modal container from the root stack — leaving an
-      // invisible backdrop on top of whatever the user lands on, which eats every
-      // touch. router.replace() targets the root stack and properly unmounts it.
+      // the transparent /capture modal container from the root stack — it leaves
+      // an invisible backdrop that blocks every touch on the landing screen.
+      // router.replace() with a root-level href properly unmounts the modal.
+      // Confirmed working; do not change to dismissAll/dismiss without retesting.
       logDebug('review save success -> replace viewer');
-      router.replace(`/viewer/${documentId}`);
+      if (isMounted.current) {
+        router.replace(`/viewer/${documentId}`);
+      }
     } catch (err) {
       logDebug('review save failed');
       Alert.alert('Save Failed', 'Something went wrong saving your document. Please try again.');

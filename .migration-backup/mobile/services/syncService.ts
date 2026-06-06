@@ -77,14 +77,27 @@ export async function syncMetadata(input: {
     },
   });
 
+  // Guard: if the server accepted the request but reports a logical failure, do
+  // NOT clear local tombstones — they must be re-sent on the next sync cycle.
+  if (!push.ok) {
+    throw new Error('[sync] push rejected by server (ok: false)');
+  }
+
   const pull = await apiRequest<SyncPullResponse>('/v1/sync/pull', {
     method: 'POST',
     body: { deviceId, sinceVersion },
   });
 
+  // Apply pulled data. All three steps must complete before we clear tombstones.
+  // If applyTombstones throws (e.g. a file-delete fails), markDeletesSynced is
+  // not reached and the tombstones are retried on the next sync — intentional.
   if (pull.documents.length > 0) input.mergeDocuments(pull.documents);
   if (pull.folders.length > 0) input.mergeFolders(pull.folders);
   if (pull.tombstones.length > 0) await input.applyTombstones(pull.tombstones);
+
+  // Only reached if push confirmed AND pull+apply all succeeded.
+  // Pass the snapshot IDs that were sent, not the current live state, so any
+  // deletions that happened mid-sync are preserved for the next cycle.
   input.markDeletesSynced(input.deletedDocumentIds, input.deletedFolderIds);
 
   const syncVersion = Math.max(push.syncVersion, pull.syncVersion);
