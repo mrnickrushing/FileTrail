@@ -1,4 +1,4 @@
-import { useLocation } from 'wouter';
+import { Link, useLocation } from 'wouter';
 import styles from './Sidebar.module.css';
 
 const NAV = [
@@ -28,14 +28,14 @@ export default function Sidebar({ onLogout }: { onLogout: () => void }) {
       </div>
       <nav className={styles.nav}>
         {NAV.map(item => (
-          <a
+          <Link
             key={item.href}
             href={item.href}
             className={`${styles.navItem} ${location === item.href ? styles.navItemActive : ''}`}
           >
             <span className={styles.navIcon}>{item.icon}</span>
             {item.label}
-          </a>
+          </Link>
         ))}
       </nav>
       <button onClick={handleLogout} className={styles.logout}>Sign out</button>

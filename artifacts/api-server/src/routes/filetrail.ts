@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import type { Request, Response, NextFunction } from 'express';
+import { createHash, timingSafeEqual } from 'node:crypto';
 import { JsonStore } from '../filetrail/store.js';
 import { hashShareLinkPassword, verifyShareLinkPassword } from '../filetrail/shareLinks.js';
 import { suggestDocument } from '../filetrail/ai.js';
@@ -21,6 +22,25 @@ const requireApiKey = (req: Request, res: Response, next: NextFunction) => {
   const auth = req.headers.authorization;
   if (!auth || auth !== `Bearer ${apiKey}`) {
     res.status(401).json({ error: 'Unauthorized' });
+    return;
+  }
+  next();
+};
+
+const ADMIN_COOKIE = 'pt_admin_session';
+function hashAdminPw(pw: string) {
+  return createHash('sha256').update(`pt_admin:${pw}`).digest('hex');
+}
+
+const requireAdminSession = (req: Request, res: Response, next: NextFunction) => {
+  const adminPw = process.env.ADMIN_PASSWORD;
+  if (!adminPw) { res.status(503).json({ error: 'ADMIN_PASSWORD not configured' }); return; }
+  const token = req.cookies?.[ADMIN_COOKIE];
+  if (!token) { res.status(401).json({ error: 'Admin authentication required' }); return; }
+  const expected = Buffer.from(hashAdminPw(adminPw));
+  const actual = Buffer.from(String(token));
+  if (expected.length !== actual.length || !timingSafeEqual(expected, actual)) {
+    res.status(401).json({ error: 'Invalid admin session' });
     return;
   }
   next();
@@ -73,7 +93,7 @@ router.post('/share-links', requireApiKey, async (req, res) => {
   res.status(201).json({ ...record, url: `${baseUrl}/share/${record.token}` });
 });
 
-router.get('/share-links', async (req, res) => {
+router.get('/share-links', requireAdminSession, async (req, res) => {
   const links = await store.listShareLinks();
   const baseUrl = process.env.PUBLIC_URL ?? `${req.protocol}://${req.get('host')}`;
   const decorated = links.map(l => ({
@@ -109,7 +129,7 @@ router.post('/email/inbound', async (req, res) => {
   res.status(201).json(record);
 });
 
-router.get('/analytics/events', async (_req, res) => {
+router.get('/analytics/events', requireAdminSession, async (_req, res) => {
   const events = await store.getAnalytics();
   res.json({ events });
 });
@@ -141,18 +161,18 @@ router.post('/users/login', requireApiKey, async (req, res) => {
   res.json(pub);
 });
 
-router.get('/admin/users', async (_req, res) => {
+router.get('/admin/users', requireAdminSession, async (_req, res) => {
   const users = await store.listUsers();
   const pub = users.map(({ passwordHash: _ph, ...u }) => u);
   res.json({ users: pub });
 });
 
-router.get('/notifications', async (_req, res) => {
+router.get('/notifications', requireAdminSession, async (_req, res) => {
   const notifications = await store.listNotifications();
   res.json({ notifications });
 });
 
-router.post('/notifications/broadcast', async (req, res) => {
+router.post('/notifications/broadcast', requireAdminSession, async (req, res) => {
   const body = notificationBroadcastSchema.safeParse(req.body);
   if (!body.success) { res.status(400).json({ error: body.error.format() }); return; }
   const users = await store.listUsers();

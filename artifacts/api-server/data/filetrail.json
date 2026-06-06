@@ -5,7 +5,13 @@
   "tombstones": [],
   "shareLinks": {},
   "inboundEmails": {},
-  "analytics": [],
+  "analytics": [
+    {
+      "event": "test",
+      "id": "dfe61943-01cb-418e-bb89-630dd9ec5e7f",
+      "createdAt": "2026-06-06T14:32:33.216Z"
+    }
+  ],
   "users": {},
   "notifications": []
 }
