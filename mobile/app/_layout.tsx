@@ -11,6 +11,7 @@ import { useAppStore } from '@/store/appStore';
 import { LockScreen } from '@/components/LockScreen';
 import { DebugOverlay } from '@/components/DebugOverlay';
 import { track } from '@/services/analytics';
+import { getApiBaseUrl } from '@/services/api';
 import { initializePurchases } from '@/services/purchases';
 import { useProStore } from '@/store/proStore';
 import { useDebugStore } from '@/store/debugStore';
@@ -72,12 +73,20 @@ export default function RootLayout() {
   checkProRef.current = checkPro;
 
   useEffect(() => {
+    // Surface the bundled API base URL so we can tell from the debug overlay
+    // whether the CI build pipeline successfully baked EXPO_PUBLIC_API_URL into
+    // the JS bundle. If this shows `null`, the build that produced this binary
+    // was missing the env var at Metro bundle time — not a runtime config issue.
+    const apiBase = getApiBaseUrl();
+    logDebug(`apiBase=${apiBase ?? 'null'}`);
+    setDebugScreenState('apiBase', apiBase ?? 'null');
+
     processOCRQueueRef.current();
     void syncWithBackendRef.current().catch(() => undefined);
     initializePurchases();
     void checkProRef.current();
     track('app_opened');
-  }, []);
+  }, [logDebug, setDebugScreenState]);
 
   useEffect(() => {
     const sub = AppState.addEventListener('change', (next) => {

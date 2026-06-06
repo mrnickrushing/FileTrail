@@ -41,6 +41,8 @@ workflows:
     environment:
       node: 22
       java: 17
+      groups:
+        - public_env
     scripts:
       - name: Install mobile dependencies
         script: |
@@ -70,6 +72,8 @@ workflows:
       cocoapods: default
       vars:
         XCODE_SCHEME: FileTrail
+      groups:
+        - public_env
     scripts:
       - name: Install mobile dependencies
         script: |
@@ -107,9 +111,9 @@ workflows:
       vars:
         BUNDLE_ID: com.papertraill.app
         XCODE_SCHEME: FileTrail
-        EXPO_PUBLIC_API_URL: https://papertrail-production-de23.up.railway.app
       groups:
         - ios_credentials
+        - public_env
     scripts:
       - name: Install dependencies
         script: |
@@ -171,6 +175,7 @@ workflows:
       groups:
         - google_play_credentials
         - android_signing
+        - public_env
     scripts:
       - name: Install dependencies
         script: |
