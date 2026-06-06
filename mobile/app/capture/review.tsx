@@ -37,6 +37,7 @@ import { saveDocumentFile, generateThumbnail, getFileSize, getExtension } from '
 import { extractText, isOCRAvailable } from '@/services/ocr';
 import { isPDFLike } from '@/services/pdfService';
 import { apiRequest, isBackendConfigured } from '@/services/api';
+import { useDebugStore } from '@/store/debugStore';
 import { C, T, R, S } from '@/theme/tokens';
 import type { DocumentCategory } from '@/types/document';
 
@@ -78,6 +79,8 @@ export default function DocumentReviewScreen() {
   const autoOcr = useAppStore(s => s.autoOcr);
   const isPro = useProStore(s => s.isPro);
   const checkPro = useProStore(s => s.checkPro);
+  const logDebug = useDebugStore(s => s.log);
+  const setDebugScreenState = useDebugStore(s => s.setScreenState);
 
   const [title, setTitle] = useState(() => generateTitle(params.source, params.mimeType));
   const [category, setCategory] = useState<DocumentCategory>('other');
@@ -91,13 +94,25 @@ export default function DocumentReviewScreen() {
 
   useEffect(() => {
     isMounted.current = true;
-    return () => { isMounted.current = false; };
-  }, []);
+    logDebug(`review mount source=${params.source} name=${params.name ?? 'untitled'}`);
+    return () => {
+      isMounted.current = false;
+      logDebug('review unmount');
+    };
+  }, [logDebug, params.name, params.source]);
+
+  useEffect(() => {
+    setDebugScreenState(
+      'review',
+      `save=${isSaving ? '1' : '0'} paywall=${showPaywall ? '1' : '0'} ocr=${ocrStatus} ai=${aiStatus}`,
+    );
+  }, [aiStatus, isSaving, ocrStatus, setDebugScreenState, showPaywall]);
 
   // Auto-run OCR then AI suggestions
   useEffect(() => {
     const isPdf = !params.uri || isPDFLike(params.uri, params.mimeType);
     if (isPdf) {
+      logDebug('review detected pdf import');
       setOCRStatus('unavailable');
       // For PDFs: call AI from filename alone if pro and backend configured
       if (isPro && isBackendConfigured() && (params.name || params.uri)) {
@@ -113,27 +128,32 @@ export default function DocumentReviewScreen() {
         })
           .then((suggestion) => {
             if (!isMounted.current) return;
+            logDebug(`review pdf ai ok ${suggestion.category ?? 'none'}`);
             if (suggestion.suggestedTitle) setTitle(suggestion.suggestedTitle);
             if (suggestion.category) setCategory(suggestion.category);
             setSuggestedTags(Array.isArray(suggestion.tags) ? suggestion.tags : []);
             setAiStatus('done');
           })
           .catch(() => {
+            logDebug('review pdf ai failed');
             if (isMounted.current) setAiStatus('idle');
           });
       }
       return;
     }
     if (!autoOcr || !isOCRAvailable()) {
+      logDebug('review ocr unavailable');
       setOCRStatus('unavailable');
       return;
     }
 
+    logDebug('review start ocr');
     setOCRStatus('processing');
     extractText(params.uri)
       .then(async (result) => {
         if (!isMounted.current) return;
         const text = result.text || null;
+        logDebug(`review ocr done words=${text ? text.split(/\s+/).length : 0}`);
         setOCRText(text);
         setOCRStatus('done');
 
@@ -151,30 +171,35 @@ export default function DocumentReviewScreen() {
               body: { title: params.name, filename: params.name, ocrText: text, mimeType: params.mimeType },
             });
             if (!isMounted.current) return;
+            logDebug(`review image ai ok ${suggestion.category ?? 'none'}`);
             if (suggestion.suggestedTitle) setTitle(suggestion.suggestedTitle);
             if (suggestion.category) setCategory(suggestion.category);
             setSuggestedTags(Array.isArray(suggestion.tags) ? suggestion.tags : []);
             setAiStatus('done');
           } catch {
+            logDebug('review image ai failed');
             if (isMounted.current) setAiStatus('idle');
           }
         }
       })
       .catch(() => {
         if (!isMounted.current) return;
+        logDebug('review ocr failed');
         setOCRStatus('unavailable');
       });
-  }, [params.mimeType, params.uri, params.name, autoOcr, isPro]);
+  }, [autoOcr, isPro, logDebug, params.mimeType, params.name, params.uri]);
 
   const handleSave = useCallback(async () => {
     if (!params.uri || isSaving) return;
 
     // Gate: free users limited to FREE_DOCUMENT_LIMIT documents
     if (documents.length >= FREE_DOCUMENT_LIMIT && !isPro) {
+      logDebug('review blocked by paywall');
       setShowPaywall(true);
       return;
     }
 
+    logDebug('review save start');
     setIsSaving(true);
 
     try {
@@ -219,8 +244,10 @@ export default function DocumentReviewScreen() {
         tags: suggestedTags,
       });
 
+      logDebug('review save success -> tabs');
       router.replace('/(tabs)/');
     } catch (err) {
+      logDebug('review save failed');
       Alert.alert('Save Failed', 'Something went wrong saving your document. Please try again.');
       console.error('[Review] save error:', err);
     } finally {
@@ -249,7 +276,10 @@ export default function DocumentReviewScreen() {
         <View style={styles.header}>
           <Pressable
             style={styles.backBtn}
-            onPress={() => router.back()}
+            onPress={() => {
+              logDebug('review back');
+              router.back();
+            }}
             hitSlop={8}
           >
             <Text style={styles.backText}>‹ Back</Text>
@@ -392,8 +422,12 @@ export default function DocumentReviewScreen() {
       {showPaywall && (
         <PaywallModal
           visible={showPaywall}
-          onClose={() => setShowPaywall(false)}
+          onClose={() => {
+            logDebug('review paywall close');
+            setShowPaywall(false);
+          }}
           onSuccess={() => {
+            logDebug('review paywall success');
             setShowPaywall(false);
             void checkPro();
           }}

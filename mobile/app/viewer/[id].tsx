@@ -33,6 +33,7 @@ import { apiRequest, isBackendConfigured } from '@/services/api';
 import { TagEditor } from '@/components/TagEditor';
 import { FolderPickerModal } from '@/components/FolderPickerModal';
 import { PaywallModal } from '@/components/PaywallModal';
+import { useDebugStore } from '@/store/debugStore';
 import { C, T, R, S } from '@/theme/tokens';
 import type { DocumentCategory, Folder } from '@/types/document';
 
@@ -132,6 +133,8 @@ export default function DocumentViewerScreen() {
   const toggleFavorite = useDocumentStore(s => s.toggleFavorite);
   const isPro = useProStore(s => s.isPro);
   const checkPro = useProStore(s => s.checkPro);
+  const logDebug = useDebugStore(s => s.log);
+  const setDebugScreenState = useDebugStore(s => s.setScreenState);
 
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   // Ref so title editing state can be read without stale closure
@@ -144,8 +147,12 @@ export default function DocumentViewerScreen() {
   const isMounted = useRef(true);
   useEffect(() => {
     isMounted.current = true;
-    return () => { isMounted.current = false; };
-  }, []);
+    logDebug(`viewer mount ${id ?? 'missing'}`);
+    return () => {
+      isMounted.current = false;
+      logDebug(`viewer unmount ${id ?? 'missing'}`);
+    };
+  }, [id, logDebug]);
   useEffect(() => {
     isEditingTitleRef.current = isEditingTitle;
   }, [isEditingTitle]);
@@ -169,6 +176,30 @@ export default function DocumentViewerScreen() {
 
   const titleInputRef = useRef<TextInput>(null);
 
+  useEffect(() => {
+    setDebugScreenState(
+      'viewer',
+      [
+        `doc=${id ?? 'missing'}`,
+        `tag=${showTagEditor ? '1' : '0'}`,
+        `folder=${showFolderPicker ? '1' : '0'}`,
+        `paywall=${showPaywall ? '1' : '0'}`,
+        `category=${showCategoryPicker ? '1' : '0'}`,
+        `delete=${isDeleting ? '1' : '0'}`,
+        `ai=${isAiOrganizing ? '1' : '0'}`,
+      ].join(' '),
+    );
+  }, [
+    id,
+    isAiOrganizing,
+    isDeleting,
+    setDebugScreenState,
+    showCategoryPicker,
+    showFolderPicker,
+    showPaywall,
+    showTagEditor,
+  ]);
+
   const handleSaveTitle = useCallback(() => {
     if (!document) return;
     const trimmed = editTitle.trim();
@@ -183,6 +214,7 @@ export default function DocumentViewerScreen() {
 
   const handleShare = useCallback(async () => {
     if (!document || isSharing) return;
+    logDebug('viewer share');
     setIsSharing(true);
     try {
       await shareDocument(document);
@@ -191,10 +223,11 @@ export default function DocumentViewerScreen() {
     } finally {
       if (isMounted.current) setIsSharing(false);
     }
-  }, [document, isSharing]);
+  }, [document, isSharing, logDebug]);
 
   const handleDelete = useCallback(() => {
     if (!document) return;
+    logDebug('viewer delete prompt');
     Alert.alert(
       'Delete Document',
       `"${document.title}" will be permanently deleted. This cannot be undone.`,
@@ -204,32 +237,37 @@ export default function DocumentViewerScreen() {
           text: 'Delete',
           style: 'destructive',
           onPress: async () => {
+            logDebug('viewer delete confirm');
             setIsDeleting(true);
             await deleteDocument(document.id);
             if (isMounted.current) setIsDeleting(false);
+            logDebug('viewer delete success -> tabs');
             router.replace('/(tabs)/');
           },
         },
       ],
     );
-  }, [document, deleteDocument]);
+  }, [deleteDocument, document, logDebug]);
 
   const handleCategorySelect = useCallback((cat: DocumentCategory) => {
     if (!document) return;
+    logDebug(`viewer category ${cat}`);
     updateDocument(document.id, { category: cat });
     setShowCategoryPicker(false);
-  }, [document, updateDocument]);
+  }, [document, logDebug, updateDocument]);
 
   const handleFolderSelect = useCallback((folderId: string | null) => {
     if (!document) return;
+    logDebug(`viewer folder ${folderId ?? 'unfiled'}`);
     moveDocumentToFolder(document.id, folderId);
     setShowFolderPicker(false);
-  }, [document, moveDocumentToFolder]);
+  }, [document, logDebug, moveDocumentToFolder]);
 
   const handleAiOrganize = useCallback(async () => {
     if (!document || isAiOrganizing) return;
 
     if (!isPro) {
+      logDebug('viewer ai blocked by paywall');
       setShowPaywall(true);
       return;
     }
@@ -242,6 +280,7 @@ export default function DocumentViewerScreen() {
       return;
     }
 
+    logDebug('viewer ai start');
     setIsAiOrganizing(true);
     setAiSummary(null);
 
@@ -291,9 +330,11 @@ export default function DocumentViewerScreen() {
       const summaryParts = ['updated the name', 'set the category'];
       if (nextTags.length > 0) summaryParts.push('applied tags');
       if (suggestedFolder) summaryParts.push(`moved it to ${suggestedFolder.name}`);
+      logDebug(`viewer ai success category=${nextCategory} folder=${suggestedFolderId ?? 'none'}`);
       if (isMounted.current) setAiSummary(`AI ${summaryParts.join(', ')}.`);
     } catch (err: unknown) {
       if (isMounted.current) {
+        logDebug('viewer ai failed');
         Alert.alert('AI Organize Failed', errorMessage(err, 'Could not analyze this document.'));
       }
     } finally {
@@ -313,7 +354,10 @@ export default function DocumentViewerScreen() {
     return (
       <View style={[styles.notFound, { paddingTop: insets.top }]}>
         <Text style={styles.notFoundText}>Document not found.</Text>
-        <Pressable onPress={() => router.back()} style={styles.backLink}>
+        <Pressable onPress={() => {
+          logDebug('viewer missing doc back');
+          router.back();
+        }} style={styles.backLink}>
           <Text style={styles.backLinkText}>← Go Back</Text>
         </Pressable>
       </View>
@@ -329,7 +373,14 @@ export default function DocumentViewerScreen() {
     <View style={[styles.container, { paddingTop: insets.top }]}>
       {/* ── Header ── */}
       <View style={styles.header}>
-        <Pressable style={styles.headerBtn} onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)/')} hitSlop={8}>
+        <Pressable style={styles.headerBtn} onPress={() => {
+          logDebug('viewer back');
+          if (router.canGoBack()) {
+            router.back();
+          } else {
+            router.replace('/(tabs)/');
+          }
+        }} hitSlop={8}>
           <Text style={styles.headerBtnText}>‹</Text>
         </Pressable>
 
@@ -345,7 +396,10 @@ export default function DocumentViewerScreen() {
         <View style={styles.headerActions}>
           <Pressable
             style={styles.headerIconBtn}
-            onPress={() => toggleFavorite(document.id)}
+            onPress={() => {
+              logDebug('viewer favorite');
+              toggleFavorite(document.id);
+            }}
             hitSlop={8}
           >
             <Text style={[styles.headerIcon, document.isFavorite && { color: C.amber }]}>
@@ -401,6 +455,7 @@ export default function DocumentViewerScreen() {
         <View style={styles.metaSection}>
           <Pressable
             onPress={() => {
+              logDebug('viewer title edit start');
               isEditingTitleRef.current = true;
               setIsEditingTitle(true);
               setTimeout(() => titleInputRef.current?.focus(), 50);
@@ -430,7 +485,10 @@ export default function DocumentViewerScreen() {
           {/* Category */}
           <Pressable
             style={styles.categoryRow}
-            onPress={() => setShowCategoryPicker(true)}
+            onPress={() => {
+              logDebug('viewer category picker open');
+              setShowCategoryPicker(true);
+            }}
           >
             <Text style={styles.categoryLabel}>
               {CATEGORY_LABELS[document.category]}
@@ -464,7 +522,10 @@ export default function DocumentViewerScreen() {
                   styles.organizeBtnSecondary,
                   pressed && { opacity: 0.8 },
                 ]}
-                onPress={() => setShowFolderPicker(true)}
+                onPress={() => {
+                  logDebug('viewer folder picker open');
+                  setShowFolderPicker(true);
+                }}
               >
                 <Text style={styles.organizeBtnSecondaryText}>Move Folder</Text>
               </Pressable>
@@ -487,7 +548,10 @@ export default function DocumentViewerScreen() {
           </View>
 
           {/* Tags */}
-          <Pressable style={styles.tagsRow} onPress={() => setShowTagEditor(true)}>
+          <Pressable style={styles.tagsRow} onPress={() => {
+            logDebug('viewer tag editor open');
+            setShowTagEditor(true);
+          }}>
             {document.tags.length > 0 ? (
               <>
                 {document.tags.map(tag => (
@@ -512,7 +576,10 @@ export default function DocumentViewerScreen() {
           <View style={styles.ocrSection}>
             <Pressable
               style={styles.ocrHeader}
-              onPress={() => setShowOCR(v => !v)}
+              onPress={() => {
+                logDebug(`viewer ocr toggle ${showOCR ? 'close' : 'open'}`);
+                setShowOCR(v => !v);
+              }}
             >
               <Text style={styles.ocrTitle}>
                 {document.ocrStatus === 'pending'
@@ -545,10 +612,14 @@ export default function DocumentViewerScreen() {
           initialTags={document.tags}
           allTags={allDocumentTags}
           onConfirm={(tags) => {
+            logDebug(`viewer tags confirm count=${tags.length}`);
             updateDocumentTags(document.id, tags);
             setShowTagEditor(false);
           }}
-          onCancel={() => setShowTagEditor(false)}
+          onCancel={() => {
+            logDebug('viewer tag editor close');
+            setShowTagEditor(false);
+          }}
         />
       )}
 
@@ -557,15 +628,22 @@ export default function DocumentViewerScreen() {
           visible={showFolderPicker}
           folders={folders}
           onSelect={handleFolderSelect}
-          onCancel={() => setShowFolderPicker(false)}
+          onCancel={() => {
+            logDebug('viewer folder picker close');
+            setShowFolderPicker(false);
+          }}
         />
       )}
 
       {showPaywall && (
         <PaywallModal
           visible={showPaywall}
-          onClose={() => setShowPaywall(false)}
+          onClose={() => {
+            logDebug('viewer paywall close');
+            setShowPaywall(false);
+          }}
           onSuccess={() => {
+            logDebug('viewer paywall success');
             setShowPaywall(false);
             void checkPro();
           }}
@@ -578,11 +656,17 @@ export default function DocumentViewerScreen() {
           visible={showCategoryPicker}
           transparent
           animationType="slide"
-          onRequestClose={() => setShowCategoryPicker(false)}
+          onRequestClose={() => {
+            logDebug('viewer category picker close');
+            setShowCategoryPicker(false);
+          }}
         >
           <Pressable
             style={styles.modalBackdrop}
-            onPress={() => setShowCategoryPicker(false)}
+            onPress={() => {
+              logDebug('viewer category picker backdrop close');
+              setShowCategoryPicker(false);
+            }}
           >
             <Pressable
               style={[styles.categorySheet, { paddingBottom: insets.bottom + S[4] }]}

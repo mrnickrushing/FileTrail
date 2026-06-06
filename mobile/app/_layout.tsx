@@ -9,9 +9,11 @@ import { Colors } from '@/theme';
 import { useDocumentStore } from '@/store/documentStore';
 import { useAppStore } from '@/store/appStore';
 import { LockScreen } from '@/components/LockScreen';
+import { DebugOverlay } from '@/components/DebugOverlay';
 import { track } from '@/services/analytics';
 import { initializePurchases } from '@/services/purchases';
 import { useProStore } from '@/store/proStore';
+import { useDebugStore } from '@/store/debugStore';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -56,7 +58,10 @@ export default function RootLayout() {
   const checkPro = useProStore(s => s.checkPro);
   const isLocked = useAppStore(s => s.isLocked);
   const setLocked = useAppStore(s => s.setLocked);
+  const logDebug = useDebugStore(s => s.log);
+  const setDebugScreenState = useDebugStore(s => s.setScreenState);
   const appStateRef = useRef(AppState.currentState);
+  const routeLabel = segments.length > 0 ? `/${segments.join('/')}` : '/';
 
   // Run once on mount — capture stable refs so the effect doesn't re-run
   const processOCRQueueRef = useRef(processOCRQueue);
@@ -76,6 +81,8 @@ export default function RootLayout() {
 
   useEffect(() => {
     const sub = AppState.addEventListener('change', (next) => {
+      logDebug(`app-state ${appStateRef.current} -> ${next}`);
+      setDebugScreenState('appState', next);
       if (
         biometricEnabled &&
         appStateRef.current === 'active' &&
@@ -86,7 +93,7 @@ export default function RootLayout() {
       appStateRef.current = next;
     });
     return () => sub.remove();
-  }, [biometricEnabled, setLocked]);
+  }, [biometricEnabled, logDebug, setDebugScreenState, setLocked]);
 
   useEffect(() => {
     if (!hasHydrated) return;
@@ -116,6 +123,11 @@ export default function RootLayout() {
       router.replace('/(tabs)/');
     }
   }, [hasHydrated, hasOnboarded, isAccountAuthenticated, router, segments]);
+
+  useEffect(() => {
+    logDebug(`route ${routeLabel}`);
+    setDebugScreenState('route', routeLabel);
+  }, [logDebug, routeLabel, setDebugScreenState]);
 
   if (!hasHydrated) {
     return null;
@@ -149,6 +161,8 @@ export default function RootLayout() {
         {biometricEnabled && isLocked && (
           <LockScreen onUnlocked={() => setLocked(false)} />
         )}
+
+        <DebugOverlay routeLabel={routeLabel} />
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

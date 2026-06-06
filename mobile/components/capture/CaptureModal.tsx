@@ -25,6 +25,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useCamera } from '@/hooks/useCamera';
 import { useDocumentPicker } from '@/hooks/useDocumentPicker';
+import { useDebugStore } from '@/store/debugStore';
 import { C, T, R, S } from '@/theme/tokens';
 
 interface CaptureModalProps {
@@ -36,13 +37,21 @@ export function CaptureModal({ visible, onClose }: CaptureModalProps) {
   const insets = useSafeAreaInsets();
   const { capture, isLoading: cameraLoading } = useCamera();
   const { pickFile, pickPhoto, isLoading: pickerLoading } = useDocumentPicker();
+  const logDebug = useDebugStore((s) => s.log);
+  const setDebugScreenState = useDebugStore((s) => s.setScreenState);
   const isLoading = cameraLoading || pickerLoading;
+
+  React.useEffect(() => {
+    setDebugScreenState('captureModal', `${visible ? 'visible' : 'hidden'} loading=${isLoading ? '1' : '0'}`);
+  }, [isLoading, setDebugScreenState, visible]);
 
   if (!visible) return null;
 
   const handleCamera = useCallback(async () => {
+    logDebug('capture camera pressed');
     const result = await capture();
     if (result.status === 'captured') {
+      logDebug('capture camera -> review');
       router.replace({
         pathname: '/capture/review',
         params: { uri: result.uri, source: 'camera' },
@@ -50,25 +59,31 @@ export function CaptureModal({ visible, onClose }: CaptureModalProps) {
     } else if (result.status === 'denied') {
       // TODO: show settings prompt — Phase 3
     } else if (result.status === 'error') {
+      logDebug(`capture camera error ${result.message}`);
       Alert.alert('Camera Failed', result.message);
     }
-  }, [capture]);
+  }, [capture, logDebug]);
 
   const handlePhoto = useCallback(async () => {
+    logDebug('capture photo pressed');
     const result = await pickPhoto();
     if (result.status === 'picked') {
+      logDebug('capture photo -> review');
       router.replace({
         pathname: '/capture/review',
         params: { uri: result.uri, name: result.name, source: 'photo' },
       });
     } else if (result.status === 'error') {
+      logDebug(`capture photo error ${result.message}`);
       Alert.alert('Photo Import Failed', result.message);
     }
-  }, [pickPhoto]);
+  }, [logDebug, pickPhoto]);
 
   const handleFile = useCallback(async () => {
+    logDebug('capture file pressed');
     const result = await pickFile();
     if (result.status === 'picked') {
+      logDebug(`capture file -> review ${result.mimeType ?? 'unknown'}`);
       router.replace({
         pathname: '/capture/review',
         params: {
@@ -80,12 +95,16 @@ export function CaptureModal({ visible, onClose }: CaptureModalProps) {
         },
       });
     } else if (result.status === 'error') {
+      logDebug(`capture file error ${result.message}`);
       Alert.alert('File Import Failed', result.message);
     }
-  }, [pickFile]);
+  }, [logDebug, pickFile]);
 
   return (
-    <Pressable style={styles.backdrop} onPress={onClose}>
+    <Pressable style={styles.backdrop} onPress={() => {
+      logDebug('capture backdrop close');
+      onClose();
+    }}>
       <Pressable
         style={[styles.sheet, { paddingBottom: insets.bottom + S[4] }]}
         onPress={() => {}}
@@ -122,7 +141,10 @@ export function CaptureModal({ visible, onClose }: CaptureModalProps) {
           </View>
         )}
 
-        <Pressable style={styles.cancelBtn} onPress={onClose}>
+        <Pressable style={styles.cancelBtn} onPress={() => {
+          logDebug('capture cancel');
+          onClose();
+        }}>
           <Text style={styles.cancelText}>Cancel</Text>
         </Pressable>
       </Pressable>
