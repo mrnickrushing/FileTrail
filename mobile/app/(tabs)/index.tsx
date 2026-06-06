@@ -158,6 +158,7 @@ export default function VaultScreen() {
   const [showTagEditor, setShowTagEditor] = useState(false);
   const [showFolderPicker, setShowFolderPicker] = useState(false);
   const [showPaywall, setShowPaywall] = useState(false);
+  const [isAiOrganizing, setIsAiOrganizing] = useState(false);
 
   const enterSelectionMode = useCallback((id: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -244,10 +245,11 @@ export default function VaultScreen() {
           onPress: async () => {
             const ids = Array.from(selectedIds);
             exitSelectionMode();
-            let succeeded = 0;
-            for (const docId of ids) {
+            setIsAiOrganizing(true);
+
+            const processSingle = async (docId: string): Promise<boolean> => {
               const doc = documents.find(d => d.id === docId);
-              if (!doc) continue;
+              if (!doc) return false;
               try {
                 const FILE_SIZE_LIMIT = 4 * 1024 * 1024;
                 const canReadFile = !!doc.fileUri && (doc.fileSizeBytes ?? 0) <= FILE_SIZE_LIMIT;
@@ -275,6 +277,10 @@ export default function VaultScreen() {
                   tags: string[];
                   notes: string;
                   suggestedFolderName: string;
+                  source?: string;
+                  date?: string;
+                  vendor?: string;
+                  amounts?: number[];
                 }>('/v1/ai/suggest-document', {
                   method: 'POST',
                   body: {
@@ -296,8 +302,19 @@ export default function VaultScreen() {
                 const nextNotes = typeof suggestion.notes === 'string' && suggestion.notes.trim()
                   ? suggestion.notes.trim()
                   : undefined;
-                updateDocument(docId, { title: nextTitle, category: nextCategory, ...(nextNotes ? { notes: nextNotes } : {}) });
-                updateDocumentTags(docId, nextTags);
+                const mergedTags = Array.from(new Set([...doc.tags, ...nextTags]));
+                updateDocumentTags(docId, mergedTags);
+                const aiPatch: Record<string, unknown> = {
+                  title: nextTitle,
+                  category: nextCategory,
+                  aiSource: suggestion.source === 'claude' ? 'claude' : 'heuristic',
+                  aiOrganizedAt: new Date().toISOString(),
+                  ...(nextNotes ? { notes: nextNotes } : {}),
+                };
+                if (typeof suggestion.date === 'string' && suggestion.date) aiPatch.inferredDate = suggestion.date;
+                if (typeof suggestion.vendor === 'string' && suggestion.vendor) aiPatch.vendor = suggestion.vendor;
+                if (Array.isArray(suggestion.amounts) && suggestion.amounts.length > 0) aiPatch.amounts = suggestion.amounts;
+                updateDocument(docId, aiPatch as any);
                 if (suggestion.suggestedFolderName) {
                   const existing = folders.find(
                     f => f.name.toLowerCase() === suggestion.suggestedFolderName.toLowerCase()
@@ -305,12 +322,22 @@ export default function VaultScreen() {
                   const folder = existing ?? addFolder(suggestion.suggestedFolderName);
                   moveDocumentToFolder(docId, folder.id);
                 }
-                succeeded++;
+                return true;
               } catch {
-                // continue with next document
+                return false;
               }
+            };
+
+            // Process in batches of 3
+            let succeeded = 0;
+            for (let i = 0; i < ids.length; i += 3) {
+              const batch = ids.slice(i, i + 3);
+              const results = await Promise.allSettled(batch.map(processSingle));
+              succeeded += results.filter(r => r.status === 'fulfilled' && r.value).length;
             }
+
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            setIsAiOrganizing(false);
             Alert.alert(
               'Done',
               `AI organized ${succeeded} of ${ids.length} document${ids.length !== 1 ? 's' : ''}.`
@@ -530,6 +557,7 @@ export default function VaultScreen() {
           onAiOrganize={handleBulkAiOrganize}
           onDelete={handleBulkDelete}
           onCancel={exitSelectionMode}
+          isAiOrganizing={isAiOrganizing}
         />
       )}
 

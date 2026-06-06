@@ -88,6 +88,10 @@ export default function DocumentReviewScreen() {
   const [suggestedTags, setSuggestedTags] = useState<string[]>([]);
   const [suggestedNotes, setSuggestedNotes] = useState<string>('');
   const [suggestedFolderName, setSuggestedFolderName] = useState<string>('');
+  const [suggestedAiSource, setSuggestedAiSource] = useState<'heuristic' | 'claude' | null>(null);
+  const [suggestedDate, setSuggestedDate] = useState<string>('');
+  const [suggestedVendor, setSuggestedVendor] = useState<string>('');
+  const [suggestedAmounts, setSuggestedAmounts] = useState<number[]>([]);
   const [ocrText, setOCRText] = useState<string | null>(null);
   const [ocrStatus, setOCRStatus] = useState<'idle' | 'processing' | 'done' | 'unavailable'>('idle');
   const [aiStatus, setAiStatus] = useState<'idle' | 'processing' | 'done'>('idle');
@@ -124,7 +128,10 @@ export default function DocumentReviewScreen() {
           tags: string[];
           notes: string;
           suggestedFolderName: string;
-          source: string;
+          source?: string;
+          date?: string;
+          vendor?: string;
+          amounts?: number[];
         }>('/v1/ai/suggest-document', {
           method: 'POST',
           body: { title, filename: params.name, mimeType: params.mimeType, pdfBase64 },
@@ -136,6 +143,10 @@ export default function DocumentReviewScreen() {
             setSuggestedTags(Array.isArray(suggestion.tags) ? suggestion.tags : []);
             if (suggestion.notes) setSuggestedNotes(suggestion.notes);
             if (suggestion.suggestedFolderName) setSuggestedFolderName(suggestion.suggestedFolderName);
+            if (suggestion.source === 'claude' || suggestion.source === 'heuristic') setSuggestedAiSource(suggestion.source);
+            if (suggestion.date) setSuggestedDate(suggestion.date);
+            if (suggestion.vendor) setSuggestedVendor(suggestion.vendor);
+            if (Array.isArray(suggestion.amounts)) setSuggestedAmounts(suggestion.amounts);
             setAiStatus('done');
           })
           .catch(() => {
@@ -154,12 +165,20 @@ export default function DocumentReviewScreen() {
       tags?: string[];
       notes?: string;
       suggestedFolderName?: string;
+      source?: string;
+      date?: string;
+      vendor?: string;
+      amounts?: number[];
     }) => {
       if (suggestion.suggestedTitle) setTitle(suggestion.suggestedTitle);
       if (suggestion.category) setCategory(suggestion.category);
       setSuggestedTags(Array.isArray(suggestion.tags) ? suggestion.tags : []);
       if (suggestion.notes) setSuggestedNotes(suggestion.notes);
       if (suggestion.suggestedFolderName) setSuggestedFolderName(suggestion.suggestedFolderName);
+      if (suggestion.source === 'claude' || suggestion.source === 'heuristic') setSuggestedAiSource(suggestion.source);
+      if (suggestion.date) setSuggestedDate(suggestion.date);
+      if (suggestion.vendor) setSuggestedVendor(suggestion.vendor);
+      if (Array.isArray(suggestion.amounts)) setSuggestedAmounts(suggestion.amounts);
     };
 
     if (!autoOcr || !isOCRAvailable()) {
@@ -173,7 +192,8 @@ export default function DocumentReviewScreen() {
         ).then((imageBase64) =>
           apiRequest<{
             suggestedTitle: string; category: DocumentCategory;
-            tags: string[]; notes: string; suggestedFolderName: string; source: string;
+            tags: string[]; notes: string; suggestedFolderName: string;
+            source?: string; date?: string; vendor?: string; amounts?: number[];
           }>('/v1/ai/suggest-document', {
             method: 'POST',
             body: { title, filename: params.name, mimeType: params.mimeType, imageBase64, imageMimeType: imageBase64 ? params.mimeType : undefined },
@@ -206,7 +226,8 @@ export default function DocumentReviewScreen() {
               : undefined;
             const suggestion = await apiRequest<{
               suggestedTitle: string; category: DocumentCategory;
-              tags: string[]; notes: string; suggestedFolderName: string; source: string;
+              tags: string[]; notes: string; suggestedFolderName: string;
+              source?: string; date?: string; vendor?: string; amounts?: number[];
             }>('/v1/ai/suggest-document', {
               method: 'POST',
               body: {
@@ -283,6 +304,10 @@ export default function DocumentReviewScreen() {
         folderId: null,
         tags: suggestedTags,
         ...(suggestedNotes ? { notes: suggestedNotes } : {}),
+        ...(suggestedAiSource ? { aiSource: suggestedAiSource, aiOrganizedAt: new Date().toISOString() } : {}),
+        ...(suggestedDate ? { inferredDate: suggestedDate } : {}),
+        ...(suggestedVendor ? { vendor: suggestedVendor } : {}),
+        ...(suggestedAmounts.length > 0 ? { amounts: suggestedAmounts } : {}),
       });
 
       // 5. Auto-file into suggested folder (find or create)
@@ -307,7 +332,7 @@ export default function DocumentReviewScreen() {
     } finally {
       if (isMounted.current) setIsSaving(false);
     }
-  }, [params, title, category, suggestedTags, ocrText, ocrStatus, addDocument, isSaving, documents.length, isPro]);
+  }, [params, title, category, suggestedTags, ocrText, ocrStatus, addDocument, isSaving, documents.length, isPro, suggestedAiSource, suggestedDate, suggestedVendor, suggestedAmounts]);
 
   const isImage = !isPDFLike(params.uri ?? '', params.mimeType);
 
@@ -399,8 +424,8 @@ export default function DocumentReviewScreen() {
               <Text style={styles.ocrText}>AI filled title, category, and tags</Text>
             </>
           )}
-          {ocrStatus === 'unavailable' && aiStatus === 'idle' && (
-            <Text style={styles.ocrMuted}>OCR available in full build</Text>
+          {ocrStatus === 'unavailable' && aiStatus === 'idle' && !isPro && (
+            <Text style={styles.ocrMuted}>AI available with Pro</Text>
           )}
         </View>
 
@@ -416,6 +441,23 @@ export default function DocumentReviewScreen() {
             </View>
           </View>
         )}
+
+        {suggestedFolderName ? (
+          <View style={styles.field}>
+            <Text style={styles.fieldLabel}>Will be filed in</Text>
+            <View style={styles.tagRow}>
+              <View style={[styles.tagChip, { backgroundColor: `${C.amber}22` }]}>
+                <Text style={[styles.tagChipText, { color: C.amber }]}>📁 {suggestedFolderName}</Text>
+              </View>
+            </View>
+          </View>
+        ) : null}
+        {suggestedNotes ? (
+          <View style={styles.field}>
+            <Text style={styles.fieldLabel}>AI Notes</Text>
+            <Text style={[styles.ocrMuted, { color: C.ash }]}>{suggestedNotes}</Text>
+          </View>
+        ) : null}
 
         {/* Title */}
         <View style={styles.field}>

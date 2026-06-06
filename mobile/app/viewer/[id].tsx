@@ -153,6 +153,17 @@ export default function DocumentViewerScreen() {
       setEditTitle(document.title);
     }
   }, [document?.title, isEditingTitle]);
+
+  const [isEditingNotes, setIsEditingNotes] = useState(false);
+  const [editNotes, setEditNotes] = useState(document?.notes ?? '');
+  const notesInputRef = useRef<TextInput>(null);
+
+  useEffect(() => {
+    if (!isEditingNotes && document?.notes !== undefined) {
+      setEditNotes(document.notes);
+    }
+  }, [document?.notes, isEditingNotes]);
+
   const [showPaywall, setShowPaywall] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
@@ -165,7 +176,6 @@ export default function DocumentViewerScreen() {
 
   const titleInputRef = useRef<TextInput>(null);
 
-
   const handleSaveTitle = useCallback(() => {
     if (!document) return;
     const trimmed = editTitle.trim();
@@ -177,6 +187,13 @@ export default function DocumentViewerScreen() {
     isEditingTitleRef.current = false;
     setIsEditingTitle(false);
   }, [document, editTitle, updateDocument]);
+
+  const handleSaveNotes = useCallback(() => {
+    if (!document) return;
+    const trimmed = editNotes.trim();
+    updateDocument(document.id, { notes: trimmed || undefined });
+    setIsEditingNotes(false);
+  }, [document, editNotes, updateDocument]);
 
   const handleShare = useCallback(async () => {
     if (!document || isSharing) return;
@@ -276,6 +293,9 @@ export default function DocumentViewerScreen() {
         notes: string;
         suggestedFolderName: string;
         source: string;
+        date?: string;
+        vendor?: string;
+        amounts?: number[];
       }>('/v1/ai/suggest-document', {
         method: 'POST',
         body: {
@@ -299,11 +319,17 @@ export default function DocumentViewerScreen() {
         : document.tags;
       const nextNotes = typeof suggestion.notes === 'string' ? suggestion.notes : undefined;
 
-      updateDocument(document.id, {
+      const aiPatch: Record<string, unknown> = {
         title: nextTitle,
         category: nextCategory,
+        aiSource: suggestion.source === 'claude' ? 'claude' : 'heuristic',
+        aiOrganizedAt: new Date().toISOString(),
         ...(nextNotes ? { notes: nextNotes } : {}),
-      });
+      };
+      if (suggestion.date) aiPatch.inferredDate = suggestion.date;
+      if (suggestion.vendor) aiPatch.vendor = suggestion.vendor;
+      if (Array.isArray(suggestion.amounts) && suggestion.amounts.length > 0) aiPatch.amounts = suggestion.amounts;
+      updateDocument(document.id, aiPatch as Parameters<typeof updateDocument>[1]);
       updateDocumentTags(document.id, nextTags);
 
       // Find or create the suggested folder, then move the document into it
@@ -507,6 +533,13 @@ export default function DocumentViewerScreen() {
             {isPDF && <MetaChip label={`${pdfTotal} ${pdfTotal === 1 ? 'page' : 'pages'}`} />}
             {document.isFavorite && <MetaChip label="★ Favorited" amber />}
             <MetaChip label={currentFolder?.name ?? 'Unfiled'} />
+            {document.inferredDate && (
+              <MetaChip label={`📅 ${new Date(document.inferredDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).replace(/Invalid Date/, document.inferredDate)}`} />
+            )}
+            {document.vendor && <MetaChip label={`🏢 ${document.vendor}`} />}
+            {document.amounts && document.amounts.length > 0 && (
+              <MetaChip label={`💰 ${document.amounts.map(a => `$${a.toFixed(2)}`).join(', ')}`} amber />
+            )}
           </View>
 
           <View style={styles.organizeCard}>
@@ -516,6 +549,16 @@ export default function DocumentViewerScreen() {
                 <Text style={styles.organizeBody}>
                   Use AI to rename, categorize, tag, and suggest a folder for this document.
                 </Text>
+                {document.aiSource && (
+                  <Text style={styles.organizeAiSource}>
+                    {document.aiSource === 'claude' ? '✦ Organised by Claude' : '· Organised by heuristics'}
+                  </Text>
+                )}
+                {document.aiOrganizedAt && (
+                  <Text style={styles.organizeAiSource}>
+                    Last organised {formatRelativeTime(document.aiOrganizedAt)}
+                  </Text>
+                )}
               </View>
             </View>
             <View style={styles.organizeActions}>
@@ -563,6 +606,36 @@ export default function DocumentViewerScreen() {
               <View style={styles.tagAddChip}>
                 <Text style={styles.tagAddText}>+ Add tags</Text>
               </View>
+            )}
+          </Pressable>
+
+          {/* Notes */}
+          <Pressable
+            style={styles.notesRow}
+            onPress={() => {
+              setIsEditingNotes(true);
+              setTimeout(() => notesInputRef.current?.focus(), 50);
+            }}
+          >
+            {isEditingNotes ? (
+              <TextInput
+                ref={notesInputRef}
+                style={styles.notesInput}
+                value={editNotes}
+                onChangeText={setEditNotes}
+                onBlur={handleSaveNotes}
+                onSubmitEditing={handleSaveNotes}
+                placeholder="Add notes…"
+                placeholderTextColor={C.ink4}
+                multiline
+                maxLength={500}
+                returnKeyType="done"
+                blurOnSubmit
+              />
+            ) : document.notes ? (
+              <Text style={styles.notesText}>{document.notes}</Text>
+            ) : (
+              <Text style={styles.notesPlaceholder}>+ Add notes</Text>
             )}
           </Pressable>
         </View>
@@ -744,6 +817,16 @@ function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function formatRelativeTime(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  return `${Math.floor(hrs / 24)}d ago`;
 }
 
 // ── Styles ────────────────────────────────────────────────────────────────────
@@ -997,6 +1080,33 @@ const styles = StyleSheet.create({
   metaChipAmber: { backgroundColor: C.amberDim },
   metaChipText: { fontSize: T.xs, color: C.ash },
   metaChipTextAmber: { color: C.amber },
+  organizeAiSource: {
+    fontSize: T.xs,
+    color: C.ink4,
+    fontStyle: 'italic',
+  },
+  notesRow: {
+    backgroundColor: C.ink2,
+    borderRadius: R.md,
+    paddingHorizontal: S[4],
+    paddingVertical: S[3],
+    minHeight: 44,
+  },
+  notesText: {
+    fontSize: T.sm,
+    color: C.ash,
+    lineHeight: 20,
+  },
+  notesInput: {
+    fontSize: T.sm,
+    color: C.cream,
+    lineHeight: 20,
+    minHeight: 44,
+  },
+  notesPlaceholder: {
+    fontSize: T.sm,
+    color: C.ink4,
+  },
   ocrSection: {
     marginHorizontal: S[4],
     marginTop: S[4],

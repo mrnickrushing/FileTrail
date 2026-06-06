@@ -139,6 +139,8 @@ function sanitizeDocument(value: unknown): Document | null {
     folderId: typeof value.folderId === 'string' ? value.folderId : null,
     tags: stringArrayValue(value.tags),
     notes: typeof value.notes === 'string' ? value.notes : undefined,
+    aiSource: value.aiSource === 'heuristic' || value.aiSource === 'claude' ? value.aiSource : undefined,
+    aiOrganizedAt: typeof value.aiOrganizedAt === 'string' ? value.aiOrganizedAt : undefined,
     createdAt: dateValue(value.createdAt),
     updatedAt: dateValue(value.updatedAt),
   };

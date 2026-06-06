@@ -30,7 +30,7 @@ const CATEGORY_FOLDER: Record<DocumentCategory, string> = {
 };
 
 const SUPPORTED_IMAGE_MIMES = new Set([
-  'image/jpeg', 'image/png', 'image/gif', 'image/webp',
+  'image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/heic', 'image/heif',
 ]);
 
 type SuggestResult = {
@@ -39,6 +39,9 @@ type SuggestResult = {
   category: DocumentCategory;
   tags: string[];
   notes?: string;
+  date?: string;
+  vendor?: string;
+  amounts?: number[];
   source: 'heuristic' | 'claude';
 };
 
@@ -122,7 +125,7 @@ function heuristicSuggest(input: { title?: string; filename?: string; ocrText?: 
 async function extractPdfText(base64: string): Promise<string> {
   try {
     const buffer = Buffer.from(base64, 'base64');
-    const result = await pdfParse(buffer, { max: 5 });
+    const result = await pdfParse(buffer, { max: 10 });
     return result.text?.trim() ?? '';
   } catch {
     return '';
@@ -133,7 +136,10 @@ const JSON_SCHEMA_PROMPT = `Analyse this document and respond with JSON containi
 - "title": a concise descriptive title (max 80 chars)
 - "category": one of: receipt, contract, id, warranty, medical, tax, other
 - "tags": array of 2-4 meaningful lowercase keyword tags (not just the category name or file type)
-- "notes": one sentence describing any key detail worth remembering (amount, date, expiry, party name), or omit if nothing stands out`;
+- "notes": one sentence describing any key detail worth remembering (amount, date, expiry, party name), or omit if nothing stands out
+- "date": most relevant date found on the document in YYYY-MM-DD format, or omit if none
+- "vendor": merchant, organization, or issuing party name, or omit if not applicable
+- "amounts": array of numeric monetary values (no currency symbols, e.g. [142.50, 9.99]), or omit if none`;
 
 export async function suggestDocument(input: {
   title?: string;
@@ -185,7 +191,7 @@ export async function suggestDocument(input: {
           role: 'user',
           content: [
             { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: input.pdfBase64 } },
-            { type: 'text', text: JSON_SCHEMA_PROMPT },
+            { type: 'text', text: `${JSON_SCHEMA_PROMPT}${contextLabel ? `\n\nFilename hint: ${contextLabel}` : ''}` },
           ],
         }],
       });
@@ -201,8 +207,8 @@ export async function suggestDocument(input: {
       ];
       // Include OCR text as supplemental context if available
       const prompt = hasOcr
-        ? `${JSON_SCHEMA_PROMPT}\n\nOCR-extracted text (use as additional context):\n${ocrText!.slice(0, 1000)}`
-        : JSON_SCHEMA_PROMPT;
+        ? `${JSON_SCHEMA_PROMPT}${contextLabel ? `\n\nFilename hint: ${contextLabel}` : ''}\n\nOCR-extracted text (use as additional context):\n${ocrText!.slice(0, 2000)}`
+        : `${JSON_SCHEMA_PROMPT}${contextLabel ? `\n\nFilename hint: ${contextLabel}` : ''}`;
       contentBlocks.push({ type: 'text', text: prompt });
 
       const response = await client.messages.create({
@@ -251,8 +257,17 @@ export async function suggestDocument(input: {
     const notes: string | undefined = typeof parsed.notes === 'string' && parsed.notes.trim()
       ? parsed.notes.trim().slice(0, 300)
       : undefined;
+    const date: string | undefined = typeof parsed.date === 'string' && parsed.date.trim()
+      ? parsed.date.trim().slice(0, 20)
+      : undefined;
+    const vendor: string | undefined = typeof parsed.vendor === 'string' && parsed.vendor.trim()
+      ? parsed.vendor.trim().slice(0, 100)
+      : undefined;
+    const amounts: number[] | undefined = Array.isArray(parsed.amounts)
+      ? parsed.amounts.filter((a: unknown) => typeof a === 'number' && Number.isFinite(a) && a >= 0).slice(0, 10)
+      : undefined;
 
-    return { suggestedTitle, suggestedFolderName: CATEGORY_FOLDER[category], category, tags, notes, source: 'claude' };
+    return { suggestedTitle, suggestedFolderName: CATEGORY_FOLDER[category], category, tags, notes, date, vendor, amounts, source: 'claude' };
   } catch {
     return heuristicSuggest({ ...input, ocrText: input.ocrText?.trim() });
   }
