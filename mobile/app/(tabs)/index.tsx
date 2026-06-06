@@ -16,6 +16,7 @@ import { Redirect, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { Feather } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAppStore, useDocumentStore } from '@/store';
 import { useProStore } from '@/store/proStore';
 import { apiRequest, isBackendConfigured } from '@/services/api';
@@ -94,6 +95,28 @@ export default function VaultScreen() {
 
   const isPro = useProStore(s => s.isPro);
   const checkPro = useProStore(s => s.checkPro);
+
+  // Backup nudge: prompt once after user has 3+ documents
+  const docCount = documents.length;
+  React.useEffect(() => {
+    if (docCount < 3) return;
+    const NUDGE_KEY = 'filetrail-backup-nudge-shown';
+    AsyncStorage.getItem(NUDGE_KEY).then((shown) => {
+      if (shown) return;
+      AsyncStorage.setItem(NUDGE_KEY, '1');
+      Alert.alert(
+        'Back Up Your Vault',
+        'You have documents saved. Back them up to Files or iCloud so they're safe if you change devices.',
+        [
+          { text: 'Later', style: 'cancel' },
+          {
+            text: 'Back Up Now',
+            onPress: () => router.push('/(tabs)/settings'),
+          },
+        ]
+      );
+    });
+  }, [docCount, router]);
 
   // ── Filter logic ──────────────────────────────────────────────────────────
 
