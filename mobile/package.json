@@ -50,7 +50,7 @@
     "react-native-text-recognition": "^1.0.2",
     "react-native-web": "~0.19.13",
     "react-native-webview": "13.12.5",
-    "react-native-zip-archive": "^8.0.1",
+    "react-native-zip-archive": "^6.1.2",
     "zustand": "^5.0.0"
   },
   "devDependencies": {
