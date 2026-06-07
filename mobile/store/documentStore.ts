@@ -23,6 +23,8 @@ const DOCUMENT_CATEGORIES = new Set<Document['category']>([
   'warranty',
   'medical',
   'tax',
+  'work',
+  'retirement',
   'other',
 ]);
 

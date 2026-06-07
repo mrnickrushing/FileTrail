@@ -2,11 +2,14 @@ import { z } from 'zod';
 
 export const documentCategorySchema = z.enum([
   'receipt',
+  'bill',
   'contract',
   'id',
   'warranty',
   'medical',
   'tax',
+  'work',
+  'retirement',
   'other',
 ]);
 

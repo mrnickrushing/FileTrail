@@ -42,7 +42,7 @@ import { C, T, R, S } from '@/theme/tokens';
 import type { DocumentCategory } from '@/types/document';
 
 const CATEGORIES: DocumentCategory[] = [
-  'receipt', 'bill', 'contract', 'id', 'warranty', 'medical', 'tax', 'other',
+  'receipt', 'bill', 'contract', 'id', 'warranty', 'medical', 'tax', 'work', 'retirement', 'other',
 ];
 
 const CATEGORY_LABELS: Record<DocumentCategory, string> = {
@@ -53,6 +53,8 @@ const CATEGORY_LABELS: Record<DocumentCategory, string> = {
   warranty: '🛡️ Warranty',
   medical: '🏥 Medical',
   tax: '💰 Tax',
+  work: '💼 Work',
+  retirement: '🌅 Retirement',
   other: '📁 Other',
 };
 

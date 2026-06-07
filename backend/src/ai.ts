@@ -15,16 +15,18 @@ function calcCostUsd(inputTokens: number, outputTokens: number): number {
 }
 
 const VALID_CATEGORIES: DocumentCategory[] = [
-  'receipt', 'bill', 'contract', 'id', 'warranty', 'medical', 'tax', 'other',
+  'receipt', 'bill', 'contract', 'id', 'warranty', 'medical', 'tax', 'work', 'retirement', 'other',
 ];
 
 const CATEGORY_KEYWORDS: Array<[DocumentCategory, RegExp]> = [
   ['bill', /\b(account number|statement balance|new balance|minimum payment|payment due|amount due|balance due|past due|autopay|auto-pay|billing (?:period|cycle|statement)|monthly statement|utility bill|electric(?:ity)? bill|gas bill|water bill|phone bill|internet bill|cable bill|credit card statement|mortgage statement)\b/i],
+  ['retirement', /\b(401\(?k\)?|403\(?b\)?|\bira\b|roth ira|pension|retirement (?:plan|account|savings|benefits?)|annuity|social security (?:benefits?|administration|statement)|vested balance|required minimum distribution|\brmd\b|defined benefit|defined contribution|rollover)\b/i],
   ['receipt', /\b(receipt|subtotal|total|paid|visa|mastercard|store)\b/i],
   ['contract', /\b(contract|agreement|signature|party|terms|stipulation|judgment|decree|counsel|plaintiff|defendant|attorney|lawsuit|affidavit|docket|subpoena|deposition)\b/i],
   ['id', /\b(driver|license|passport|identification|dob)\b/i],
   ['warranty', /\b(warranty|serial|coverage|expires)\b/i],
   ['medical', /\b(patient|medical|clinic|hospital|diagnosis|rx|emergency|urgent care|panel|specimen|lab(?:oratory)?|glucose|cholesterol|triglycerides?|hdl|ldl|hemoglobin|a1c|metabolic|lipid|blood (?:work|test|count)|reference range|physician|provider|doctor|prescri\w*)\b|\bE\.?R\.?\b/i],
+  ['work', /\b(pay ?stub|payslip|earnings statement|employee|employer|employment (?:agreement|contract|offer|verification)|offer letter|performance review|onboarding|timesheet|direct deposit|human resources|\bhr\b|job offer|termination letter|resignation letter|w-?4|i-9)\b/i],
   ['tax', /\b(tax|irs|w-?2|1099|deduction|return)\b/i],
 ];
 
@@ -36,6 +38,8 @@ const CATEGORY_FOLDER: Record<DocumentCategory, string> = {
   warranty: 'Warranties',
   medical: 'Medical Records',
   tax: 'Tax Documents',
+  work: 'Work',
+  retirement: 'Retirement',
   other: 'Other Documents',
 };
 
@@ -61,7 +65,7 @@ type SuggestResult = {
 function isFallbackTitle(s: string): boolean {
   const t = s.trim();
   // Heuristic backend format: "PDF Document — Jun 2026"
-  if (/^(?:PDF|Scanned|Receipt|Bill|Contract|Id|Warranty|Medical|Tax|Other) Document — [A-Z][a-z]+ \d{4}$/.test(t)) return true;
+  if (/^(?:PDF|Scanned|Receipt|Bill|Contract|Id|Warranty|Medical|Tax|Work|Retirement|Other) Document — [A-Z][a-z]+ \d{4}$/.test(t)) return true;
   // Mobile generateTitle() format: "Document Jun 6, 2026" / "Scan Jun 6, 2026" / etc.
   if (/^(?:Document|Scan|Photo|Import) [A-Z][a-z]+ \d{1,2}, \d{4}$/.test(t)) return true;
   return false;
@@ -156,7 +160,7 @@ function buildSchemaPrompt(existingFolders?: string[]): string {
 
   return `Analyse this document and respond with JSON containing exactly these fields:
 - "title": a concise descriptive title (max 80 chars)
-- "category": one of: receipt, bill, contract, id, warranty, medical, tax, other (use "bill" for recurring statements/invoices like utilities, credit cards, rent, mortgage, or subscriptions — and "receipt" for one-time purchase proofs)
+- "category": one of: receipt, bill, contract, id, warranty, medical, tax, work, retirement, other (use "bill" for recurring statements/invoices like utilities, credit cards, rent, mortgage, or subscriptions — "receipt" for one-time purchase proofs — "work" for employment documents like pay stubs, offer letters, performance reviews, or HR paperwork — and "retirement" for 401(k)/pension/IRA/social security statements and related plan documents)
 - "tags": array of 2-4 meaningful lowercase keyword tags (not just the category name or file type)
 - "notes": one sentence describing any key detail worth remembering (amount, date, expiry, party name), or omit if nothing stands out
 - "date": most relevant date found on the document in YYYY-MM-DD format, or omit if none

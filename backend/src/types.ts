@@ -6,6 +6,8 @@ export type DocumentCategory =
   | 'warranty'
   | 'medical'
   | 'tax'
+  | 'work'
+  | 'retirement'
   | 'other';
 
 export type OCRStatus = 'pending' | 'processing' | 'done' | 'failed' | 'unavailable';

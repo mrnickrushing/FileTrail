@@ -29,6 +29,8 @@ const CATEGORY_LABELS: Record<DocumentCategory, string> = {
   warranty: 'Warranty',
   medical: 'Medical',
   tax: 'Tax',
+  work: 'Work',
+  retirement: 'Retirement',
   other: 'Other',
 };
 
@@ -40,6 +42,8 @@ const CATEGORY_COLORS: Record<DocumentCategory, string> = {
   warranty: C.category.warranty,
   medical:  C.category.medical,
   tax:      C.category.tax,
+  work:       C.category.work,
+  retirement: C.category.retirement,
   other:    C.category.other,
 };
 

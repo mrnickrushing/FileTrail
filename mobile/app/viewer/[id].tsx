@@ -52,11 +52,13 @@ const CATEGORY_LABELS: Record<DocumentCategory, string> = {
   warranty: '🛡️ Warranty',
   medical: '🏥 Medical',
   tax: '💰 Tax',
+  work: '💼 Work',
+  retirement: '🌅 Retirement',
   other: '📁 Other',
 };
 
 const CATEGORIES: DocumentCategory[] = [
-  'receipt', 'bill', 'contract', 'id', 'warranty', 'medical', 'tax', 'other',
+  'receipt', 'bill', 'contract', 'id', 'warranty', 'medical', 'tax', 'work', 'retirement', 'other',
 ];
 
 function tokenize(value: string): string[] {

@@ -48,6 +48,8 @@ const CATEGORIES = [
   { key: 'warranty',  label: 'Warranties', color: C.category.warranty },
   { key: 'medical',   label: 'Medical',    color: C.category.medical },
   { key: 'tax',       label: 'Tax',        color: C.category.tax },
+  { key: 'work',       label: 'Work',       color: C.category.work },
+  { key: 'retirement', label: 'Retirement', color: C.category.retirement },
 ] as const;
 
 const SORT_LABELS: Record<ReturnType<typeof useAppStore.getState>['sortBy'], string> = {

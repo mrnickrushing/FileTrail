@@ -51,6 +51,8 @@ export const Colors = {
   catWarranty: '#E8A020',
   catMedical:  '#D04B4B',
   catTax:      '#D97B2A',
+  catWork:       '#5E72C4',
+  catRetirement: '#B08D57',
   catOther:    '#8A8A96',
 } as const;
 
@@ -147,6 +149,8 @@ export const C = {
     warranty: Colors.catWarranty,
     medical:  Colors.catMedical,
     tax:      Colors.catTax,
+    work:       Colors.catWork,
+    retirement: Colors.catRetirement,
     other:    Colors.catOther,
   },
 } as const;

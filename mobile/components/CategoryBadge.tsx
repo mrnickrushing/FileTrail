@@ -14,6 +14,8 @@ const CATEGORY_META: Record<
   warranty: { label: 'Warranty', color: Colors.catWarranty },
   medical:  { label: 'Medical',  color: Colors.catMedical },
   tax:      { label: 'Tax',      color: Colors.catTax },
+  work:       { label: 'Work',       color: Colors.catWork },
+  retirement: { label: 'Retirement', color: Colors.catRetirement },
   other:    { label: 'Other',    color: Colors.catOther },
 };
 
