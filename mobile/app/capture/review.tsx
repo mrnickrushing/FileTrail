@@ -46,6 +46,11 @@ const CATEGORIES: DocumentCategory[] = [
   'insurance', 'legal', 'vehicle', 'property', 'education', 'travel', 'pet', 'other',
 ];
 
+// Most broadly useful categories for a personal document app — shown by default
+// so the picker doesn't push the Save button far down the screen. The rest are
+// available behind "More…".
+const COMMON_CATEGORIES: DocumentCategory[] = ['receipt', 'bill', 'contract', 'id', 'tax', 'other'];
+
 const CATEGORY_LABELS: Record<DocumentCategory, string> = {
   receipt: '🧾 Receipt',
   bill: '🧮 Bill',
@@ -148,6 +153,7 @@ export default function DocumentReviewScreen() {
   const [aiStatus, setAiStatus] = useState<'idle' | 'processing' | 'done'>('idle');
   const [isSaving, setIsSaving] = useState(false);
   const [showPaywall, setShowPaywall] = useState(false);
+  const [showAllCategories, setShowAllCategories] = useState(false);
   const isMounted = useRef(true);
 
   // Free users at the document limit can't save anyway — show the paywall
@@ -164,6 +170,12 @@ export default function DocumentReviewScreen() {
   useEffect(() => {
     if (atFreeLimit) setShowPaywall(true);
   }, [atFreeLimit]);
+
+  // If AI suggests a category outside the "common" set, reveal the full list
+  // so the selection isn't hidden behind "More…".
+  useEffect(() => {
+    if (!COMMON_CATEGORIES.includes(category)) setShowAllCategories(true);
+  }, [category]);
 
   // Auto-run OCR then AI suggestions
   useEffect(() => {
@@ -539,7 +551,7 @@ export default function DocumentReviewScreen() {
         <View style={styles.field}>
           <Text style={styles.fieldLabel}>Category</Text>
           <View style={styles.categoryGrid}>
-            {CATEGORIES.map(cat => (
+            {(showAllCategories ? CATEGORIES : COMMON_CATEGORIES).map(cat => (
               <Pressable
                 key={cat}
                 style={({ pressed }) => [
@@ -559,6 +571,14 @@ export default function DocumentReviewScreen() {
                 </Text>
               </Pressable>
             ))}
+            {!showAllCategories && (
+              <Pressable
+                style={({ pressed }) => [styles.categoryChip, pressed && styles.categoryChipPressed]}
+                onPress={() => setShowAllCategories(true)}
+              >
+                <Text style={styles.categoryChipText}>More…</Text>
+              </Pressable>
+            )}
           </View>
         </View>
 
