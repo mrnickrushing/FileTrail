@@ -1,20 +1,5 @@
-const path = require('path');
 const { getDefaultConfig } = require('expo/metro-config');
 
-const config = getDefaultConfig(__dirname);
-
-const defaultResolveRequest = config.resolver.resolveRequest;
-config.resolver.resolveRequest = (context, moduleName, platform) => {
-  if (moduleName.startsWith('@/')) {
-    const absolutePath = path.resolve(__dirname, moduleName.slice(2));
-    return context.resolveRequest(context, absolutePath, platform);
-  }
-
-  if (defaultResolveRequest) {
-    return defaultResolveRequest(context, moduleName, platform);
-  }
-
-  return context.resolveRequest(context, moduleName, platform);
-};
-
-module.exports = config;
+// @/ aliasing is handled by babel-plugin-module-resolver (see babel.config.js)
+// — no need to duplicate it here with a custom resolveRequest.
+module.exports = getDefaultConfig(__dirname);

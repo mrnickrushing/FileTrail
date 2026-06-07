@@ -14,7 +14,6 @@ export const Colors = {
   surface:         '#16161A',
   surface2:        '#1C1C21',
   surfaceOffset:   '#222228',
-  surfaceDynamic:  '#2A2A32',
   divider:         '#2E2E38',
   border:          '#38383F',
 
@@ -33,11 +32,9 @@ export const Colors = {
 
   // Semantic
   success:          '#4D9E5A',
-  successHighlight: '#1A2E1E',
   warning:          '#D97B2A',
   warningHighlight: '#2E1E10',
   error:            '#D04B4B',
-  errorHighlight:   '#2E1212',
   danger:           '#D04B4B',
   dangerHighlight:  '#2E1212',
   info:             '#4A8FC4',

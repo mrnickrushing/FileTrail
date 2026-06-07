@@ -36,9 +36,6 @@ interface AppState {
   sortDir: 'asc' | 'desc';
   autoOcr: boolean;
 
-  // Pro
-  isPro: boolean;
-
   // AI usage — running total of estimated Claude API spend on this device
   aiUsageCostUsd: number;
   aiUsageCallCount: number;
@@ -56,7 +53,6 @@ interface AppState {
   setSortBy: (by: AppState['sortBy']) => void;
   setSortDir: (dir: 'asc' | 'desc') => void;
   setAutoOcr: (enabled: boolean) => void;
-  setIsPro: (v: boolean) => void;
   recordAiUsageCost: (costUsd: number) => void;
 }
 
@@ -73,7 +69,6 @@ export const useAppStore = create<AppState>()(
       sortBy: 'updatedAt',
       sortDir: 'desc',
       autoOcr: true,
-      isPro: false,
       aiUsageCostUsd: 0,
       aiUsageCallCount: 0,
 
@@ -95,7 +90,6 @@ export const useAppStore = create<AppState>()(
       setSortBy: (sortBy) => set({ sortBy }),
       setSortDir: (sortDir) => set({ sortDir }),
       setAutoOcr: (autoOcr) => set({ autoOcr }),
-      setIsPro: (isPro) => set({ isPro }),
       recordAiUsageCost: (costUsd) => set((state) => ({
         aiUsageCostUsd: state.aiUsageCostUsd + costUsd,
         aiUsageCallCount: state.aiUsageCallCount + 1,
@@ -114,7 +108,6 @@ export const useAppStore = create<AppState>()(
         sortBy: state.sortBy,
         sortDir: state.sortDir,
         autoOcr: state.autoOcr,
-        isPro: state.isPro,
         aiUsageCostUsd: state.aiUsageCostUsd,
         aiUsageCallCount: state.aiUsageCallCount,
       }),
