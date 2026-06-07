@@ -5,7 +5,6 @@ import {
   TextInput,
   Pressable,
   Modal,
-  ScrollView,
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
@@ -74,20 +73,17 @@ export function TagEditor({
 
           <Text style={styles.title}>{title}</Text>
 
-          {/* Current tags */}
+          {/* Current tags — wraps onto multiple lines so long tag lists stay
+              reachable above the keyboard instead of needing a horizontal scroll */}
           {tags.length > 0 && (
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.tagRow}
-            >
+            <View style={styles.tagRow}>
               {tags.map((tag) => (
                 <Pressable key={tag} style={styles.tag} onPress={() => removeTag(tag)}>
                   <Text style={styles.tagText}>#{tag}</Text>
                   <Text style={styles.tagRemove}>×</Text>
                 </Pressable>
               ))}
-            </ScrollView>
+            </View>
           )}
 
           {/* Input */}
@@ -171,9 +167,9 @@ const styles = StyleSheet.create({
   },
   tagRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: S[2],
     paddingBottom: S[3],
-    flexWrap: 'nowrap',
   },
   tag: {
     flexDirection: 'row',

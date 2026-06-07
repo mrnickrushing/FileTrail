@@ -11,13 +11,27 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { C, T, S, R } from '@/theme/tokens';
 import type { Folder } from '@/types/document';
 
-type FolderOption = Pick<Folder, 'name' | 'color'> & { id: string | null };
+type FolderOption = Pick<Folder, 'name' | 'color'> & { id: string | null; depth: number };
 
 interface FolderPickerModalProps {
   visible: boolean;
   folders: Folder[];
   onSelect: (folderId: string | null) => void;
   onCancel: () => void;
+}
+
+/** Flattens folders into parent → child order, tagging each with its nesting depth for indentation. */
+function buildHierarchy(folders: Folder[]): FolderOption[] {
+  const parents = folders.filter((f) => !f.parentId);
+  const result: FolderOption[] = [];
+  for (const parent of parents) {
+    result.push({ id: parent.id, name: parent.name, color: parent.color, depth: 0 });
+    const children = folders.filter((f) => f.parentId === parent.id);
+    for (const child of children) {
+      result.push({ id: child.id, name: child.name, color: child.color, depth: 1 });
+    }
+  }
+  return result;
 }
 
 export function FolderPickerModal({
@@ -30,6 +44,11 @@ export function FolderPickerModal({
 
   if (!visible) return null;
 
+  const data: FolderOption[] = [
+    { id: null, name: 'Unfiled', color: '#6B7280', depth: 0 },
+    ...buildHierarchy(folders),
+  ];
+
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onCancel}>
       <Pressable style={styles.backdrop} onPress={onCancel} />
@@ -38,16 +57,17 @@ export function FolderPickerModal({
         <Text style={styles.title}>Move to Folder</Text>
 
         <FlatList<FolderOption>
-          data={[{ id: null, name: 'Unfiled', color: '#6B7280' }, ...folders]}
+          data={data}
           keyExtractor={(item) => String(item.id)}
           contentContainerStyle={styles.list}
           renderItem={({ item }) => (
             <Pressable
-              style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
+              style={({ pressed }) => [styles.row, pressed && styles.rowPressed, item.depth > 0 && styles.rowChild]}
               onPress={() => onSelect(item.id)}
             >
+              {item.depth > 0 && <Text style={styles.childMark}>›</Text>}
               <View style={[styles.dot, { backgroundColor: item.color }]} />
-              <Text style={styles.folderName}>{item.name}</Text>
+              <Text style={styles.folderName} numberOfLines={1}>{item.name}</Text>
             </Pressable>
           )}
           ItemSeparatorComponent={() => <View style={styles.sep} />}
@@ -101,8 +121,16 @@ const styles = StyleSheet.create({
     paddingVertical: S[4],
     gap: S[3],
   },
+  rowChild: {
+    paddingLeft: S[6],
+  },
   rowPressed: {
     opacity: 0.6,
+  },
+  childMark: {
+    fontSize: T.base,
+    color: C.ash,
+    marginRight: -S[1],
   },
   dot: {
     width: 12,
