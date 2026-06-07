@@ -129,7 +129,7 @@ export default function DocumentViewerScreen() {
   const updateDocument = useDocumentStore(s => s.updateDocument);
   const updateDocumentTags = useDocumentStore(s => s.updateDocumentTags);
   const moveDocumentToFolder = useDocumentStore(s => s.moveDocumentToFolder);
-  const addFolder = useDocumentStore(s => s.addFolder);
+  const findOrCreateFolder = useDocumentStore(s => s.findOrCreateFolder);
   const allDocuments = useDocumentStore(s => s.documents);
   const allDocumentTags = useMemo(() => {
     const tagSet = new Set<string>();
@@ -172,8 +172,10 @@ export default function DocumentViewerScreen() {
   const notesInputRef = useRef<TextInput>(null);
 
   useEffect(() => {
-    if (!isEditingNotes && document?.notes !== undefined) {
-      setEditNotes(document.notes);
+    if (!isEditingNotes) {
+      // Always keep the local TextInput value as a string. Sliding back to
+      // undefined when notes are cleared would make the input uncontrolled.
+      setEditNotes(document?.notes ?? '');
     }
   }, [document?.notes, isEditingNotes]);
 
@@ -353,17 +355,14 @@ export default function DocumentViewerScreen() {
       // Find or create the suggested folder, then move the document into it
       let targetFolder: { id: string; name: string } | null = null;
       if (suggestion.suggestedFolderName) {
-        const folderNameLower = suggestion.suggestedFolderName.toLowerCase();
-        const existingParent = folders.find(
-          (f) => f.name.toLowerCase() === folderNameLower && !f.parentId,
-        );
-        const parentFolder = existingParent ?? addFolder(suggestion.suggestedFolderName);
+        const parentFolder = findOrCreateFolder(suggestion.suggestedFolderName, undefined, null);
         targetFolder = parentFolder;
         if (suggestion.suggestedSubfolderName) {
-          const subLower = suggestion.suggestedSubfolderName.toLowerCase();
-          const freshFolders = useDocumentStore.getState().folders;
-          const subFolder = freshFolders.find((f) => f.name.toLowerCase() === subLower && f.parentId === parentFolder.id)
-            ?? addFolder(suggestion.suggestedSubfolderName, parentFolder.color, parentFolder.id);
+          const subFolder = findOrCreateFolder(
+            suggestion.suggestedSubfolderName,
+            parentFolder.color,
+            parentFolder.id,
+          );
           targetFolder = subFolder;
         }
         moveDocumentToFolder(document.id, targetFolder.id);
@@ -403,7 +402,7 @@ export default function DocumentViewerScreen() {
       if (isMounted.current) setIsAiOrganizing(false);
     }
   }, [
-    addFolder,
+    findOrCreateFolder,
     document,
     folders,
     isAiOrganizing,

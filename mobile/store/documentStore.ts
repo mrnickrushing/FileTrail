@@ -79,6 +79,13 @@ interface DocumentState {
 
   // Folder actions
   addFolder: (name: string, color?: string, parentId?: string | null) => Folder;
+  /**
+   * Atomic find-or-create: returns the existing folder with a case-insensitive
+   * name match (and matching parent), or creates a new one. Safe against
+   * concurrent callers because the lookup and create happen inside the same
+   * `set` callback against fresh store state.
+   */
+  findOrCreateFolder: (name: string, color?: string, parentId?: string | null) => Folder;
   updateFolder: (id: string, patch: Partial<Pick<Folder, 'name' | 'color'>>) => void;
   deleteFolder: (id: string, moveDocumentsToRoot?: boolean) => Promise<void>;
 
@@ -279,6 +286,8 @@ export const useDocumentStore = create<DocumentState>()(
         if (!doc) return;
         // Don't re-enqueue if already queued or processing
         if (doc.ocrStatus === 'pending' || doc.ocrStatus === 'processing') return;
+        // OCR is image-only (Vision framework); silently no-op for PDFs/other.
+        if (!/^image\//.test(doc.mimeType)) return;
         set((s) => ({
           documents: s.documents.map((d) =>
             d.id === id ? { ...d, ocrStatus: 'pending', ocrText: undefined } : d
@@ -288,8 +297,22 @@ export const useDocumentStore = create<DocumentState>()(
       },
 
       processOCRQueue: () => {
-        // Only enqueue docs that are pending (not already processing or done)
-        const pending = get().documents.filter((d) => d.ocrStatus === 'pending');
+        // Recover from app kill: any doc stuck in 'processing' is reset to
+        // 'pending' before enqueueing, since the in-memory queue and worker
+        // were lost when the previous JS context died.
+        const stuck = get().documents.filter((d) => d.ocrStatus === 'processing');
+        if (stuck.length > 0) {
+          const stuckIds = new Set(stuck.map((d) => d.id));
+          set((s) => ({
+            documents: s.documents.map((d) =>
+              stuckIds.has(d.id) ? { ...d, ocrStatus: 'pending' } : d
+            ),
+          }));
+        }
+        // Only enqueue images that are pending (PDFs aren't OCR'd on-device).
+        const pending = get().documents.filter(
+          (d) => d.ocrStatus === 'pending' && /^image\//.test(d.mimeType),
+        );
         for (const doc of pending) enqueueOCR(doc.id, doc.fileUri);
       },
 
@@ -449,6 +472,35 @@ export const useDocumentStore = create<DocumentState>()(
         const folder: Folder = { id: nanoid(), name, color, ...(parentId != null ? { parentId } : {}), createdAt: now, updatedAt: now };
         set((s) => ({ folders: [...s.folders, folder] }));
         return folder;
+      },
+
+      findOrCreateFolder: (name, color = Colors.primary, parentId = null) => {
+        const lower = name.toLowerCase();
+        // Atomic: read latest state and conditionally append within one set().
+        let resolved: Folder | undefined;
+        set((s) => {
+          const existing = s.folders.find(
+            (f) =>
+              f.name.toLowerCase() === lower &&
+              (f.parentId ?? null) === (parentId ?? null),
+          );
+          if (existing) {
+            resolved = existing;
+            return s;
+          }
+          const now = nowIso();
+          const folder: Folder = {
+            id: nanoid(),
+            name,
+            color,
+            ...(parentId != null ? { parentId } : {}),
+            createdAt: now,
+            updatedAt: now,
+          };
+          resolved = folder;
+          return { folders: [...s.folders, folder] };
+        });
+        return resolved!;
       },
 
       updateFolder: (id, patch) => {

@@ -1,5 +1,5 @@
 import React, { Component, type ReactNode, useEffect, useRef } from 'react';
-import { AppState, Text, View, useColorScheme } from 'react-native';
+import { AppState, Text, View } from 'react-native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -46,7 +46,6 @@ class RootErrorBoundary extends Component<{ children: ReactNode }, { error: Erro
 }
 
 export default function RootLayout() {
-  const colorScheme = useColorScheme();
   const router = useRouter();
   const segments = useSegments();
   const processOCRQueue = useDocumentStore(s => s.processOCRQueue);
@@ -91,10 +90,13 @@ export default function RootLayout() {
     const sub = AppState.addEventListener('change', (next) => {
       logDebug(`app-state ${appStateRef.current} -> ${next}`);
       setDebugScreenState('appState', next);
+      // Only lock on a true background transition. iOS fires 'inactive' for
+      // brief interruptions (Control Centre, app switcher preview, incoming
+      // call banner) and locking on those would prompt Face ID constantly.
       if (
         biometricEnabled &&
         appStateRef.current === 'active' &&
-        (next === 'background' || next === 'inactive')
+        next === 'background'
       ) {
         setLocked(true);
       }
@@ -145,7 +147,7 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <RootErrorBoundary>
-          <StatusBar style={colorScheme === 'light' ? 'dark' : 'light'} />
+          <StatusBar style="light" />
           <Stack
             screenOptions={{
               headerStyle:      { backgroundColor: Colors.bg },

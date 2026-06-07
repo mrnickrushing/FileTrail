@@ -1,9 +1,6 @@
-import { createHash } from './hashUtils';
 import { apiRequest, isBackendConfigured } from './api';
 
-export async function hashPassword(password: string): Promise<string> {
-  return createHash(password);
-}
+export { hashPassword, verifyPassword } from './hashUtils';
 
 export async function registerUserWithBackend(params: {
   id: string;
