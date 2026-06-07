@@ -51,6 +51,16 @@ async function setLastSyncVersion(version: number): Promise<void> {
   await AsyncStorage.setItem(SYNC_VERSION_KEY, String(version));
 }
 
+/**
+ * Forgets this device's sync identity and last-synced version, so the next
+ * sync re-registers as a new device and pulls a full snapshot from the server.
+ * Useful for testing sync from a clean slate, or recovering from a device
+ * stuck pushing/pulling against a stale syncVersion.
+ */
+export async function resetSyncState(): Promise<void> {
+  await AsyncStorage.multiRemove([DEVICE_ID_KEY, SYNC_VERSION_KEY]);
+}
+
 export async function syncMetadata(input: {
   documents: Document[];
   folders: Folder[];

@@ -32,6 +32,7 @@ import { exportAllAsZip } from '@/services/exportService';
 import { createBackup, restoreBackup } from '@/services/backupService';
 import { getBiometricCapability, authenticate } from '@/services/biometricService';
 import { isBackendConfigured } from '@/services/api';
+import { resetSyncState } from '@/services/syncService';
 import { isAdminBypassConfigured, validateAdminBypassCode } from '@/services/adminAccess';
 import { C, T, R, S } from '@/theme/tokens';
 
@@ -79,6 +80,7 @@ export default function SettingsScreen() {
   const [backupProgress, setBackupProgress] = useState<string | null>(null);
   const [isRestoring, setIsRestoring] = useState(false);
   const [restoreProgress, setRestoreProgress] = useState<string | null>(null);
+  const [isResettingSync, setIsResettingSync] = useState(false);
   const backendConfigured = isBackendConfigured();
   const adminBypassConfigured = isAdminBypassConfigured();
 
@@ -234,6 +236,31 @@ export default function SettingsScreen() {
     );
   };
 
+  const handleResetSyncData = () => {
+    Alert.alert(
+      'Reset Sync Data',
+      'This forgets this device’s sync identity on this device only. Your documents are not touched — the next sync will re-register this device and pull a full snapshot from the server.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Reset',
+          style: 'destructive',
+          onPress: async () => {
+            setIsResettingSync(true);
+            try {
+              await resetSyncState();
+              Alert.alert('Sync Data Reset', 'This device will re-sync from scratch next time it connects.');
+            } catch (err: unknown) {
+              Alert.alert('Reset Failed', errorMessage(err, 'Could not reset sync data.'));
+            } finally {
+              setIsResettingSync(false);
+            }
+          },
+        },
+      ],
+    );
+  };
+
   const handleAdminUnlock = () => {
     if (validateAdminBypassCode(adminCode)) {
       setAdminAccess(true);
@@ -355,6 +382,32 @@ export default function SettingsScreen() {
           <Divider />
           <SettingsRow label="Disk Usage" value={formatBytes(totalSize)} />
         </View>
+
+        {/* Sync */}
+        {backendConfigured && (
+          <>
+            <SectionHeader title="Sync" />
+            <View style={styles.card}>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.accountActionRow,
+                  (pressed || isResettingSync) && { opacity: 0.75 },
+                ]}
+                onPress={handleResetSyncData}
+                disabled={isResettingSync}
+              >
+                {isResettingSync ? (
+                  <ActivityIndicator color={C.ash} />
+                ) : (
+                  <Text style={styles.accountActionText}>Reset Sync Data</Text>
+                )}
+              </Pressable>
+            </View>
+            <Text style={styles.hint}>
+              Forgets this device’s sync identity so the next sync re-registers it and pulls a full snapshot. Your documents are not affected.
+            </Text>
+          </>
+        )}
 
         {/* AI Usage */}
         <SectionHeader title="AI Usage" />
