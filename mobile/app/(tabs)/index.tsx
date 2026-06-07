@@ -463,7 +463,7 @@ export default function VaultScreen() {
                 <Text style={styles.headerControlText}>{SORT_LABELS[sortBy]}</Text>
               </Pressable>
               <Pressable
-                style={styles.headerControlBtn}
+                style={[styles.headerControlBtn, styles.headerControlDivider]}
                 hitSlop={8}
                 onPress={() => {
                   Haptics.selectionAsync();
@@ -475,7 +475,7 @@ export default function VaultScreen() {
                 <Feather name={sortDir === 'desc' ? 'arrow-down' : 'arrow-up'} size={15} color={C.ash} />
               </Pressable>
               <Pressable
-                style={styles.headerControlBtn}
+                style={[styles.headerControlBtn, styles.headerControlDivider]}
                 hitSlop={8}
                 onPress={() => {
                   Haptics.selectionAsync();
@@ -776,20 +776,24 @@ const styles = StyleSheet.create({
   headerControls: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: S[1],
+    backgroundColor: C.ink2,
+    borderRadius: R.md,
+    borderWidth: 1,
+    borderColor: C.ink3,
+    overflow: 'hidden',
   },
   headerControlBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    paddingHorizontal: S[2],
+    paddingHorizontal: S[2] + 2,
     paddingVertical: S[1],
-    borderRadius: R.md,
-    backgroundColor: C.ink2,
-    borderWidth: 1,
-    borderColor: C.ink3,
     minHeight: 32,
     justifyContent: 'center',
+  },
+  headerControlDivider: {
+    borderLeftWidth: 1,
+    borderLeftColor: C.ink3,
   },
   headerControlText: {
     fontSize: T.xs,
