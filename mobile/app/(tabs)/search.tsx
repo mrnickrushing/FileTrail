@@ -32,6 +32,7 @@ import {
   addRecentSearch,
   removeRecentSearch,
   clearSearchHistory,
+  MAX_HISTORY_ENTRIES,
 } from '@/services/searchHistory';
 import { useDebounce } from '@/utils/useDebounce';
 import { C, T, R, S } from '@/theme/tokens';
@@ -280,7 +281,9 @@ function RecentSearchesPanel({
       {recent.length > 0 ? (
         <>
           <View style={styles.recentHeader}>
-            <Text style={styles.recentTitle}>Recent Searches</Text>
+            <Text style={styles.recentTitle}>
+              Recent Searches{recent.length >= MAX_HISTORY_ENTRIES ? ` · last ${MAX_HISTORY_ENTRIES}` : ''}
+            </Text>
             <Pressable onPress={onClear} hitSlop={8}>
               <Text style={styles.clearText}>Clear all</Text>
             </Pressable>

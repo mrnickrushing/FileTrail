@@ -8,7 +8,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const KEY = 'filetrail-search-history-v1';
-const MAX_ENTRIES = 12;
+export const MAX_HISTORY_ENTRIES = 12;
+const MAX_ENTRIES = MAX_HISTORY_ENTRIES;
 
 async function load(): Promise<string[]> {
   try {
