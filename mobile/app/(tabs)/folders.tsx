@@ -194,7 +194,7 @@ export default function FoldersScreen() {
                         <Feather name="folder" size={24} color={sub.color} />
                       </View>
                       <View style={styles.folderInfo}>
-                        <Text style={styles.folderName}>{sub.name}</Text>
+                        <Text style={styles.folderName} numberOfLines={1}>{sub.name}</Text>
                         <Text style={styles.folderCount}>{subCount} document{subCount === 1 ? '' : 's'}</Text>
                       </View>
                       <View style={[styles.countBadge, { backgroundColor: sub.color + '22', borderWidth: 1, borderColor: sub.color + '44' }]}>
@@ -282,7 +282,7 @@ export default function FoldersScreen() {
                   <Feather name="folder" size={24} color={folder.color} />
                 </View>
                 <View style={styles.folderInfo}>
-                  <Text style={styles.folderName}>{folder.name}</Text>
+                  <Text style={styles.folderName} numberOfLines={1}>{folder.name}</Text>
                   <Text style={styles.folderCount}>
                     {count} document{count === 1 ? '' : 's'}
                   </Text>

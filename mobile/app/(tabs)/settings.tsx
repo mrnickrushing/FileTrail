@@ -633,7 +633,7 @@ function formatBytes(bytes: number): string {
 
 function formatUsd(amount: number): string {
   if (amount === 0) return '$0.00';
-  if (amount < 0.01) return `$${amount.toFixed(4)}`;
+  if (amount < 0.01) return '< $0.01';
   return `$${amount.toFixed(2)}`;
 }
 

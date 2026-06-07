@@ -117,8 +117,10 @@ export default function SearchScreen() {
 
   // Group results: title/tag/category matches first, OCR text matches second
   const { titleMatches, textMatches } = useMemo(() => {
+    // "Date" here means most-recently-modified, matching the Vault's default
+    // sortBy ('updatedAt' / "Modified") rather than when the doc was added.
     const base = sortByDate
-      ? [...results].sort((a, b) => b.document.createdAt.localeCompare(a.document.createdAt))
+      ? [...results].sort((a, b) => b.document.updatedAt.localeCompare(a.document.updatedAt))
       : results;
     return {
       titleMatches: base.filter(r =>
