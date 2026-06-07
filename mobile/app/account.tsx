@@ -22,7 +22,8 @@ import {
   validateAdminBypassCode,
 } from '@/services/adminAccess';
 import { C, R, S, T } from '@/theme/tokens';
-import { hashPassword, registerUserWithBackend } from '@/services/userService';
+import { hashPassword, verifyPassword, registerUserWithBackend } from '@/services/userService';
+import { createHash } from '@/services/hashUtils';
 
 type AuthMode = 'create' | 'login';
 type BusyAction = 'manual' | 'apple' | null;
@@ -44,8 +45,12 @@ function appleFullName(
   return parts.join(' ').trim();
 }
 
-function appleRelayFallback(userId: string): string {
-  return `apple-${userId.slice(0, 8).toLowerCase()}@private.filetrail`;
+async function appleRelayFallbackHashed(userId: string): Promise<string> {
+  // Apple's `credential.user` is an opaque, app-scoped, stable identifier.
+  // Hash it so collisions are vanishingly unlikely and so the raw ID never
+  // ends up in plaintext as a synthetic email address.
+  const digest = await createHash(userId);
+  return `apple-${digest.slice(0, 24)}@private.filetrail`;
 }
 
 export default function AccountScreen() {
@@ -211,10 +216,19 @@ export default function AccountScreen() {
     }
 
     if (accountProfile.passwordHash) {
-      const pwHash = await hashPassword(password);
-      if (pwHash !== accountProfile.passwordHash) {
+      const { ok, needsRehash } = await verifyPassword(password, accountProfile.passwordHash);
+      if (!ok) {
         fail('That password does not match this FileTrail account.');
         return;
+      }
+      if (needsRehash) {
+        // Legacy unsalted SHA-256 → upgrade to PBKDF2-style hash transparently.
+        try {
+          const upgraded = await hashPassword(password);
+          completeAccountSetup({ ...accountProfile, passwordHash: upgraded });
+        } catch {
+          // Non-fatal: keep the legacy hash, user can still log in.
+        }
       }
     }
 
@@ -307,8 +321,9 @@ export default function AccountScreen() {
       });
 
       const credentialName = appleFullName(credential.fullName);
+      const fallbackEmail = await appleRelayFallbackHashed(credential.user);
       const normalizedEmail = normalizeEmail(
-        credential.email ?? email ?? accountProfile?.email ?? appleRelayFallback(credential.user),
+        credential.email ?? email ?? accountProfile?.email ?? fallbackEmail,
       );
 
       if (isCreateMode) {

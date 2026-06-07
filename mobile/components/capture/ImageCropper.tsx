@@ -49,7 +49,6 @@ interface NaturalSize {
 export function ImageCropper({ uri, onConfirm, onCancel }: ImageCropperProps) {
   const [currentUri, setCurrentUri] = useState(uri);
   const [rotation, setRotation] = useState(0);
-  const [enhanced, setEnhanced] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [naturalSize, setNaturalSize] = useState<NaturalSize | null>(null);
 
@@ -76,13 +75,13 @@ export function ImageCropper({ uri, onConfirm, onCancel }: ImageCropperProps) {
   // ── Apply rotate / enhance transforms ──────────────────────────────────────
 
   const applyTransforms = useCallback(
-    async (newRotation: number, newEnhanced: boolean) => {
+    async (newRotation: number) => {
       setIsProcessing(true);
       try {
         const actions: ImageManipulator.Action[] = [];
         if (newRotation !== 0) actions.push({ rotate: newRotation });
 
-        if (actions.length === 0 && !newEnhanced) {
+        if (actions.length === 0) {
           setCurrentUri(uri);
           return;
         }
@@ -91,7 +90,7 @@ export function ImageCropper({ uri, onConfirm, onCancel }: ImageCropperProps) {
           uri,
           actions,
           {
-            compress: newEnhanced ? 0.95 : 0.92,
+            compress: 0.92,
             format: ImageManipulator.SaveFormat.JPEG,
           },
         );
@@ -106,20 +105,14 @@ export function ImageCropper({ uri, onConfirm, onCancel }: ImageCropperProps) {
   const rotateLeft = useCallback(async () => {
     const next = (rotation - 90 + 360) % 360;
     setRotation(next);
-    await applyTransforms(next, enhanced);
-  }, [rotation, enhanced, applyTransforms]);
+    await applyTransforms(next);
+  }, [rotation, applyTransforms]);
 
   const rotateRight = useCallback(async () => {
     const next = (rotation + 90) % 360;
     setRotation(next);
-    await applyTransforms(next, enhanced);
-  }, [rotation, enhanced, applyTransforms]);
-
-  const toggleEnhance = useCallback(async () => {
-    const next = !enhanced;
-    setEnhanced(next);
-    await applyTransforms(rotation, next);
-  }, [rotation, enhanced, applyTransforms]);
+    await applyTransforms(next);
+  }, [rotation, applyTransforms]);
 
   // ── Confirm: map crop rect to image pixel coords ───────────────────────────
 
@@ -329,13 +322,6 @@ export function ImageCropper({ uri, onConfirm, onCancel }: ImageCropperProps) {
       <View style={styles.toolbar}>
         <ToolButton emoji="↺" label="Rotate L" onPress={rotateLeft} disabled={isProcessing} />
         <ToolButton emoji="↻" label="Rotate R" onPress={rotateRight} disabled={isProcessing} />
-        <ToolButton
-          emoji="✨"
-          label="Enhance"
-          onPress={toggleEnhance}
-          disabled={isProcessing}
-          active={enhanced}
-        />
       </View>
 
       {/* Actions */}

@@ -77,23 +77,23 @@ export default function VaultScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
-  const {
-    documents,
-    folders,
-    isLoading,
-    loadDocuments,
-    filters,
-    setFilters,
-    bulkDelete,
-    bulkMove,
-    bulkSetTags,
-    deleteDocument,
-    toggleFavorite,
-    updateDocument,
-    updateDocumentTags,
-    moveDocumentToFolder,
-    addFolder,
-  } = useDocumentStore();
+  // Fine-grained selectors avoid re-rendering the whole Vault on unrelated
+  // store changes (e.g. another document's OCR status flip).
+  const documents = useDocumentStore(s => s.documents);
+  const folders = useDocumentStore(s => s.folders);
+  const isLoading = useDocumentStore(s => s.isLoading);
+  const filters = useDocumentStore(s => s.filters);
+  const setFilters = useDocumentStore(s => s.setFilters);
+  const bulkDelete = useDocumentStore(s => s.bulkDelete);
+  const bulkMove = useDocumentStore(s => s.bulkMove);
+  const bulkSetTags = useDocumentStore(s => s.bulkSetTags);
+  const deleteDocument = useDocumentStore(s => s.deleteDocument);
+  const toggleFavorite = useDocumentStore(s => s.toggleFavorite);
+  const updateDocument = useDocumentStore(s => s.updateDocument);
+  const updateDocumentTags = useDocumentStore(s => s.updateDocumentTags);
+  const moveDocumentToFolder = useDocumentStore(s => s.moveDocumentToFolder);
+  const findOrCreateFolder = useDocumentStore(s => s.findOrCreateFolder);
+  const syncWithBackend = useDocumentStore(s => s.syncWithBackend);
 
   const sortBy = useAppStore(s => s.sortBy);
   const sortDir = useAppStore(s => s.sortDir);
@@ -332,14 +332,13 @@ export default function VaultScreen() {
                 if (suggestion.usage) recordAiUsageCost(suggestion.usage.costUsd);
                 updateDocument(docId, aiPatch as any);
                 if (suggestion.suggestedFolderName) {
-                  const nameLower = suggestion.suggestedFolderName.toLowerCase();
-                  const existingParent = folders.find(f => f.name.toLowerCase() === nameLower && !f.parentId);
-                  const parentFolder = existingParent ?? addFolder(suggestion.suggestedFolderName);
+                  const parentFolder = findOrCreateFolder(suggestion.suggestedFolderName, undefined, null);
                   if (suggestion.suggestedSubfolderName) {
-                    const subLower = suggestion.suggestedSubfolderName.toLowerCase();
-                    const freshFolders = useDocumentStore.getState().folders;
-                    const subFolder = freshFolders.find(f => f.name.toLowerCase() === subLower && f.parentId === parentFolder.id)
-                      ?? addFolder(suggestion.suggestedSubfolderName, parentFolder.color, parentFolder.id);
+                    const subFolder = findOrCreateFolder(
+                      suggestion.suggestedSubfolderName,
+                      parentFolder.color,
+                      parentFolder.id,
+                    );
                     moveDocumentToFolder(docId, subFolder.id);
                   } else {
                     moveDocumentToFolder(docId, parentFolder.id);
@@ -371,8 +370,8 @@ export default function VaultScreen() {
     );
   }, [
     selectedIds, isPro, documents, folders,
-    updateDocument, updateDocumentTags, moveDocumentToFolder, addFolder,
-    exitSelectionMode,
+    updateDocument, updateDocumentTags, moveDocumentToFolder, findOrCreateFolder,
+    exitSelectionMode, recordAiUsageCost,
   ]);
 
   // ── Filter actions ────────────────────────────────────────────────────────
@@ -387,7 +386,17 @@ export default function VaultScreen() {
     setFilters({ ...filters, tags: next.length ? next : undefined });
   }, [filters, setFilters]);
 
-  const onRefresh = useCallback(() => loadDocuments(), [loadDocuments]);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const onRefresh = useCallback(async () => {
+    setIsRefreshing(true);
+    try {
+      await syncWithBackend();
+    } catch {
+      // syncWithBackend already swallows network errors; nothing else to do.
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [syncWithBackend]);
 
   // ── Render ────────────────────────────────────────────────────────────────
 
@@ -511,6 +520,10 @@ export default function VaultScreen() {
             visibleDocuments.length === 0 && styles.listEmpty,
             selectionMode && styles.listBulk,
           ]}
+          initialNumToRender={10}
+          maxToRenderPerBatch={6}
+          windowSize={9}
+          removeClippedSubviews={Platform.OS === 'android'}
           renderItem={({ item }) => (
             <SwipeableCard
               isFavorite={item.isFavorite}
@@ -559,7 +572,7 @@ export default function VaultScreen() {
           }
           refreshControl={
             <RefreshControl
-              refreshing={isLoading}
+              refreshing={isRefreshing}
               onRefresh={onRefresh}
               tintColor={Colors.primary}
             />

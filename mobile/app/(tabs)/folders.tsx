@@ -131,10 +131,14 @@ export default function FoldersScreen() {
 
   // If a folder is open, show its contents
   if (activeFolder) {
-    const isSubfolder = !!activeFolder.parentId;
-    const subfolders = isSubfolder ? [] : folders.filter(f => f.parentId === activeFolder.id);
+    // Always show direct children, regardless of nesting depth. Previously
+    // this was gated on `!isSubfolder`, which hid all grandchildren.
+    const subfolders = activeFolder.id == null
+      ? []
+      : folders.filter(f => f.parentId === activeFolder.id);
     const folderDocs = getFolderDocuments(activeFolder.id);
     const hasContent = subfolders.length > 0 || folderDocs.length > 0;
+    const isSubfolder = !!activeFolder.parentId;
 
     return (
       <View style={[styles.container, { paddingTop: insets.top }]}>
