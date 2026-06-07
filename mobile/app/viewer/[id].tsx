@@ -548,24 +548,8 @@ export default function DocumentViewerScreen() {
             <Text style={styles.categoryChevron}>›</Text>
           </Pressable>
 
-          {/* Meta chips */}
-          <View style={styles.metaRow}>
-            <MetaChip label={formatBytes(document.fileSizeBytes)} />
-            <MetaChip label={new Date(document.createdAt).toLocaleDateString('en-US', {
-              month: 'short', day: 'numeric', year: 'numeric',
-            })} />
-            {isPDF && <MetaChip label={`${pdfTotal} ${pdfTotal === 1 ? 'page' : 'pages'}`} />}
-            {document.isFavorite && <MetaChip label="★ Favorited" amber />}
-            <MetaChip label={currentFolder?.name ?? 'Unfiled'} />
-            {document.inferredDate && (
-              <MetaChip label={`📅 ${formatInferredDate(document.inferredDate)}`} />
-            )}
-            {document.vendor && <MetaChip label={`🏢 ${document.vendor}`} />}
-            {document.amounts && document.amounts.length > 0 && (
-              <MetaChip label={`💰 ${document.amounts.map(a => `$${a.toFixed(2)}`).join(', ')}`} amber />
-            )}
-          </View>
-
+          {/* Smart Organize — the highest-value action on this screen, placed
+              above the metadata strip so it isn't buried under chips. */}
           <View style={styles.organizeCard}>
             <View style={styles.organizeHeader}>
               <View style={styles.organizeTitleWrap}>
@@ -611,6 +595,24 @@ export default function DocumentViewerScreen() {
               </Pressable>
             </View>
             {aiSummary && <Text style={styles.organizeSummary}>{aiSummary}</Text>}
+          </View>
+
+          {/* Meta chips */}
+          <View style={styles.metaRow}>
+            <MetaChip label={formatBytes(document.fileSizeBytes)} />
+            <MetaChip label={new Date(document.createdAt).toLocaleDateString('en-US', {
+              month: 'short', day: 'numeric', year: 'numeric',
+            })} />
+            {isPDF && <MetaChip label={`${pdfTotal} ${pdfTotal === 1 ? 'page' : 'pages'}`} />}
+            {document.isFavorite && <MetaChip label="★ Favorited" amber />}
+            <MetaChip label={currentFolder?.name ?? 'Unfiled'} />
+            {document.inferredDate && (
+              <MetaChip label={`📅 ${formatInferredDate(document.inferredDate)}`} />
+            )}
+            {document.vendor && <MetaChip label={`🏢 ${document.vendor}`} />}
+            {document.amounts && document.amounts.length > 0 && (
+              <MetaChip label={`💰 ${document.amounts.map(a => `$${a.toFixed(2)}`).join(', ')}`} amber />
+            )}
           </View>
 
           {/* Tags */}
