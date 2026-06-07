@@ -2,8 +2,8 @@
  * viewer/[id].tsx — Full document viewer (Phase 4)
  *
  * Images: pinch-to-zoom via ScrollView.
- * PDFs:   Placeholder viewer. Native PDF rendering was removed from the
- *         production build until a stable Expo-compatible renderer is added.
+ * PDFs:   Rendered in-app via react-native-webview pointed at the local
+ *         file:// URI (WKWebView/Chrome both render PDFs natively).
  *
  * Header: title edit, favorite toggle, share (expo-sharing), delete.
  * Footer: expandable OCR text panel.
@@ -22,8 +22,8 @@ import {
   ActivityIndicator,
   Dimensions,
   Modal,
-  Platform,
 } from 'react-native';
+import { WebView } from 'react-native-webview';
 import { useLocalSearchParams, router } from 'expo-router';
 import * as FileSystem from 'expo-file-system';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -501,6 +501,7 @@ export default function DocumentViewerScreen() {
               page={pdfPage}
               totalPages={pdfTotal}
               onPageChange={setPdfPage}
+              onOpenExternally={handleShare}
             />
           )}
         </View>
@@ -778,21 +779,52 @@ interface PDFViewerProps {
   page: number;
   totalPages: number;
   onPageChange: (page: number) => void;
+  onOpenExternally: () => void;
 }
 
 function PDFViewer({
-  page, totalPages, onPageChange,
+  uri, page, totalPages, onPageChange, onOpenExternally,
 }: PDFViewerProps) {
+  const [isLoading, setIsLoading] = useState(true);
+  const [hasError, setHasError] = useState(false);
+
+  if (hasError) {
+    return (
+      <View style={pdfStyles.container}>
+        <View style={pdfStyles.placeholder}>
+          <Text style={pdfStyles.icon}>📄</Text>
+          <Text style={pdfStyles.title}>Couldn't preview this PDF</Text>
+          <Text style={pdfStyles.subtitle}>
+            The in-app preview couldn't load this file. You can still open it
+            in another app to view it.
+          </Text>
+          <Pressable style={pdfStyles.openBtn} onPress={onOpenExternally}>
+            <Text style={pdfStyles.openBtnText}>Open Externally</Text>
+          </Pressable>
+        </View>
+      </View>
+    );
+  }
+
   return (
     <View style={pdfStyles.container}>
-      <View style={pdfStyles.placeholder}>
-        <Text style={pdfStyles.icon}>📄</Text>
-        <Text style={pdfStyles.title}>PDF saved</Text>
-        <Text style={pdfStyles.subtitle}>
-          PDF preview is temporarily disabled in this TestFlight build.
-          You can still share or export the file.
-        </Text>
-      </View>
+      <WebView
+        source={{ uri }}
+        style={pdfStyles.webview}
+        originWhitelist={['*']}
+        allowFileAccess
+        allowingReadAccessToURL={uri}
+        onLoadStart={() => setIsLoading(true)}
+        onLoadEnd={() => setIsLoading(false)}
+        onError={() => { setIsLoading(false); setHasError(true); }}
+        onHttpError={() => { setIsLoading(false); setHasError(true); }}
+      />
+
+      {isLoading && (
+        <View style={pdfStyles.loadingOverlay}>
+          <ActivityIndicator color={C.amber} size="large" />
+        </View>
+      )}
 
       {/* Floating page counter overlay */}
       {totalPages > 1 && (
@@ -860,9 +892,10 @@ const pdfStyles = StyleSheet.create({
     width: '100%',
     height: PDF_HEIGHT,
   },
-  pdf: {
+  webview: {
     flex: 1,
     width: '100%',
+    backgroundColor: C.ink2,
   },
   loadingOverlay: {
     ...StyleSheet.absoluteFillObject,
@@ -886,9 +919,17 @@ const pdfStyles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 20,
   },
-  code: {
-    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
-    color: C.amber,
+  openBtn: {
+    marginTop: S[1],
+    backgroundColor: C.amber,
+    borderRadius: R.full,
+    paddingHorizontal: S[5],
+    paddingVertical: S[2],
+  },
+  openBtnText: {
+    fontSize: T.sm,
+    fontWeight: '700',
+    color: C.ink1,
   },
   pageOverlay: {
     position: 'absolute',

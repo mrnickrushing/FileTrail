@@ -14,14 +14,14 @@ The app appears to have the Phase 1-3 foundation in place: an Expo Router mobile
 - **Local-first storage model:** Documents, folders, tags, comments, and FTS search tables are represented in the SQLite database service and mirrored in the Zustand document store.
 - **Capture/import flow:** Camera/photo/PDF import paths route into a review screen that persists files, generates image thumbnails, applies basic metadata, and stores documents.
 - **Image cropper foundation:** The capture flow has an `ImageCropper` component that already uses `expo-image-manipulator`, but it is still a fixed centered crop box rather than a gesture-driven crop rectangle with handles.
-- **Viewer foundation:** Images can be previewed with scroll-view zoom, while PDFs still render as a placeholder card/thumbnail rather than a native PDF viewer.
+- **Viewer foundation:** Images can be previewed with scroll-view zoom, and PDFs render in-app via a `react-native-webview` pointed at the local `file://` URI (with a loading spinner and an "Open Externally" fallback for files that fail to load).
 - **Search foundation:** Search covers title/category/tag/OCR matching in the document store and displays snippets in the Search tab.
 - **Organization foundation:** Folders, categories, favorites, and document metadata editing exist, but bulk actions, advanced filtering, and tag editing UI are still future work.
 
 ### Key gaps before Phase 4 acceptance
 
-- **No native PDF module stack yet:** `react-native-pdf`, `react-native-blob-util`, Expo config plugins for PDF viewing, `expo-dev-client`, and `eas.json` are not present yet.
-- **PDF viewer is still a placeholder:** The viewer screen shows a PDF thumbnail/icon and page count metadata rather than in-app PDF rendering with page callbacks, zoom, and error states.
+- **No native PDF module stack:** `react-native-pdf`, `react-native-blob-util`, Expo config plugins for PDF viewing, `expo-dev-client`, and `eas.json` are still not present — in-app PDF rendering instead uses `react-native-webview` (Expo Go/managed-workflow compatible, no custom dev client required).
+- **PDF viewer lacks page navigation:** The viewer screen renders the PDF in-app via WebView with loading/error states, but page count is a stub (`pageCount` is always `1`) and the page-counter overlay has no real per-page navigation, since a generic WebView can't be driven page-by-page.
 - **Crop UX is not yet drag-based:** The cropper calculates and applies a centered crop rectangle; it does not expose draggable edges/corners or convert arbitrary view-space crop bounds yet.
 - **Export service is missing:** Single-document sharing is handled inline in the viewer, but there is no dedicated `exportService.ts` and no ZIP export-all implementation.
 - **Expo Go fallback is not formalized:** Phase 4 native features need explicit development-build detection and clear fallback copy when unavailable in Expo Go.
@@ -44,7 +44,7 @@ This order keeps functional document usability first, then scales organization/s
 
 ### Scope
 
-- Native PDF viewer with zoom, page count, page changes, and error states.
+- In-app PDF viewer with loading and error states (page navigation deferred — see gaps above).
 - Real drag-based crop UI with corner handles.
 - Export a single document via the system share sheet.
 - Export all documents as a ZIP archive.
@@ -53,15 +53,15 @@ This order keeps functional document usability first, then scales organization/s
 
 ### Deliverables
 
-- `react-native-pdf` wired with `react-native-blob-util` and Expo config plugins.
+- `react-native-webview` wired into the viewer for in-app PDF rendering (no native module/dev-client needed).
 - `ImageCropper` upgraded to a gesture-driven crop box.
 - `exportService.ts` for single-file share and multi-file ZIP export.
-- Viewer screen updated with real PDF mode instead of the placeholder.
+- Viewer screen updated with real in-app PDF rendering (loading spinner, error state with "Open Externally" fallback) instead of the placeholder.
 - `eas.json` development profile and README setup notes.
 
 ### Acceptance Criteria
 
-- Local PDFs open in-app and support page navigation/zoom in development builds.
+- Local PDFs open and render in-app via WebView, with a graceful fallback to share/open-externally when rendering fails.
 - Crop output visually matches the selected area.
 - Export all creates a ZIP and opens the share sheet.
 - Phase 4 native features fail gracefully in Expo Go with a clear development-build notice.
