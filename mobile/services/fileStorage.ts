@@ -104,6 +104,39 @@ export function getExtension(uriOrMime: string): string {
 }
 
 /**
+ * Re-roots a stale absolute document URI under the CURRENT sandbox directory.
+ *
+ * iOS assigns each app install a fresh container UUID, so
+ * `FileSystem.documentDirectory` (e.g.
+ * `/var/.../Containers/Data/Application/<UUID>/Documents/`) changes on every
+ * reinstall — including EAS rebuilds. Any absolute URI persisted from a prior
+ * install bakes in the old UUID and becomes unreadable
+ * (`FileNotReadableException`) even though the underlying file still exists
+ * under the new container.
+ *
+ * This recovers the file by extracting the known-stable relative suffix
+ * (`documents/<id>/<filename>`) from the stale path and re-rooting it under
+ * today's `documentDirectory`. Returns the repaired URI if the file exists
+ * there, or `null` if the URI isn't a stale-but-recoverable local path.
+ */
+export async function repairStoredUri(uri: string): Promise<string | null> {
+  if (!uri || (!uri.startsWith('file://') && !uri.startsWith('/'))) return null;
+
+  const match = uri.match(/\/documents\/[^/]+\/[^/]+$/);
+  if (!match) return null;
+
+  const candidate = `${FileSystem.documentDirectory}${match[0].slice(1)}`;
+  if (candidate === uri) return null;
+
+  try {
+    const info = await FileSystem.getInfoAsync(candidate);
+    return info.exists ? candidate : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Returns a file:// URI that is safe to display in an <Image> component.
  * On Android, expo-file-system URIs are already content:// safe.
  */

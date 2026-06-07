@@ -47,6 +47,7 @@ export default function RootLayout() {
   const segments = useSegments();
   const processOCRQueue = useDocumentStore(s => s.processOCRQueue);
   const syncWithBackend = useDocumentStore(s => s.syncWithBackend);
+  const repairFilePaths = useDocumentStore(s => s.repairFilePaths);
   const hasHydrated = useAppStore(s => s.hasHydrated);
   const biometricEnabled = useAppStore(s => s.biometricEnabled);
   const hasOnboarded = useAppStore(s => s.hasOnboarded);
@@ -64,6 +65,8 @@ export default function RootLayout() {
   processOCRQueueRef.current = processOCRQueue;
   const syncWithBackendRef = useRef(syncWithBackend);
   syncWithBackendRef.current = syncWithBackend;
+  const repairFilePathsRef = useRef(repairFilePaths);
+  repairFilePathsRef.current = repairFilePaths;
   const checkProRef = useRef(checkPro);
   checkProRef.current = checkPro;
 
@@ -77,6 +80,7 @@ export default function RootLayout() {
     setDebugScreenState('apiBase', apiBase ?? 'null');
 
     processOCRQueueRef.current();
+    void repairFilePathsRef.current().catch(() => undefined);
     void syncWithBackendRef.current().catch(() => undefined);
     initializePurchases();
     void checkProRef.current();

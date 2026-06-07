@@ -12,7 +12,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { MMKV } from 'react-native-mmkv';
 import { nanoid } from 'nanoid/non-secure';
 import type { Document, Folder, SearchFilters, SearchResult } from '@/types/document';
-import { deleteDocumentFiles } from '@/services/fileStorage';
+import { deleteDocumentFiles, repairStoredUri } from '@/services/fileStorage';
 import { enqueueOCR, dequeueOCR } from '@/services/ocrQueue';
 import { syncMetadata, type Tombstone } from '@/services/syncService';
 import { Colors } from '@/theme';
@@ -92,6 +92,13 @@ interface DocumentState {
   loadDocuments: () => Promise<void>;
   loadFolders: () => Promise<void>;
   loadTags: () => Promise<void>;
+
+  /**
+   * Re-roots stale absolute file URIs (left over from a prior install's
+   * container UUID) under the current sandbox directory. Silent — corrects
+   * `fileUri`/`thumbnailUri` in place without touching `updatedAt`.
+   */
+  repairFilePaths: () => Promise<void>;
 
   // Document actions
   addDocument: (doc: Omit<Document, 'createdAt' | 'updatedAt'>) => Promise<void>;
@@ -324,6 +331,28 @@ export const useDocumentStore = create<DocumentState>()(
       loadDocuments: async () => undefined,
       loadFolders: async () => undefined,
       loadTags: async () => undefined,
+
+      repairFilePaths: async () => {
+        const docs = get().documents;
+        const repaired = await Promise.all(
+          docs.map(async (doc) => {
+            const [fileUri, thumbnailUri] = await Promise.all([
+              repairStoredUri(doc.fileUri),
+              doc.thumbnailUri ? repairStoredUri(doc.thumbnailUri) : Promise.resolve(null),
+            ]);
+            if (fileUri === null && thumbnailUri === null) return doc;
+            return {
+              ...doc,
+              ...(fileUri !== null ? { fileUri } : null),
+              ...(thumbnailUri !== null ? { thumbnailUri } : null),
+            };
+          })
+        );
+
+        if (repaired.some((doc, i) => doc !== docs[i])) {
+          set({ documents: repaired });
+        }
+      },
 
       addDocument: async (doc) => {
         const now = nowIso();
