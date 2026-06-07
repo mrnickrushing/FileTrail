@@ -155,7 +155,7 @@ export function PaywallModal({ visible, onClose, onSuccess }: PaywallModalProps)
             {isRestoring ? (
               <ActivityIndicator color={C.amber} size="small" />
             ) : (
-              <Text style={styles.restoreText}>Restore Purchases</Text>
+              <Text style={[styles.restoreText, isLoading && styles.restoreTextDisabled]}>Restore Purchases</Text>
             )}
           </Pressable>
         </View>
@@ -267,5 +267,8 @@ const styles = StyleSheet.create({
     fontSize: T.sm,
     color: C.amber,
     fontWeight: '500',
+  },
+  restoreTextDisabled: {
+    opacity: 0.4,
   },
 });

@@ -17,6 +17,7 @@ const ICON_MAP: Record<string, React.ComponentProps<typeof Feather>['name']> = {
   'file-text': 'file-text',
   'folder': 'folder',
   'search': 'search',
+  'inbox': 'inbox',
 };
 
 export function EmptyState({ icon, title, subtitle, actionLabel, onAction, showFABHint }: Props) {

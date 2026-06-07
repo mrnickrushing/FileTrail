@@ -15,6 +15,8 @@ import {
   FlatList,
   Dimensions,
   ListRenderItemInfo,
+  NativeSyntheticEvent,
+  NativeScrollEvent,
 } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -75,6 +77,11 @@ export default function OnboardingScreen() {
     }
   }
 
+  function onMomentumScrollEnd(e: NativeSyntheticEvent<NativeScrollEvent>) {
+    const index = Math.round(e.nativeEvent.contentOffset.x / SCREEN_W);
+    setActiveIndex(Math.max(0, Math.min(index, SLIDES.length - 1)));
+  }
+
   const renderSlide = ({ item }: ListRenderItemInfo<Slide>) => (
     <View style={styles.slide}>
       <Text style={styles.emoji}>{item.emoji}</Text>
@@ -99,7 +106,7 @@ export default function OnboardingScreen() {
         horizontal
         pagingEnabled
         showsHorizontalScrollIndicator={false}
-        scrollEnabled={false}
+        onMomentumScrollEnd={onMomentumScrollEnd}
         style={styles.slideList}
         getItemLayout={(_, index) => ({ length: SCREEN_W, offset: SCREEN_W * index, index })}
       />

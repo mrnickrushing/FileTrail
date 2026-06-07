@@ -171,6 +171,7 @@ export default function VaultScreen() {
   const [showFolderPicker, setShowFolderPicker] = useState(false);
   const [showPaywall, setShowPaywall] = useState(false);
   const [isAiOrganizing, setIsAiOrganizing] = useState(false);
+  const [aiOrganizeProgress, setAiOrganizeProgress] = useState<{ done: number; total: number } | null>(null);
 
   const enterSelectionMode = useCallback((id: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -258,6 +259,7 @@ export default function VaultScreen() {
             const ids = Array.from(selectedIds);
             exitSelectionMode();
             setIsAiOrganizing(true);
+            setAiOrganizeProgress({ done: 0, total: ids.length });
 
             const processSingle = async (docId: string): Promise<boolean> => {
               const doc = documents.find(d => d.id === docId);
@@ -357,14 +359,18 @@ export default function VaultScreen() {
 
             // Process in batches of 3
             let succeeded = 0;
+            let processed = 0;
             for (let i = 0; i < ids.length; i += 3) {
               const batch = ids.slice(i, i + 3);
               const results = await Promise.allSettled(batch.map(processSingle));
               succeeded += results.filter(r => r.status === 'fulfilled' && r.value).length;
+              processed += batch.length;
+              setAiOrganizeProgress({ done: processed, total: ids.length });
             }
 
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             setIsAiOrganizing(false);
+            setAiOrganizeProgress(null);
             Alert.alert(
               'Done',
               `AI organized ${succeeded} of ${ids.length} document${ids.length !== 1 ? 's' : ''}.`
@@ -599,6 +605,7 @@ export default function VaultScreen() {
           onDelete={handleBulkDelete}
           onCancel={exitSelectionMode}
           isAiOrganizing={isAiOrganizing}
+          aiOrganizeProgress={aiOrganizeProgress}
         />
       )}
 

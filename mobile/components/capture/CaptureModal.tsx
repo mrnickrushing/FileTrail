@@ -12,7 +12,7 @@
  * stale invisible backdrops after file import navigation.
  */
 
-import React, { useCallback } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   View,
   Text,
@@ -25,6 +25,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useCamera } from '@/hooks/useCamera';
 import { useDocumentPicker } from '@/hooks/useDocumentPicker';
+import { PermissionPrompt } from './PermissionPrompt';
 import { C, T, R, S } from '@/theme/tokens';
 
 interface CaptureModalProps {
@@ -37,18 +38,19 @@ export function CaptureModal({ visible, onClose }: CaptureModalProps) {
   const { capture, isLoading: cameraLoading } = useCamera();
   const { pickFile, pickPhoto, isLoading: pickerLoading } = useDocumentPicker();
   const isLoading = cameraLoading || pickerLoading;
+  const [permissionPrompt, setPermissionPrompt] = useState<'camera' | 'photos' | null>(null);
 
   if (!visible) return null;
 
   const handleCamera = useCallback(async () => {
     const result = await capture();
     if (result.status === 'captured') {
-      router.replace({
+      router.push({
         pathname: '/capture/review',
         params: { uri: result.uri, source: 'camera' },
       });
     } else if (result.status === 'denied') {
-      // Permission prompt handled by the camera hook.
+      setPermissionPrompt('camera');
     } else if (result.status === 'error') {
       Alert.alert('Camera Failed', result.message);
     }
@@ -57,10 +59,12 @@ export function CaptureModal({ visible, onClose }: CaptureModalProps) {
   const handlePhoto = useCallback(async () => {
     const result = await pickPhoto();
     if (result.status === 'picked') {
-      router.replace({
+      router.push({
         pathname: '/capture/review',
         params: { uri: result.uri, name: result.name, source: 'photo' },
       });
+    } else if (result.status === 'denied') {
+      setPermissionPrompt('photos');
     } else if (result.status === 'error') {
       Alert.alert('Photo Import Failed', result.message);
     }
@@ -69,7 +73,7 @@ export function CaptureModal({ visible, onClose }: CaptureModalProps) {
   const handleFile = useCallback(async () => {
     const result = await pickFile();
     if (result.status === 'picked') {
-      router.replace({
+      router.push({
         pathname: '/capture/review',
         params: {
           uri: result.uri,
@@ -96,7 +100,9 @@ export function CaptureModal({ visible, onClose }: CaptureModalProps) {
 
         <Text style={styles.title}>Add Document</Text>
 
-        {isLoading ? (
+        {permissionPrompt ? (
+          <PermissionPrompt type={permissionPrompt} onDismiss={() => setPermissionPrompt(null)} />
+        ) : isLoading ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color={C.amber} />
             <Text style={styles.loadingText}>Opening…</Text>

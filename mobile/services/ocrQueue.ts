@@ -26,6 +26,9 @@ export function enqueueOCR(id: string, uri: string): void {
   const store = useDocumentStore.getState();
   const doc = store.documents.find((d) => d.id === id);
   if (doc?.ocrStatus === 'processing') return;
+  // OCR (Vision framework) is image-only — guard here too so any future
+  // caller can't accidentally queue a PDF/other doc for OCR.
+  if (doc && !/^image\//.test(doc.mimeType)) return;
   queue.push({ id, uri });
   if (!running) processNext();
 }

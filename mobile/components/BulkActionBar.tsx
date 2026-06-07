@@ -11,10 +11,11 @@ interface BulkActionBarProps {
   onDelete: () => void;
   onAiOrganize?: () => void;
   isAiOrganizing?: boolean;
+  aiOrganizeProgress?: { done: number; total: number } | null;
   onCancel: () => void;
 }
 
-export function BulkActionBar({ count, onMove, onTag, onDelete, onAiOrganize, isAiOrganizing, onCancel }: BulkActionBarProps) {
+export function BulkActionBar({ count, onMove, onTag, onDelete, onAiOrganize, isAiOrganizing, aiOrganizeProgress, onCancel }: BulkActionBarProps) {
   const insets = useSafeAreaInsets();
 
   return (
@@ -29,7 +30,14 @@ export function BulkActionBar({ count, onMove, onTag, onDelete, onAiOrganize, is
         <ActionButton label="Move" icon="folder" onPress={onMove} />
         <ActionButton label="Tag" icon="tag" onPress={onTag} />
         {onAiOrganize && (
-          <ActionButton label="AI Organize" icon="cpu" onPress={onAiOrganize} amber loading={isAiOrganizing} />
+          <ActionButton
+            label="AI Organize"
+            icon="cpu"
+            onPress={onAiOrganize}
+            amber
+            loading={isAiOrganizing}
+            loadingLabel={aiOrganizeProgress ? `${aiOrganizeProgress.done} of ${aiOrganizeProgress.total}` : 'Organizing…'}
+          />
         )}
         <ActionButton label="Delete" icon="trash-2" onPress={onDelete} danger />
       </View>
@@ -44,6 +52,7 @@ function ActionButton({
   danger = false,
   amber = false,
   loading = false,
+  loadingLabel,
 }: {
   label: string;
   icon: React.ComponentProps<typeof Feather>['name'];
@@ -51,6 +60,7 @@ function ActionButton({
   danger?: boolean;
   amber?: boolean;
   loading?: boolean;
+  loadingLabel?: string;
 }) {
   return (
     <Pressable
@@ -64,7 +74,7 @@ function ActionButton({
         <Feather name={icon} size={20} color={danger ? '#EF4444' : amber ? C.amber : C.ash} style={styles.btnIcon} />
       )}
       <Text style={[styles.btnLabel, danger && styles.btnLabelDanger, amber && styles.btnLabelAmber]}>
-        {loading ? 'Organizing…' : label}
+        {loading ? (loadingLabel ?? 'Organizing…') : label}
       </Text>
     </Pressable>
   );
