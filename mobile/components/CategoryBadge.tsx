@@ -8,6 +8,7 @@ const CATEGORY_META: Record<
   { label: string; color: string }
 > = {
   receipt:  { label: 'Receipt',  color: Colors.catReceipt },
+  bill:     { label: 'Bill',     color: Colors.catBill },
   contract: { label: 'Contract', color: Colors.catContract },
   id:       { label: 'ID',       color: Colors.catID },
   warranty: { label: 'Warranty', color: Colors.catWarranty },

@@ -17,6 +17,7 @@ import { Colors } from '@/theme';
 
 const DOCUMENT_CATEGORIES = new Set<Document['category']>([
   'receipt',
+  'bill',
   'contract',
   'id',
   'warranty',

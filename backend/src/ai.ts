@@ -7,10 +7,11 @@ import type { DocumentCategory } from './types.js';
 const DEFAULT_ANTHROPIC_MODEL = process.env.ANTHROPIC_MODEL?.trim() || 'claude-haiku-4-5-20251001';
 
 const VALID_CATEGORIES: DocumentCategory[] = [
-  'receipt', 'contract', 'id', 'warranty', 'medical', 'tax', 'other',
+  'receipt', 'bill', 'contract', 'id', 'warranty', 'medical', 'tax', 'other',
 ];
 
 const CATEGORY_KEYWORDS: Array<[DocumentCategory, RegExp]> = [
+  ['bill', /\b(account number|statement balance|new balance|minimum payment|payment due|amount due|balance due|past due|autopay|auto-pay|billing (?:period|cycle|statement)|monthly statement|utility bill|electric(?:ity)? bill|gas bill|water bill|phone bill|internet bill|cable bill|credit card statement|mortgage statement)\b/i],
   ['receipt', /\b(receipt|subtotal|total|paid|visa|mastercard|store)\b/i],
   ['contract', /\b(contract|agreement|signature|party|terms|stipulation|judgment|decree|counsel|plaintiff|defendant|attorney|lawsuit|affidavit|docket|subpoena|deposition)\b/i],
   ['id', /\b(driver|license|passport|identification|dob)\b/i],
@@ -21,6 +22,7 @@ const CATEGORY_KEYWORDS: Array<[DocumentCategory, RegExp]> = [
 
 const CATEGORY_FOLDER: Record<DocumentCategory, string> = {
   receipt: 'Receipts',
+  bill: 'Bills',
   contract: 'Contracts',
   id: 'IDs',
   warranty: 'Warranties',
@@ -50,7 +52,7 @@ type SuggestResult = {
 function isFallbackTitle(s: string): boolean {
   const t = s.trim();
   // Heuristic backend format: "PDF Document — Jun 2026"
-  if (/^(?:PDF|Scanned|Receipt|Contract|Id|Warranty|Medical|Tax|Other) Document — [A-Z][a-z]+ \d{4}$/.test(t)) return true;
+  if (/^(?:PDF|Scanned|Receipt|Bill|Contract|Id|Warranty|Medical|Tax|Other) Document — [A-Z][a-z]+ \d{4}$/.test(t)) return true;
   // Mobile generateTitle() format: "Document Jun 6, 2026" / "Scan Jun 6, 2026" / etc.
   if (/^(?:Document|Scan|Photo|Import) [A-Z][a-z]+ \d{1,2}, \d{4}$/.test(t)) return true;
   return false;
@@ -145,7 +147,7 @@ function buildSchemaPrompt(existingFolders?: string[]): string {
 
   return `Analyse this document and respond with JSON containing exactly these fields:
 - "title": a concise descriptive title (max 80 chars)
-- "category": one of: receipt, contract, id, warranty, medical, tax, other
+- "category": one of: receipt, bill, contract, id, warranty, medical, tax, other (use "bill" for recurring statements/invoices like utilities, credit cards, rent, mortgage, or subscriptions — and "receipt" for one-time purchase proofs)
 - "tags": array of 2-4 meaningful lowercase keyword tags (not just the category name or file type)
 - "notes": one sentence describing any key detail worth remembering (amount, date, expiry, party name), or omit if nothing stands out
 - "date": most relevant date found on the document in YYYY-MM-DD format, or omit if none

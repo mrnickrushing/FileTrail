@@ -45,6 +45,7 @@ export const Colors = {
 
   // Category chip colors
   catReceipt:  '#4A8FC4',
+  catBill:     '#2E9E8F',
   catContract: '#9B6DD4',
   catID:       '#4D9E5A',
   catWarranty: '#E8A020',
@@ -140,6 +141,7 @@ export const C = {
   warning:  Colors.warning,
   category: {
     receipt:  Colors.catReceipt,
+    bill:     Colors.catBill,
     contract: Colors.catContract,
     id:       Colors.catID,
     warranty: Colors.catWarranty,

@@ -1,5 +1,6 @@
 export type DocumentCategory =
   | 'receipt'
+  | 'bill'
   | 'contract'
   | 'id'
   | 'warranty'

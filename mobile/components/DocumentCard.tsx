@@ -23,6 +23,7 @@ import type { Document, DocumentCategory } from '@/types/document';
 
 const CATEGORY_LABELS: Record<DocumentCategory, string> = {
   receipt: 'Receipt',
+  bill: 'Bill',
   contract: 'Contract',
   id: 'ID',
   warranty: 'Warranty',
@@ -33,6 +34,7 @@ const CATEGORY_LABELS: Record<DocumentCategory, string> = {
 
 const CATEGORY_COLORS: Record<DocumentCategory, string> = {
   receipt:  C.category.receipt,
+  bill:     C.category.bill,
   contract: C.category.contract,
   id:       C.category.id,
   warranty: C.category.warranty,

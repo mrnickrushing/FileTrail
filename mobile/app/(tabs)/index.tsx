@@ -42,6 +42,7 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 const CATEGORIES = [
   { key: undefined,    label: 'All',        color: undefined },
   { key: 'receipt',   label: 'Receipts',   color: C.category.receipt },
+  { key: 'bill',      label: 'Bills',      color: C.category.bill },
   { key: 'contract',  label: 'Contracts',  color: C.category.contract },
   { key: 'id',        label: 'IDs',        color: C.category.id },
   { key: 'warranty',  label: 'Warranties', color: C.category.warranty },

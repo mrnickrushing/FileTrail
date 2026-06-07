@@ -45,6 +45,7 @@ function errorMessage(err: unknown, fallback: string): string {
 
 const CATEGORY_LABELS: Record<DocumentCategory, string> = {
   receipt: '🧾 Receipt',
+  bill: '🧮 Bill',
   contract: '📝 Contract',
   id: '🪪 ID',
   warranty: '🛡️ Warranty',
@@ -54,7 +55,7 @@ const CATEGORY_LABELS: Record<DocumentCategory, string> = {
 };
 
 const CATEGORIES: DocumentCategory[] = [
-  'receipt', 'contract', 'id', 'warranty', 'medical', 'tax', 'other',
+  'receipt', 'bill', 'contract', 'id', 'warranty', 'medical', 'tax', 'other',
 ];
 
 function tokenize(value: string): string[] {
