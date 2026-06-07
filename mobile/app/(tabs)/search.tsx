@@ -136,9 +136,9 @@ export default function SearchScreen() {
     ? recentSearches.filter(r => r.toLowerCase().includes(query.toLowerCase()) && r !== query)
     : [];
   const listData: SearchListItem[] = [
-    ...(titleMatches.length > 0 ? [{ type: 'header' as const, label: `Title · Tag · Category (${titleMatches.length})`, key: 'h1' }] : []),
+    ...(titleMatches.length > 0 ? [{ type: 'header' as const, label: `Direct matches (${titleMatches.length})`, key: 'h1' }] : []),
     ...titleMatches.map(r => ({ type: 'result' as const, result: r, key: r.document.id })),
-    ...(textMatches.length > 0 ? [{ type: 'header' as const, label: `Extracted Text (${textMatches.length})`, key: 'h2' }] : []),
+    ...(textMatches.length > 0 ? [{ type: 'header' as const, label: `Found inside the document text (${textMatches.length})`, key: 'h2' }] : []),
     ...textMatches.map(r => ({ type: 'result' as const, result: r, key: r.document.id })),
   ];
 
