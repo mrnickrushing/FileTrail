@@ -721,9 +721,9 @@ function FilterBar({ filters, allTags, onCategoryChange, onToggleFavorite, onTog
         accessibilityState={{ selected: favoriteActive }}
         accessibilityLabel={`Favorites filter${favoriteActive ? ', active' : ''}`}
       >
-        <Feather name="star" size={12} color={favoriteActive ? C.amber : Colors.textMuted} />
+        <Feather name={favoriteActive ? 'check' : 'star'} size={12} color={favoriteActive ? C.amber : Colors.textMuted} />
         <Text style={[styles.chipText, favoriteActive && { color: C.amber, fontWeight: '700' }]}>
-          {favoriteActive ? 'Saved ×' : 'Saved'}
+          Saved
         </Text>
       </Pressable>
 

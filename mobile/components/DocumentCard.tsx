@@ -17,6 +17,7 @@ import {
   Pressable,
   StyleSheet,
 } from 'react-native';
+import Animated, { ZoomIn } from 'react-native-reanimated';
 import { Feather } from '@expo/vector-icons';
 import { C, T, R, S } from '@/theme/tokens';
 import type { Document, DocumentCategory } from '@/types/document';
@@ -100,9 +101,9 @@ export function DocumentCard({
         accessibilityState={{ selected: isSelected }}
       >
         {selectionMode && (
-          <View style={[styles.checkbox, isSelected && styles.checkboxSelected]}>
+          <Animated.View entering={ZoomIn.springify().damping(14)} style={[styles.checkbox, isSelected && styles.checkboxSelected]}>
             {isSelected && <Feather name="check" size={14} color={C.ink1} />}
-          </View>
+          </Animated.View>
         )}
         <View style={styles.compactThumb}>
           {document.thumbnailUri ? (
@@ -149,9 +150,9 @@ export function DocumentCard({
         {/* Checkbox — only visible in selection mode */}
         {selectionMode && (
           <View style={styles.leftCol}>
-            <View style={[styles.checkbox, isSelected && styles.checkboxSelected]}>
+            <Animated.View entering={ZoomIn.springify().damping(14)} style={[styles.checkbox, isSelected && styles.checkboxSelected]}>
               {isSelected && <Feather name="check" size={14} color={C.ink1} />}
-            </View>
+            </Animated.View>
           </View>
         )}
 
