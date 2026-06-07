@@ -308,6 +308,7 @@ export default function DocumentViewerScreen() {
           imageBase64,
           imageMimeType: imageBase64 ? document.mimeType : undefined,
           anthropicApiKey: getAnthropicApiKey() ?? undefined,
+          existingFolders: folders.filter(f => !f.parentId).map(f => f.name),
         },
         timeoutMs: 30000,
       });

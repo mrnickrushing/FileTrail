@@ -293,6 +293,7 @@ export default function VaultScreen() {
                     imageBase64,
                     imageMimeType: imageBase64 ? doc.mimeType : undefined,
                     anthropicApiKey: getAnthropicApiKey() ?? undefined,
+                    existingFolders: folders.filter(f => !f.parentId).map(f => f.name),
                   },
                   timeoutMs: 30000,
                 });

@@ -136,7 +136,7 @@ export default function DocumentReviewScreen() {
           amounts?: number[];
         }>('/v1/ai/suggest-document', {
           method: 'POST',
-          body: { title, filename: params.name, mimeType: params.mimeType, pdfBase64, anthropicApiKey: getAnthropicApiKey() ?? undefined },
+          body: { title, filename: params.name, mimeType: params.mimeType, pdfBase64, anthropicApiKey: getAnthropicApiKey() ?? undefined, existingFolders: folders.filter(f => !f.parentId).map(f => f.name) },
         }))
           .then((suggestion) => {
             if (!isMounted.current) return;
@@ -202,7 +202,7 @@ export default function DocumentReviewScreen() {
             source?: string; date?: string; vendor?: string; amounts?: number[];
           }>('/v1/ai/suggest-document', {
             method: 'POST',
-            body: { title, filename: params.name, mimeType: params.mimeType, imageBase64, imageMimeType: imageBase64 ? params.mimeType : undefined, anthropicApiKey: getAnthropicApiKey() ?? undefined },
+            body: { title, filename: params.name, mimeType: params.mimeType, imageBase64, imageMimeType: imageBase64 ? params.mimeType : undefined, anthropicApiKey: getAnthropicApiKey() ?? undefined, existingFolders: folders.filter(f => !f.parentId).map(f => f.name) },
           })
         ).then((suggestion) => {
           if (!isMounted.current) return;
@@ -244,6 +244,7 @@ export default function DocumentReviewScreen() {
                 imageBase64,
                 imageMimeType: imageBase64 ? params.mimeType : undefined,
                 anthropicApiKey: getAnthropicApiKey() ?? undefined,
+                existingFolders: folders.filter(f => !f.parentId).map(f => f.name),
               },
             });
             if (!isMounted.current) return;

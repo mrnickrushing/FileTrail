@@ -66,6 +66,7 @@ export const aiSuggestSchema = z.object({
   imageBase64: z.string().optional(),
   imageMimeType: z.string().optional(),
   anthropicApiKey: z.string().optional(),
+  existingFolders: z.array(z.string()).optional(),
 });
 
 export const shareLinkCreateSchema = z.object({

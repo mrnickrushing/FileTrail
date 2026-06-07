@@ -138,7 +138,12 @@ async function extractPdfText(base64: string): Promise<string> {
   }
 }
 
-const JSON_SCHEMA_PROMPT = `Analyse this document and respond with JSON containing exactly these fields:
+function buildSchemaPrompt(existingFolders?: string[]): string {
+  const folderGuidance = existingFolders?.length
+    ? ` The user already has these folders: ${existingFolders.map(f => `"${f}"`).join(', ')} — if one of them is a good fit for this document, reuse its exact name rather than inventing a new one; only suggest a different name when none of the existing ones fit well.`
+    : '';
+
+  return `Analyse this document and respond with JSON containing exactly these fields:
 - "title": a concise descriptive title (max 80 chars)
 - "category": one of: receipt, contract, id, warranty, medical, tax, other
 - "tags": array of 2-4 meaningful lowercase keyword tags (not just the category name or file type)
@@ -146,8 +151,9 @@ const JSON_SCHEMA_PROMPT = `Analyse this document and respond with JSON containi
 - "date": most relevant date found on the document in YYYY-MM-DD format, or omit if none
 - "vendor": merchant, organization, or issuing party name, or omit if not applicable
 - "amounts": array of numeric monetary values (no currency symbols, e.g. [142.50, 9.99]), or omit if none
-- "folderName": the folder to file this in — use the standard name for the category (e.g. "Receipts", "Contracts", "Tax Documents", "Medical Records") but use a more specific name when clearly appropriate (e.g. "Court Documents" for legal filings, "Insurance" for insurance docs); keep it short
+- "folderName": the folder to file this in — use the standard name for the category (e.g. "Receipts", "Contracts", "Tax Documents", "Medical Records") but use a more specific name when clearly appropriate (e.g. "Court Documents" for legal filings, "Insurance" for insurance docs); keep it short.${folderGuidance}
 - "subfolderName": for medical documents, the patient's full name as it appears on the document, for use as a subfolder name; omit if not a medical document or if no patient name is found`;
+}
 
 export async function suggestDocument(input: {
   title?: string;
@@ -158,6 +164,7 @@ export async function suggestDocument(input: {
   imageBase64?: string;
   imageMimeType?: string;
   anthropicApiKey?: string;
+  existingFolders?: string[];
 }): Promise<SuggestResult> {
   const apiKey = process.env.ANTHROPIC_API_KEY?.trim() || input.anthropicApiKey?.trim();
 
@@ -187,6 +194,7 @@ export async function suggestDocument(input: {
 
   try {
     const client = new Anthropic({ apiKey });
+    const schemaPrompt = buildSchemaPrompt(input.existingFolders);
     let rawText = '';
 
     if (hasPdf) {
@@ -199,7 +207,7 @@ export async function suggestDocument(input: {
           role: 'user',
           content: [
             { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: input.pdfBase64 } },
-            { type: 'text', text: `${JSON_SCHEMA_PROMPT}${contextLabel ? `\n\nFilename hint: ${contextLabel}` : ''}` },
+            { type: 'text', text: `${schemaPrompt}${contextLabel ? `\n\nFilename hint: ${contextLabel}` : ''}` },
           ] as unknown as Anthropic.MessageParam['content'],
         }],
       });
@@ -215,8 +223,8 @@ export async function suggestDocument(input: {
       ];
       // Include OCR text as supplemental context if available
       const prompt = hasOcr
-        ? `${JSON_SCHEMA_PROMPT}${contextLabel ? `\n\nFilename hint: ${contextLabel}` : ''}\n\nOCR-extracted text (use as additional context):\n${ocrText!.slice(0, 2000)}`
-        : `${JSON_SCHEMA_PROMPT}${contextLabel ? `\n\nFilename hint: ${contextLabel}` : ''}`;
+        ? `${schemaPrompt}${contextLabel ? `\n\nFilename hint: ${contextLabel}` : ''}\n\nOCR-extracted text (use as additional context):\n${ocrText!.slice(0, 2000)}`
+        : `${schemaPrompt}${contextLabel ? `\n\nFilename hint: ${contextLabel}` : ''}`;
       contentBlocks.push({ type: 'text', text: prompt });
 
       const response = await client.messages.create({
@@ -233,7 +241,7 @@ export async function suggestDocument(input: {
         model: DEFAULT_ANTHROPIC_MODEL,
         max_tokens: 512,
         system: 'You are a document classification assistant. Always respond with valid JSON only, no markdown.',
-        messages: [{ role: 'user', content: `${JSON_SCHEMA_PROMPT}\n\nDocument text:\n${ocrText!.slice(0, 2000)}` }],
+        messages: [{ role: 'user', content: `${schemaPrompt}\n\nDocument text:\n${ocrText!.slice(0, 2000)}` }],
       });
       rawText = response.content[0].type === 'text' ? response.content[0].text : '';
 
@@ -245,7 +253,7 @@ export async function suggestDocument(input: {
         system: 'You are a document classification assistant. Always respond with valid JSON only, no markdown.',
         messages: [{
           role: 'user',
-          content: `Based on this file information, suggest document metadata.\n${JSON_SCHEMA_PROMPT}\n\nFile name: ${contextLabel}\nFile type: ${input.mimeType || 'unknown'}`,
+          content: `Based on this file information, suggest document metadata.\n${schemaPrompt}\n\nFile name: ${contextLabel}\nFile type: ${input.mimeType || 'unknown'}`,
         }],
       });
       rawText = response.content[0].type === 'text' ? response.content[0].text : '';
