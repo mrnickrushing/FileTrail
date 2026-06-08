@@ -202,6 +202,44 @@ export class JsonStore implements FiletrailStore {
       .slice(0, limit);
   }
 
+  async getUserById(id: string): Promise<UserRecord | null> {
+    const data = await this.read();
+    return data.users?.[id] ?? null;
+  }
+
+  async updateUser(id: string, patch: { isPro?: boolean; fullName?: string; email?: string }): Promise<UserRecord | null> {
+    return this.mutate((data) => {
+      if (!data.users?.[id]) return null;
+      data.users[id] = { ...data.users[id], ...patch };
+      return data.users[id];
+    });
+  }
+
+  async deleteUser(id: string): Promise<void> {
+    await this.mutate((data) => {
+      if (data.users) delete data.users[id];
+    });
+  }
+
+  async deleteShareLink(token: string): Promise<void> {
+    await this.mutate((data) => { delete data.shareLinks[token]; });
+  }
+
+  async adminStats(): Promise<{ userCount: number; documentCount: number; totalStorageBytes: number; eventCount: number; recentActiveUsers: number }> {
+    const data = await this.read();
+    const docs = Object.values(data.documents);
+    const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+    return {
+      userCount: Object.keys(data.users ?? {}).length,
+      documentCount: docs.length,
+      totalStorageBytes: docs.reduce((s, d) => s + ((d as unknown as { fileSizeBytes?: number }).fileSizeBytes ?? 0), 0),
+      eventCount: data.analytics.length,
+      recentActiveUsers: new Set(
+        data.analytics.filter(e => e.userId && e.createdAt > cutoff).map(e => e.userId!)
+      ).size,
+    };
+  }
+
   async addAnalytics(events: Array<Omit<AnalyticsRecord, 'id' | 'createdAt'>>): Promise<number> {
     return this.mutate((data) => {
       const records = events.map((event) => ({

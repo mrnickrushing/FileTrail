@@ -54,6 +54,14 @@ export async function buildApp(config: RuntimeConfig, store: FiletrailStore = ne
     }
   });
 
+  app.addHook('preHandler', async (request, reply) => {
+    if (!request.url.startsWith('/v1/admin/') || !config.adminKey) return;
+    const auth = request.headers.authorization;
+    if (auth !== `Bearer ${config.adminKey}`) {
+      await reply.code(401).send({ error: 'Admin access denied' });
+    }
+  });
+
   app.get('/health', async () => ({
     ok: true,
     service: 'filetrail-backend',
@@ -288,6 +296,41 @@ export async function buildApp(config: RuntimeConfig, store: FiletrailStore = ne
 
     const downloadUrl = await getDownloadUrl(r2Client, r2Config.bucket, key);
     return { downloadUrl };
+  });
+
+  app.get('/v1/admin/stats', async () => store.adminStats());
+
+  app.get('/v1/admin/users/:id', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const user = await store.getUserById(id);
+    if (!user) return reply.code(404).send({ error: 'User not found' });
+    const { passwordHash: _ph, ...safe } = user;
+    return { user: safe };
+  });
+
+  app.patch('/v1/admin/users/:id', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const patch = request.body as { isPro?: boolean; fullName?: string; email?: string };
+    const user = await store.updateUser(id, patch);
+    if (!user) return reply.code(404).send({ error: 'User not found' });
+    const { passwordHash: _ph, ...safe } = user;
+    return { ok: true, user: safe };
+  });
+
+  app.delete('/v1/admin/users/:id', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const existing = await store.getUserById(id);
+    if (!existing) return reply.code(404).send({ error: 'User not found' });
+    await store.deleteUser(id);
+    return { ok: true };
+  });
+
+  app.delete('/v1/admin/share-links/:token', async (request, reply) => {
+    const { token } = request.params as { token: string };
+    const link = await store.getShareLink(token);
+    if (!link) return reply.code(404).send({ error: 'Share link not found' });
+    await store.deleteShareLink(token);
+    return { ok: true };
   });
 
   app.setErrorHandler((error, _request, reply) => {

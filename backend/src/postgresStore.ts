@@ -349,6 +349,62 @@ export class PostgresStore implements FiletrailStore {
     }));
   }
 
+  async getUserById(id: string): Promise<UserRecord | null> {
+    const res = await this.pool.query<{
+      id: string; full_name: string; email: string; password_hash: string;
+      provider: string; apple_user_id: string | null; is_pro: boolean; created_at: Date;
+    }>('SELECT * FROM users WHERE id = $1', [id]);
+    const row = res.rows[0];
+    if (!row) return null;
+    return {
+      id: row.id, fullName: row.full_name, email: row.email,
+      passwordHash: row.password_hash, provider: row.provider as 'email' | 'apple',
+      appleUserId: row.apple_user_id ?? undefined, isPro: row.is_pro,
+      createdAt: row.created_at.toISOString(),
+    };
+  }
+
+  async updateUser(id: string, patch: { isPro?: boolean; fullName?: string; email?: string }): Promise<UserRecord | null> {
+    const sets: string[] = [];
+    const values: unknown[] = [];
+    let idx = 1;
+    if (patch.isPro !== undefined) { sets.push(`is_pro = $${idx++}`); values.push(patch.isPro); }
+    if (patch.fullName !== undefined) { sets.push(`full_name = $${idx++}`); values.push(patch.fullName); }
+    if (patch.email !== undefined) { sets.push(`email = $${idx++}`); values.push(patch.email); }
+    if (sets.length === 0) return this.getUserById(id);
+    values.push(id);
+    await this.pool.query(`UPDATE users SET ${sets.join(', ')} WHERE id = $${idx}`, values);
+    return this.getUserById(id);
+  }
+
+  async deleteUser(id: string): Promise<void> {
+    await this.pool.query('DELETE FROM users WHERE id = $1', [id]);
+  }
+
+  async deleteShareLink(token: string): Promise<void> {
+    await this.pool.query('DELETE FROM share_links WHERE token = $1', [token]);
+  }
+
+  async adminStats(): Promise<{ userCount: number; documentCount: number; totalStorageBytes: number; eventCount: number; recentActiveUsers: number }> {
+    const [users, docs, events, active] = await Promise.all([
+      this.pool.query<{ count: string }>('SELECT COUNT(*) as count FROM users'),
+      this.pool.query<{ doc_count: string; total_bytes: string }>(
+        "SELECT COUNT(*) as doc_count, COALESCE(SUM((payload->>'fileSizeBytes')::bigint), 0) as total_bytes FROM documents"
+      ),
+      this.pool.query<{ count: string }>('SELECT COUNT(*) as count FROM analytics_events'),
+      this.pool.query<{ count: string }>(
+        "SELECT COUNT(DISTINCT user_id) as count FROM analytics_events WHERE user_id IS NOT NULL AND created_at > NOW() - INTERVAL '30 days'"
+      ),
+    ]);
+    return {
+      userCount: Number(users.rows[0]?.count ?? 0),
+      documentCount: Number(docs.rows[0]?.doc_count ?? 0),
+      totalStorageBytes: Number(docs.rows[0]?.total_bytes ?? 0),
+      eventCount: Number(events.rows[0]?.count ?? 0),
+      recentActiveUsers: Number(active.rows[0]?.count ?? 0),
+    };
+  }
+
   private async currentVersion(client: pg.PoolClient): Promise<number> {
     const res = await client.query<{ sync_version: string }>(
       'SELECT sync_version FROM sync_state WHERE id = true FOR UPDATE',
