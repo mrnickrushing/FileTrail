@@ -202,11 +202,6 @@ export class JsonStore implements FiletrailStore {
       .slice(0, limit);
   }
 
-  async getUserById(id: string): Promise<UserRecord | null> {
-    const data = await this.read();
-    return data.users?.[id] ?? null;
-  }
-
   async updateUser(id: string, patch: { isPro?: boolean; fullName?: string; email?: string }): Promise<UserRecord | null> {
     return this.mutate((data) => {
       if (!data.users?.[id]) return null;
