@@ -12,10 +12,12 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { MMKV } from 'react-native-mmkv';
 import { nanoid } from 'nanoid/non-secure';
 import type { Document, Folder, SearchFilters, SearchResult } from '@/types/document';
-import { deleteDocumentFiles, repairStoredUri } from '@/services/fileStorage';
+import { deleteDocumentFiles, repairStoredUri, uploadDocumentToR2, downloadDocumentFromR2, getExtension } from '@/services/fileStorage';
 import { enqueueOCR, dequeueOCR } from '@/services/ocrQueue';
 import { syncMetadata, type Tombstone } from '@/services/syncService';
 import { Colors } from '@/theme';
+import { useProStore } from './proStore';
+import { useAppStore } from './appStore';
 
 const DOCUMENTS_STORE_KEY = 'filetrail-documents-v2';
 
@@ -201,6 +203,7 @@ function sanitizeDocument(value: unknown): Document | null {
     notes: typeof value.notes === 'string' ? value.notes : undefined,
     aiSource: value.aiSource === 'heuristic' || value.aiSource === 'claude' ? value.aiSource : undefined,
     aiOrganizedAt: typeof value.aiOrganizedAt === 'string' ? value.aiOrganizedAt : undefined,
+    storageUrl: typeof value.storageUrl === 'string' ? value.storageUrl : undefined,
     createdAt: dateValue(value.createdAt),
     updatedAt: dateValue(value.updatedAt),
   };
@@ -363,6 +366,29 @@ export const useDocumentStore = create<DocumentState>()(
         if (isImage && doc.ocrStatus === 'pending') {
           enqueueOCR(doc.id, doc.fileUri);
         }
+        // Upload to R2 for Pro users (fire-and-forget; local file is already saved)
+        const isPro = useProStore.getState().isPro;
+        const userId = useAppStore.getState().accountProfile?.userId;
+        if (isPro && userId && doc.fileUri) {
+          uploadDocumentToR2({
+            documentId: doc.id,
+            localUri: doc.fileUri,
+            mimeType: doc.mimeType,
+            userId,
+          }).then((storageUrl) => {
+            if (storageUrl) {
+              // Patch the storageUrl onto the document without bumping updatedAt
+              // (it's a storage detail, not user-visible content).
+              set((s) => ({
+                documents: s.documents.map((d) =>
+                  d.id === doc.id ? { ...d, storageUrl } : d
+                ),
+              }));
+            }
+          }).catch(() => {
+            // Non-fatal: file is already saved locally
+          });
+        }
       },
 
       updateDocument: (id, patch) => {
@@ -415,6 +441,8 @@ export const useDocumentStore = create<DocumentState>()(
           deletedDocumentIds: get().deletedDocumentIds,
           deletedFolderIds: get().deletedFolderIds,
           mergeDocuments: (incoming) => {
+            const isPro = useProStore.getState().isPro;
+            const userId = useAppStore.getState().accountProfile?.userId;
             set((s) => {
               const localById = new Map(s.documents.map((doc) => [doc.id, doc]));
               for (const doc of incoming) {
@@ -425,6 +453,33 @@ export const useDocumentStore = create<DocumentState>()(
               }
               return { documents: Array.from(localById.values()) };
             });
+            // After merging, download any missing local files from R2 (Pro only).
+            // This is the "new device" restore path.
+            if (isPro && userId) {
+              for (const doc of incoming) {
+                if (!doc.storageUrl) continue;
+                // Use current state after merge
+                const merged = get().documents.find((d) => d.id === doc.id);
+                if (!merged || merged.fileUri) continue;
+                const ext = getExtension(doc.mimeType);
+                downloadDocumentFromR2({
+                  documentId: doc.id,
+                  mimeType: doc.mimeType,
+                  userId,
+                  extension: ext,
+                }).then((localUri) => {
+                  if (localUri) {
+                    set((s) => ({
+                      documents: s.documents.map((d) =>
+                        d.id === doc.id ? { ...d, fileUri: localUri } : d
+                      ),
+                    }));
+                  }
+                }).catch(() => {
+                  // Non-fatal: file may not be in R2 yet
+                });
+              }
+            }
           },
           mergeFolders: (incoming) => {
             set((s) => {

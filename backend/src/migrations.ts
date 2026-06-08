@@ -97,4 +97,10 @@ export const MIGRATIONS = [
       CREATE INDEX IF NOT EXISTS users_created_at_idx ON users(created_at);
     `,
   },
+  {
+    id: 4,
+    sql: `
+      ALTER TABLE documents ADD COLUMN IF NOT EXISTS storage_url text;
+    `,
+  },
 ] as const;

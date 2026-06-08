@@ -13,6 +13,7 @@
 import * as FileSystem from 'expo-file-system';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { Platform } from 'react-native';
+import { apiRequest } from './api';
 
 const DOCS_DIR = `${FileSystem.documentDirectory}documents/`;
 
@@ -132,6 +133,86 @@ export async function repairStoredUri(uri: string): Promise<string | null> {
     const info = await FileSystem.getInfoAsync(candidate);
     return info.exists ? candidate : null;
   } catch {
+    return null;
+  }
+}
+
+/**
+ * Uploads a local file to Cloudflare R2 (Pro only).
+ *
+ * Flow:
+ *   1. Ask the backend for a presigned PUT URL and the stable storageUrl.
+ *   2. PUT the file bytes directly to R2 (bypasses our backend).
+ *
+ * Returns the permanent storageUrl on success, or null if upload fails or
+ * R2 is not configured on the backend.
+ */
+export async function uploadDocumentToR2(params: {
+  documentId: string;
+  localUri: string;
+  mimeType: string;
+  userId: string;
+}): Promise<string | null> {
+  try {
+    const { uploadUrl, storageUrl } = await apiRequest<{
+      uploadUrl: string;
+      storageUrl: string;
+      key: string;
+    }>('/v1/storage/upload-url', {
+      method: 'POST',
+      body: {
+        documentId: params.documentId,
+        mimeType: params.mimeType,
+        userId: params.userId,
+      },
+      timeoutMs: 15000,
+    });
+
+    // Upload the file bytes directly to R2 via the presigned PUT URL.
+    const result = await FileSystem.uploadAsync(uploadUrl, params.localUri, {
+      httpMethod: 'PUT',
+      headers: { 'Content-Type': params.mimeType },
+      uploadType: FileSystem.FileSystemUploadType.BINARY_CONTENT,
+    });
+
+    if (result.status < 200 || result.status >= 300) {
+      console.warn('[r2] Upload failed with status', result.status);
+      return null;
+    }
+
+    return storageUrl;
+  } catch (err) {
+    console.warn('[r2] uploadDocumentToR2 failed:', err);
+    return null;
+  }
+}
+
+/**
+ * Downloads a file from R2 to the local documents directory.
+ * Returns the local URI, or null if download fails.
+ */
+export async function downloadDocumentFromR2(params: {
+  documentId: string;
+  mimeType: string;
+  userId: string;
+  extension: string;
+}): Promise<string | null> {
+  try {
+    const { downloadUrl } = await apiRequest<{ downloadUrl: string }>(
+      `/v1/storage/download-url/${params.documentId}?mimeType=${encodeURIComponent(params.mimeType)}&userId=${encodeURIComponent(params.userId)}`,
+      { timeoutMs: 10000 },
+    );
+
+    const dir = await ensureDocumentDirectory(params.documentId);
+    const destUri = `${dir}original.${params.extension.toLowerCase()}`;
+    const download = await FileSystem.downloadAsync(downloadUrl, destUri);
+    if (download.status < 200 || download.status >= 300) {
+      console.warn('[r2] Download failed with status', download.status);
+      return null;
+    }
+    return destUri;
+  } catch (err) {
+    console.warn('[r2] downloadDocumentFromR2 failed:', err);
     return null;
   }
 }

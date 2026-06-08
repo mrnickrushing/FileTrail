@@ -21,6 +21,13 @@ import {
   verifyShareLinkPassword,
 } from './shareLinks.js';
 import { suggestDocument } from './ai.js';
+import {
+  r2ConfigFromEnv,
+  createR2Client,
+  getUploadUrl,
+  getDownloadUrl,
+  documentKey,
+} from './r2.js';
 
 function parseBody<T>(schema: { parse: (value: unknown) => T }, body: unknown): T {
   return schema.parse(body);
@@ -218,6 +225,64 @@ export async function buildApp(config: RuntimeConfig, store: FiletrailStore = ne
         createdAt: u.createdAt,
       })),
     };
+  });
+
+  // ── Cloud file storage (R2, Pro-users only) ──────────────────────────────
+  const r2Config = r2ConfigFromEnv();
+  const r2Client = r2Config ? createR2Client(r2Config) : null;
+
+  /**
+   * POST /v1/storage/upload-url
+   * Body: { documentId: string; mimeType: string; userId: string }
+   * Returns a presigned PUT URL the mobile client uses to upload directly to R2.
+   * Requires the caller to supply their userId and be marked isPro in the DB.
+   */
+  app.post('/v1/storage/upload-url', async (request, reply) => {
+    if (!r2Client || !r2Config) {
+      return reply.code(503).send({ error: 'File storage not configured' });
+    }
+    const { documentId, mimeType, userId } = request.body as {
+      documentId?: string;
+      mimeType?: string;
+      userId?: string;
+    };
+    if (!documentId || !mimeType || !userId) {
+      return reply.code(400).send({ error: 'documentId, mimeType, and userId are required' });
+    }
+    const user = await store.getUserById(userId);
+    if (!user) return reply.code(404).send({ error: 'User not found' });
+    if (!user.isPro) return reply.code(403).send({ error: 'Pro subscription required' });
+
+    const key = documentKey(documentId, mimeType);
+    const uploadUrl = await getUploadUrl(r2Client, r2Config.bucket, key, mimeType);
+    const storageUrl = r2Config.publicUrl
+      ? `${r2Config.publicUrl.replace(/\/$/, '')}/${key}`
+      : `https://${r2Config.accountId}.r2.cloudflarestorage.com/${r2Config.bucket}/${key}`;
+
+    return { uploadUrl, storageUrl, key };
+  });
+
+  /**
+   * GET /v1/storage/download-url/:documentId?mimeType=...
+   * Returns a presigned GET URL valid for 1 hour.
+   * Requires the caller to supply userId and be marked isPro.
+   */
+  app.get('/v1/storage/download-url/:documentId', async (request, reply) => {
+    if (!r2Client || !r2Config) {
+      return reply.code(503).send({ error: 'File storage not configured' });
+    }
+    const { documentId } = request.params as { documentId: string };
+    const { mimeType, userId } = request.query as { mimeType?: string; userId?: string };
+    if (!mimeType || !userId) {
+      return reply.code(400).send({ error: 'mimeType and userId are required' });
+    }
+    const user = await store.getUserById(userId);
+    if (!user) return reply.code(404).send({ error: 'User not found' });
+    if (!user.isPro) return reply.code(403).send({ error: 'Pro subscription required' });
+
+    const key = documentKey(documentId, mimeType);
+    const downloadUrl = await getDownloadUrl(r2Client, r2Config.bucket, key);
+    return { downloadUrl };
   });
 
   app.setErrorHandler((error, _request, reply) => {

@@ -36,5 +36,6 @@ export interface FiletrailStore {
   getAnalytics(limit?: number): Promise<AnalyticsRecord[]>;
   registerUser(input: Omit<UserRecord, 'isPro' | 'createdAt'>): Promise<UserRecord>;
   getUserByEmail(email: string): Promise<UserRecord | null>;
+  getUserById(id: string): Promise<UserRecord | null>;
   listUsers(limit?: number): Promise<UserRecord[]>;
 }

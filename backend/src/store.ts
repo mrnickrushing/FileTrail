@@ -188,6 +188,12 @@ export class JsonStore implements FiletrailStore {
     return Object.values(data.users).find(u => u.email === email) ?? null;
   }
 
+  async getUserById(id: string): Promise<UserRecord | null> {
+    const data = await this.read();
+    if (!data.users) return null;
+    return data.users[id] ?? null;
+  }
+
   async listUsers(limit = 500): Promise<UserRecord[]> {
     const data = await this.read();
     if (!data.users) return [];

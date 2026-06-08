@@ -294,6 +294,25 @@ export class PostgresStore implements FiletrailStore {
     return existing;
   }
 
+  async getUserById(id: string): Promise<UserRecord | null> {
+    const res = await this.pool.query<{
+      id: string; full_name: string; email: string; password_hash: string;
+      provider: string; apple_user_id: string | null; is_pro: boolean; created_at: Date;
+    }>('SELECT * FROM users WHERE id = $1', [id]);
+    const row = res.rows[0];
+    if (!row) return null;
+    return {
+      id: row.id,
+      fullName: row.full_name,
+      email: row.email,
+      passwordHash: row.password_hash,
+      provider: row.provider as 'email' | 'apple',
+      appleUserId: row.apple_user_id ?? undefined,
+      isPro: row.is_pro,
+      createdAt: row.created_at.toISOString(),
+    };
+  }
+
   async getUserByEmail(email: string): Promise<UserRecord | null> {
     const res = await this.pool.query<{
       id: string; full_name: string; email: string; password_hash: string;

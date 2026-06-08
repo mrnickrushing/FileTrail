@@ -55,6 +55,9 @@ export interface Document {
   aiSource?: 'heuristic' | 'claude';
   aiOrganizedAt?: string;
 
+  // Cloud storage (Pro only)
+  storageUrl?: string;
+
   // Timestamps (ISO strings)
   createdAt: string;
   updatedAt: string;
