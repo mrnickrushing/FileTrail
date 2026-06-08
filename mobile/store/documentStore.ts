@@ -372,6 +372,7 @@ export const useDocumentStore = create<DocumentState>()(
             documentId: doc.id,
             localUri: doc.fileUri,
             mimeType: doc.mimeType,
+            fileName: doc.title,
           }).then((storageUrl) => {
             if (storageUrl) {
               // Patch the storageUrl onto the document without bumping updatedAt
@@ -446,6 +447,7 @@ export const useDocumentStore = create<DocumentState>()(
                 documentId: doc.id,
                 localUri: doc.fileUri,
                 mimeType: doc.mimeType,
+                fileName: doc.title,
               });
               if (storageUrl) {
                 set((s) => ({
@@ -490,6 +492,9 @@ export const useDocumentStore = create<DocumentState>()(
                   documentId: doc.id,
                   mimeType: doc.mimeType,
                   extension: ext,
+                  storageKey: doc.storageUrl
+                    ? doc.storageUrl.replace(/^r2:\/\/[^\/]+\//, '')
+                    : undefined,
                 }).then((localUri) => {
                   if (localUri) {
                     set((s) => ({

@@ -84,10 +84,27 @@ export async function deleteObject(
 }
 
 /**
- * Derives the R2 object key from a document ID and MIME type.
- * Format: documents/{documentId}/original.{ext}
+ * Derives the R2 object key for a document.
+ * Format: documents/{documentId}/{sanitized-title}.{ext}
+ *
+ * - documentId makes each key globally unique (UUID)
+ * - title gives the file a human-readable name in the bucket
  */
-export function documentKey(documentId: string, mimeType: string): string {
+export function documentKey(
+  documentId: string,
+  mimeType: string,
+  title?: string,
+): string {
   const ext = mimeType.split('/')[1]?.split('+')[0] ?? 'bin';
-  return `documents/${documentId}/original.${ext}`;
+  // Sanitize title: keep alphanumerics, spaces, hyphens, underscores, dots.
+  // Collapse runs of unsafe chars into a single underscore.
+  const safeName = title
+    ? title
+        .trim()
+        .replace(/[^a-zA-Z0-9 ._-]/g, '_')
+        .replace(/_+/g, '_')
+        .replace(/^_+|_+$/g, '')
+        .substring(0, 100) || 'document'
+    : 'document';
+  return `documents/${documentId}/${safeName}.${ext}`;
 }

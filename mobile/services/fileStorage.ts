@@ -151,6 +151,7 @@ export async function uploadDocumentToR2(params: {
   documentId: string;
   localUri: string;
   mimeType: string;
+  fileName?: string; // document title — used as the filename in R2
 }): Promise<string | null> {
   try {
     const { uploadUrl, storageUrl } = await apiRequest<{
@@ -162,6 +163,7 @@ export async function uploadDocumentToR2(params: {
       body: {
         documentId: params.documentId,
         mimeType: params.mimeType,
+        fileName: params.fileName,
       },
       timeoutMs: 15000,
     });
@@ -193,10 +195,15 @@ export async function downloadDocumentFromR2(params: {
   documentId: string;
   mimeType: string;
   extension: string;
+  storageKey?: string; // exact R2 key from document.storageUrl (r2://bucket/<key>)
 }): Promise<string | null> {
   try {
+    // Build query: prefer storageKey (exact path), fall back to mimeType-only
+    const qs = params.storageKey
+      ? `storageKey=${encodeURIComponent(params.storageKey)}`
+      : `mimeType=${encodeURIComponent(params.mimeType)}`;
     const { downloadUrl } = await apiRequest<{ downloadUrl: string }>(
-      `/v1/storage/download-url/${params.documentId}?mimeType=${encodeURIComponent(params.mimeType)}`,
+      `/v1/storage/download-url/${params.documentId}?${qs}`,
       { timeoutMs: 10000 },
     );
 

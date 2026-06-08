@@ -242,15 +242,16 @@ export async function buildApp(config: RuntimeConfig, store: FiletrailStore = ne
     if (!r2Client || !r2Config) {
       return reply.code(503).send({ error: 'File storage not configured' });
     }
-    const { documentId, mimeType } = request.body as {
+    const { documentId, mimeType, fileName } = request.body as {
       documentId?: string;
       mimeType?: string;
+      fileName?: string;
     };
     if (!documentId || !mimeType) {
       return reply.code(400).send({ error: 'documentId and mimeType are required' });
     }
 
-    const key = documentKey(documentId, mimeType);
+    const key = documentKey(documentId, mimeType, fileName);
     const uploadUrl = await getUploadUrl(r2Client, r2Config.bucket, key, mimeType);
     // storageUrl is the stable key path — used as a reference, not a public URL.
     // Files are always accessed via fresh presigned GET URLs.
@@ -268,12 +269,23 @@ export async function buildApp(config: RuntimeConfig, store: FiletrailStore = ne
       return reply.code(503).send({ error: 'File storage not configured' });
     }
     const { documentId } = request.params as { documentId: string };
-    const { mimeType } = request.query as { mimeType?: string };
-    if (!mimeType) {
-      return reply.code(400).send({ error: 'mimeType is required' });
+    const { mimeType, storageKey, fileName } = request.query as {
+      mimeType?: string;
+      storageKey?: string;
+      fileName?: string;
+    };
+
+    let key: string;
+    if (storageKey) {
+      // Preferred: client passes the exact key stored in document.storageUrl
+      key = storageKey;
+    } else if (mimeType) {
+      // Fallback: reconstruct key (works when fileName is also provided)
+      key = documentKey(documentId, mimeType, fileName);
+    } else {
+      return reply.code(400).send({ error: 'storageKey or mimeType is required' });
     }
 
-    const key = documentKey(documentId, mimeType);
     const downloadUrl = await getDownloadUrl(r2Client, r2Config.bucket, key);
     return { downloadUrl };
   });
