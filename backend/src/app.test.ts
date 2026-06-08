@@ -16,6 +16,7 @@ const config: RuntimeConfig = {
   port: 0,
   corsOrigins: ['*'],
   apiKey: 'test-key',
+  adminKey: 'test-admin-key',
   dataDir: '',
   databaseUrl: null,
   publicAppUrl: 'http://localhost:4000',

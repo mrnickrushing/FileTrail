@@ -6,6 +6,7 @@ export type RuntimeConfig = {
   port: number;
   corsOrigins: string[];
   apiKey: string | null;
+  adminKey: string | null;
   dataDir: string;
   databaseUrl: string | null;
   publicAppUrl: string;
@@ -31,6 +32,7 @@ export function loadConfig(): RuntimeConfig {
     port: Number(process.env.PORT || 4000),
     corsOrigins: corsRaw === '*' ? ['*'] : corsRaw.split(',').map((origin) => origin.trim()).filter(Boolean),
     apiKey: process.env.API_KEY?.trim() || null,
+    adminKey: process.env.ADMIN_KEY?.trim() || null,
     dataDir: process.env.DATA_DIR || '.data',
     databaseUrl: process.env.DATABASE_URL?.trim() || null,
     publicAppUrl: process.env.PUBLIC_APP_URL || 'http://localhost:4000',
