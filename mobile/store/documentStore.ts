@@ -435,6 +435,36 @@ export const useDocumentStore = create<DocumentState>()(
       },
 
       syncWithBackend: async () => {
+        // Before syncing metadata, upload any existing documents that are
+        // missing a storageUrl (Pro users with pre-existing vault files).
+        const isPro = useProStore.getState().isPro;
+        const userId = useAppStore.getState().accountProfile?.userId;
+        if (isPro && userId) {
+          const missing = get().documents.filter(
+            (d) => d.fileUri && !d.storageUrl
+          );
+          // Upload sequentially to avoid hammering presigned URL requests
+          for (const doc of missing) {
+            try {
+              const storageUrl = await uploadDocumentToR2({
+                documentId: doc.id,
+                localUri: doc.fileUri,
+                mimeType: doc.mimeType,
+                userId,
+              });
+              if (storageUrl) {
+                set((s) => ({
+                  documents: s.documents.map((d) =>
+                    d.id === doc.id ? { ...d, storageUrl } : d
+                  ),
+                }));
+              }
+            } catch {
+              // Non-fatal — will retry next sync
+            }
+          }
+        }
+
         await syncMetadata({
           documents: get().documents,
           folders: get().folders,
