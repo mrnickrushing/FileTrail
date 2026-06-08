@@ -17,7 +17,6 @@ import { enqueueOCR, dequeueOCR } from '@/services/ocrQueue';
 import { syncMetadata, type Tombstone } from '@/services/syncService';
 import { Colors } from '@/theme';
 import { useProStore } from './proStore';
-import { useAppStore } from './appStore';
 
 const DOCUMENTS_STORE_KEY = 'filetrail-documents-v2';
 
@@ -368,13 +367,11 @@ export const useDocumentStore = create<DocumentState>()(
         }
         // Upload to R2 for Pro users (fire-and-forget; local file is already saved)
         const isPro = useProStore.getState().isPro;
-        const userId = useAppStore.getState().accountProfile?.userId;
-        if (isPro && userId && doc.fileUri) {
+        if (isPro && doc.fileUri) {
           uploadDocumentToR2({
             documentId: doc.id,
             localUri: doc.fileUri,
             mimeType: doc.mimeType,
-            userId,
           }).then((storageUrl) => {
             if (storageUrl) {
               // Patch the storageUrl onto the document without bumping updatedAt
@@ -438,8 +435,7 @@ export const useDocumentStore = create<DocumentState>()(
         // Before syncing metadata, upload any existing documents that are
         // missing a storageUrl (Pro users with pre-existing vault files).
         const isPro = useProStore.getState().isPro;
-        const userId = useAppStore.getState().accountProfile?.userId;
-        if (isPro && userId) {
+        if (isPro) {
           const missing = get().documents.filter(
             (d) => d.fileUri && !d.storageUrl
           );
@@ -450,7 +446,6 @@ export const useDocumentStore = create<DocumentState>()(
                 documentId: doc.id,
                 localUri: doc.fileUri,
                 mimeType: doc.mimeType,
-                userId,
               });
               if (storageUrl) {
                 set((s) => ({
@@ -472,7 +467,6 @@ export const useDocumentStore = create<DocumentState>()(
           deletedFolderIds: get().deletedFolderIds,
           mergeDocuments: (incoming) => {
             const isPro = useProStore.getState().isPro;
-            const userId = useAppStore.getState().accountProfile?.userId;
             set((s) => {
               const localById = new Map(s.documents.map((doc) => [doc.id, doc]));
               for (const doc of incoming) {
@@ -485,7 +479,7 @@ export const useDocumentStore = create<DocumentState>()(
             });
             // After merging, download any missing local files from R2 (Pro only).
             // This is the "new device" restore path.
-            if (isPro && userId) {
+            if (isPro) {
               for (const doc of incoming) {
                 if (!doc.storageUrl) continue;
                 // Use current state after merge
@@ -495,7 +489,6 @@ export const useDocumentStore = create<DocumentState>()(
                 downloadDocumentFromR2({
                   documentId: doc.id,
                   mimeType: doc.mimeType,
-                  userId,
                   extension: ext,
                 }).then((localUri) => {
                   if (localUri) {

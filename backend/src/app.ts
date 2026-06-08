@@ -233,31 +233,28 @@ export async function buildApp(config: RuntimeConfig, store: FiletrailStore = ne
 
   /**
    * POST /v1/storage/upload-url
-   * Body: { documentId: string; mimeType: string; userId: string }
+   * Body: { documentId: string; mimeType: string }
    * Returns a presigned PUT URL the mobile client uses to upload directly to R2.
-   * Requires the caller to supply their userId and be marked isPro in the DB.
+   * Pro gate is enforced on the mobile side (RevenueCat). Backend just needs
+   * a valid API key (checked by preHandler when API_KEY env var is set).
    */
   app.post('/v1/storage/upload-url', async (request, reply) => {
     if (!r2Client || !r2Config) {
       return reply.code(503).send({ error: 'File storage not configured' });
     }
-    const { documentId, mimeType, userId } = request.body as {
+    const { documentId, mimeType } = request.body as {
       documentId?: string;
       mimeType?: string;
-      userId?: string;
     };
-    if (!documentId || !mimeType || !userId) {
-      return reply.code(400).send({ error: 'documentId, mimeType, and userId are required' });
+    if (!documentId || !mimeType) {
+      return reply.code(400).send({ error: 'documentId and mimeType are required' });
     }
-    const user = await store.getUserById(userId);
-    if (!user) return reply.code(404).send({ error: 'User not found' });
-    if (!user.isPro) return reply.code(403).send({ error: 'Pro subscription required' });
 
     const key = documentKey(documentId, mimeType);
     const uploadUrl = await getUploadUrl(r2Client, r2Config.bucket, key, mimeType);
-    const storageUrl = r2Config.publicUrl
-      ? `${r2Config.publicUrl.replace(/\/$/, '')}/${key}`
-      : `https://${r2Config.accountId}.r2.cloudflarestorage.com/${r2Config.bucket}/${key}`;
+    // storageUrl is the stable key path — used as a reference, not a public URL.
+    // Files are always accessed via fresh presigned GET URLs.
+    const storageUrl = `r2://${r2Config.bucket}/${key}`;
 
     return { uploadUrl, storageUrl, key };
   });
@@ -265,20 +262,16 @@ export async function buildApp(config: RuntimeConfig, store: FiletrailStore = ne
   /**
    * GET /v1/storage/download-url/:documentId?mimeType=...
    * Returns a presigned GET URL valid for 1 hour.
-   * Requires the caller to supply userId and be marked isPro.
    */
   app.get('/v1/storage/download-url/:documentId', async (request, reply) => {
     if (!r2Client || !r2Config) {
       return reply.code(503).send({ error: 'File storage not configured' });
     }
     const { documentId } = request.params as { documentId: string };
-    const { mimeType, userId } = request.query as { mimeType?: string; userId?: string };
-    if (!mimeType || !userId) {
-      return reply.code(400).send({ error: 'mimeType and userId are required' });
+    const { mimeType } = request.query as { mimeType?: string };
+    if (!mimeType) {
+      return reply.code(400).send({ error: 'mimeType is required' });
     }
-    const user = await store.getUserById(userId);
-    if (!user) return reply.code(404).send({ error: 'User not found' });
-    if (!user.isPro) return reply.code(403).send({ error: 'Pro subscription required' });
 
     const key = documentKey(documentId, mimeType);
     const downloadUrl = await getDownloadUrl(r2Client, r2Config.bucket, key);

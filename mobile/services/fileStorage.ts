@@ -151,7 +151,6 @@ export async function uploadDocumentToR2(params: {
   documentId: string;
   localUri: string;
   mimeType: string;
-  userId: string;
 }): Promise<string | null> {
   try {
     const { uploadUrl, storageUrl } = await apiRequest<{
@@ -163,7 +162,6 @@ export async function uploadDocumentToR2(params: {
       body: {
         documentId: params.documentId,
         mimeType: params.mimeType,
-        userId: params.userId,
       },
       timeoutMs: 15000,
     });
@@ -194,12 +192,11 @@ export async function uploadDocumentToR2(params: {
 export async function downloadDocumentFromR2(params: {
   documentId: string;
   mimeType: string;
-  userId: string;
   extension: string;
 }): Promise<string | null> {
   try {
     const { downloadUrl } = await apiRequest<{ downloadUrl: string }>(
-      `/v1/storage/download-url/${params.documentId}?mimeType=${encodeURIComponent(params.mimeType)}&userId=${encodeURIComponent(params.userId)}`,
+      `/v1/storage/download-url/${params.documentId}?mimeType=${encodeURIComponent(params.mimeType)}`,
       { timeoutMs: 10000 },
     );
 
