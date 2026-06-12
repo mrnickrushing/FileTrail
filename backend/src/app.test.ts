@@ -172,6 +172,25 @@ test('AI suggestion endpoint extracts a person subfolder for birth certificates'
   assert.equal(res.json().category, 'id');
   assert.equal(res.json().suggestedFolderName, 'IDs');
   assert.equal(res.json().suggestedSubfolderName, 'Jacob Eli Rushing');
+  assert.equal(res.json().suggestedTitle, 'Birth Certificate - Jacob Eli Rushing');
+});
+
+test('AI suggestion endpoint handles lowercase person names in OCR text', async () => {
+  const res = await app.inject({
+    method: 'POST',
+    url: '/v1/ai/suggest-document',
+    headers: { Authorization: 'Bearer test-key' },
+    payload: {
+      title: 'Driver License',
+      ocrText: 'name\nnick a rushing\ndob 2026-06-01',
+      mimeType: 'image/jpeg',
+    },
+  });
+
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.json().category, 'id');
+  assert.equal(res.json().suggestedSubfolderName, 'Nick A Rushing');
+  assert.equal(res.json().suggestedTitle, 'Driver License - Nick A Rushing');
 });
 
 test('share links enforce passwords and list created links', async () => {
