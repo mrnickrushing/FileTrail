@@ -22,6 +22,7 @@ const RC_API_KEY_IOS = (
 ).trim();
 const PRO_PRODUCT_ID = 'FileTrail.monthly';
 const PRO_ENTITLEMENT_ID = 'pro';
+const NORMALIZED_PRO_ENTITLEMENT_ID = PRO_ENTITLEMENT_ID.toLowerCase();
 
 let isConfigured = false;
 let configureAttempted = false;
@@ -47,7 +48,30 @@ function isNativePurchasesPlatform(): boolean {
 }
 
 function hasProEntitlement(customerInfo: CustomerInfo): boolean {
-  return typeof customerInfo.entitlements.active[PRO_ENTITLEMENT_ID] !== 'undefined';
+  const activeEntitlements = customerInfo.entitlements.active ?? {};
+
+  if (typeof activeEntitlements[PRO_ENTITLEMENT_ID] !== 'undefined') {
+    return true;
+  }
+
+  const matchingEntitlement = Object.entries(activeEntitlements).find(([identifier, entitlement]) => {
+    const normalizedIdentifier = identifier.trim().toLowerCase();
+    const entitlementProductIdentifier = entitlement.productIdentifier?.trim();
+    return (
+      normalizedIdentifier === NORMALIZED_PRO_ENTITLEMENT_ID
+      || entitlementProductIdentifier === PRO_PRODUCT_ID
+    );
+  });
+
+  if (matchingEntitlement) {
+    return true;
+  }
+
+  const activeSubscriptions = new Set(
+    (customerInfo.activeSubscriptions ?? []).map((subscriptionId) => subscriptionId.trim()),
+  );
+
+  return activeSubscriptions.has(PRO_PRODUCT_ID);
 }
 
 function hasValidRevenueCatKey(): boolean {
