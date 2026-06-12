@@ -1,7 +1,7 @@
 import Fastify, { type FastifyInstance } from 'fastify';
 import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { ZodError } from 'zod';
 import type { RuntimeConfig } from './config.js';
 import { JsonStore } from './store.js';
@@ -31,6 +31,9 @@ import {
   documentKey,
   objectExists,
   listObjectKeys,
+  headObjectInfo,
+  storageUrlToKey,
+  parseEmailStorageKey,
 } from './r2.js';
 
 function parseBody<T>(schema: { parse: (value: unknown) => T }, body: unknown): T {
@@ -47,6 +50,63 @@ export async function buildApp(config: RuntimeConfig, store: FiletrailStore = ne
       .replace(/[^a-z0-9]+/g, '.')
       .replace(/^\.+|\.+$/g, '')
       .slice(0, 48);
+  }
+
+  function stableStorageDocumentId(key: string): string {
+    return `email-${createHash('sha256').update(key).digest('hex').slice(0, 24)}`;
+  }
+
+  async function synthesizeDocumentFromStorageKey(
+    user: { id: string; email: string; fullName: string },
+    key: string,
+  ): Promise<{
+    id: string;
+    title: string;
+    category: string;
+    fileUri: string;
+    thumbnailUri: null;
+    mimeType: string;
+    fileSizeBytes: number;
+    pageCount: number;
+    ocrStatus: 'pending' | 'processing' | 'done' | 'failed' | 'unavailable';
+    isFavorite: boolean;
+    folderId: null;
+    tags: string[];
+    createdAt: string;
+    updatedAt: string;
+    storageUrl: string;
+    ownerUserId: string;
+    ownerEmail: string;
+    source: 'email';
+    sourceLabel: string;
+  } | null> {
+    if (!r2Client || !r2Config) return null;
+    const parsed = parseEmailStorageKey(key, user.email);
+    if (!parsed) return null;
+
+    const head = await headObjectInfo(r2Client, r2Config.bucket, key);
+    const timestamp = head?.lastModified ?? '1970-01-01T00:00:00.000Z';
+    return {
+      id: stableStorageDocumentId(key),
+      title: parsed.title,
+      category: parsed.category,
+      fileUri: '',
+      thumbnailUri: null,
+      mimeType: parsed.mimeType,
+      fileSizeBytes: head?.contentLength ?? 0,
+      pageCount: 1,
+      ocrStatus: parsed.mimeType.startsWith('image/') ? 'pending' : 'unavailable',
+      isFavorite: false,
+      folderId: null,
+      tags: [],
+      createdAt: timestamp,
+      updatedAt: timestamp,
+      storageUrl: `r2://${r2Config.bucket}/${key}`,
+      ownerUserId: user.id,
+      ownerEmail: user.email.toLowerCase(),
+      source: 'email',
+      sourceLabel: `${user.fullName || user.email} inbox`,
+    };
   }
 
   async function authorizeStorageUser(request: {
@@ -206,6 +266,43 @@ export async function buildApp(config: RuntimeConfig, store: FiletrailStore = ne
     const result = await store.pull(input.sinceVersion);
     const userEmail = user.email.toLowerCase();
     const hydratedDocuments = await attachStorageUrlsForUser(user, result.documents);
+    const bucketDocuments: Array<{
+      id: string;
+      title: string;
+      category: string;
+      fileUri: string;
+      thumbnailUri: null;
+      mimeType: string;
+      fileSizeBytes: number;
+      pageCount: number;
+      ocrStatus: 'pending' | 'processing' | 'done' | 'failed' | 'unavailable';
+      isFavorite: boolean;
+      folderId: null;
+      tags: string[];
+      createdAt: string;
+      updatedAt: string;
+      storageUrl: string;
+      ownerUserId: string;
+      ownerEmail: string;
+      source: 'email';
+      sourceLabel: string;
+    }> = [];
+    if (r2Client && r2Config) {
+      const existingKeys = new Set(
+        hydratedDocuments
+          .map((doc) => storageUrlToKey(doc.storageUrl))
+          .filter((key): key is string => Boolean(key))
+      );
+      const bucketKeys = await listObjectKeys(r2Client, r2Config.bucket, `${userEmail}/`);
+      for (const key of bucketKeys) {
+        if (existingKeys.has(key)) continue;
+        const synthesized = await synthesizeDocumentFromStorageKey(user, key);
+        if (synthesized) {
+          bucketDocuments.push(synthesized);
+          existingKeys.add(key);
+        }
+      }
+    }
     const matchesUser = (record: { ownerUserId?: string; ownerEmail?: string; storageUrl?: string }): boolean => {
       if (record.ownerUserId && record.ownerUserId === user.id) return true;
       if (record.ownerEmail && record.ownerEmail.toLowerCase() === userEmail) return true;
@@ -213,7 +310,7 @@ export async function buildApp(config: RuntimeConfig, store: FiletrailStore = ne
     };
     return {
       ...result,
-      documents: hydratedDocuments.filter(matchesUser),
+      documents: [...hydratedDocuments, ...bucketDocuments].filter(matchesUser),
       folders: result.folders.filter((folder) => (
         (folder.ownerUserId && folder.ownerUserId === user.id) ||
         (folder.ownerEmail && folder.ownerEmail.toLowerCase() === userEmail)
