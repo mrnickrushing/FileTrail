@@ -15,7 +15,7 @@ const TAB_HEIGHT = 62;
 
 export default function TabLayout() {
   const insets = useSafeAreaInsets();
-  const bottomPad = Math.max(insets.bottom, 8);
+  const bottomOffset = Math.max(insets.bottom, 4);
 
   return (
     <Tabs
@@ -23,7 +23,7 @@ export default function TabLayout() {
         headerShown: false,
         tabBarStyle: {
           position: 'absolute',
-          bottom: bottomPad + S[2],
+          bottom: bottomOffset,
           left: S[5],
           right: S[5],
           height: TAB_HEIGHT,
