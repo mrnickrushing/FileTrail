@@ -616,8 +616,8 @@ export const useDocumentStore = create<DocumentState>()(
           deletedDocumentIds: get().deletedDocumentIds,
           deletedFolderIds: get().deletedFolderIds,
           mergeDocuments: (incoming) => {
-            set((s) => {
-              const localById = new Map(s.documents.map((doc) => [doc.id, doc]));
+            const mergedDocs = (() => {
+              const localById = new Map(get().documents.map((doc) => [doc.id, doc]));
               for (const doc of incoming) {
                 const local = localById.get(doc.id);
                 if (!local || doc.updatedAt > local.updatedAt) {
@@ -634,15 +634,15 @@ export const useDocumentStore = create<DocumentState>()(
                   });
                 }
               }
-              return { documents: Array.from(localById.values()) };
-            });
+              return Array.from(localById.values());
+            })();
+
+            set({ documents: mergedDocs });
+
             // After merging, download any missing local files from R2.
             // This is the "new device" restore path.
-            for (const doc of incoming) {
-              if (!doc.storageUrl) continue;
-              // Use current state after merge
-              const merged = get().documents.find((d) => d.id === doc.id);
-              if (!merged || merged.fileUri) continue;
+            for (const doc of mergedDocs) {
+              if (!doc.storageUrl || doc.fileUri) continue;
               const ext = getExtension(doc.mimeType);
                 downloadDocumentFromR2({
                   documentId: doc.id,
