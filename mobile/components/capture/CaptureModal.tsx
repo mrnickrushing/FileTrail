@@ -47,7 +47,12 @@ export function CaptureModal({ visible, onClose }: CaptureModalProps) {
     if (result.status === 'captured') {
       router.push({
         pathname: '/capture/review',
-        params: { uri: result.uri, source: 'camera' },
+        params: {
+          uri: result.uri,
+          name: result.name,
+          mimeType: result.mimeType,
+          source: 'camera',
+        },
       });
     } else if (result.status === 'denied') {
       setPermissionPrompt('camera');
