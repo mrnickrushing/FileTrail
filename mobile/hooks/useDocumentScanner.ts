@@ -26,34 +26,65 @@ export function useDocumentScanner() {
         };
       }
 
-      // Loaded lazily so web export and non-native surfaces do not try to
-      // evaluate the scanner module.
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
-      const scannerModule = require('react-native-document-scanner-plugin');
-      const DocumentScanner = scannerModule.default;
-      const { ResponseType, ScanDocumentResponseStatus } = scannerModule;
+      // Try the native document scanner (requires a custom dev/prod build with the
+      // react-native-document-scanner-plugin binary linked). If the TurboModule is
+      // not present in this build the require will throw; we fall through to the
+      // standard camera instead of crashing.
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        const scannerModule = require('react-native-document-scanner-plugin');
+        const DocumentScanner = scannerModule?.default;
+        const { ResponseType, ScanDocumentResponseStatus } = scannerModule ?? {};
 
-      const result = await DocumentScanner.scanDocument({
-        croppedImageQuality: 92,
-        maxNumDocuments: 1,
-        responseType: ResponseType.ImageFilePath,
+        if (DocumentScanner && ResponseType && ScanDocumentResponseStatus) {
+          const result = await DocumentScanner.scanDocument({
+            croppedImageQuality: 92,
+            maxNumDocuments: 1,
+            responseType: ResponseType.ImageFilePath,
+          });
+
+          if (result?.status === ScanDocumentResponseStatus.Cancel) {
+            return { status: 'cancelled' };
+          }
+
+          const scannedUri = result?.scannedImages?.[0];
+          if (result?.status === ScanDocumentResponseStatus.Success && typeof scannedUri === 'string' && scannedUri.length > 0) {
+            return {
+              status: 'captured',
+              uri: scannedUri,
+              mimeType: 'image/jpeg',
+              name: `Scan-${Date.now()}.jpg`,
+            };
+          }
+
+          return { status: 'cancelled' };
+        }
+      } catch {
+        // Native DocumentScanner TurboModule not available in this build; fall through to camera.
+      }
+
+      // Fallback: standard camera via expo-image-picker (works in Expo Go and any build).
+      const photo = await ImagePicker.launchCameraAsync({
+        mediaTypes: 'images',
+        quality: 0.92,
+        allowsEditing: false,
       });
 
-      if (result?.status === ScanDocumentResponseStatus.Cancel) {
+      if (photo.canceled) {
         return { status: 'cancelled' };
       }
 
-      const scannedUri = result?.scannedImages?.[0];
-      if (result?.status === ScanDocumentResponseStatus.Success && typeof scannedUri === 'string' && scannedUri.length > 0) {
-        return {
-          status: 'captured',
-          uri: scannedUri,
-          mimeType: 'image/jpeg',
-          name: `Scan-${Date.now()}.jpg`,
-        };
+      const asset = photo.assets?.[0];
+      if (!asset?.uri) {
+        return { status: 'cancelled' };
       }
 
-      return { status: 'cancelled' };
+      return {
+        status: 'captured',
+        uri: asset.uri,
+        mimeType: asset.mimeType ?? 'image/jpeg',
+        name: `Scan-${Date.now()}.jpg`,
+      };
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       if (/permission|camera/i.test(message)) {
