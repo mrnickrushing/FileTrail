@@ -13,7 +13,7 @@ import {
   UIManager,
 } from 'react-native';
 import { Redirect, useRouter } from 'expo-router';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import * as FileSystem from 'expo-file-system';
 import { Feather } from '@expo/vector-icons';
@@ -144,6 +144,7 @@ function syncBadgeMeta(phase: SyncPhase, pendingCount: number): {
 
 export default function VaultScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
 
   // Fine-grained selectors avoid re-rendering the whole Vault on unrelated
   // store changes (e.g. another document's OCR status flip).
@@ -718,7 +719,7 @@ export default function VaultScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
       <ScreenHeader
         title={selectionMode ? `${selectedIds.size} selected` : 'FileTrail'}
         subtitle={selectionMode ? undefined : `${visibleDocuments.length} document${visibleDocuments.length !== 1 ? 's' : ''}`}
@@ -862,7 +863,7 @@ export default function VaultScreen() {
 
       {/* ── Onboarding tour tips ── */}
       <VaultTourTips />
-    </SafeAreaView>
+    </View>
   );
 }
 
