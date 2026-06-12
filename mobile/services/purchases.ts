@@ -13,10 +13,13 @@ import Purchases, {
   type PurchasesStoreProduct,
 } from 'react-native-purchases';
 
-// RevenueCat iOS public SDK key — set EXPO_PUBLIC_REVENUECAT_IOS_KEY in Codemagic.
-// Do not fall back to a placeholder here; missing credentials should disable
-// purchases cleanly instead of crashing startup with an invalid SDK key.
-const RC_API_KEY_IOS = (process.env.EXPO_PUBLIC_REVENUECAT_IOS_KEY ?? '').trim();
+// RevenueCat public iOS SDK key. Prefer the build env, but fall back to the
+// known public key so OTA bundles and misconfigured build envs do not silently
+// disable purchases.
+const RC_API_KEY_IOS = (
+  process.env.EXPO_PUBLIC_REVENUECAT_IOS_KEY
+  ?? 'appl_TgiNXVHaxiiEfFbKfcYfbSnFCwh'
+).trim();
 const PRO_PRODUCT_ID = 'FileTrail.monthly';
 const PRO_ENTITLEMENT_ID = 'pro';
 
