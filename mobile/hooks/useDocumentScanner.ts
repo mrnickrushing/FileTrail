@@ -3,7 +3,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { Platform } from 'react-native';
 
 export type DocumentScannerResult =
-  | { status: 'captured'; uri: string }
+  | { status: 'captured'; uri: string; mimeType: string; name: string }
   | { status: 'cancelled' }
   | { status: 'denied' }
   | { status: 'error'; message: string };
@@ -45,7 +45,12 @@ export function useDocumentScanner() {
 
       const scannedUri = result?.scannedImages?.[0];
       if (result?.status === ScanDocumentResponseStatus.Success && typeof scannedUri === 'string' && scannedUri.length > 0) {
-        return { status: 'captured', uri: scannedUri };
+        return {
+          status: 'captured',
+          uri: scannedUri,
+          mimeType: 'image/jpeg',
+          name: `Scan-${Date.now()}.jpg`,
+        };
       }
 
       return { status: 'cancelled' };
