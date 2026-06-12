@@ -551,62 +551,70 @@ export default function VaultScreen() {
             <Pressable onPress={selectAll} hitSlop={8}>
               <Text style={styles.selectAllBtn}>Select All</Text>
             </Pressable>
-          ) : (
-            <View style={styles.headerControls}>
-              <Pressable
-                style={[styles.headerControlBtn, styles.headerControlFoldersBtn]}
-                hitSlop={8}
-                onPress={() => router.push('/(tabs)/folders')}
-                accessibilityLabel="Open folders"
-                accessibilityRole="button"
-              >
-                <Feather name="folder" size={15} color={C.amber} />
-                <Text style={[styles.headerControlText, styles.headerFolderText]}>Folders</Text>
-              </Pressable>
-              <Pressable
-                style={[styles.headerControlBtn, styles.headerControlDivider]}
-                hitSlop={8}
-                onPress={() => {
-                  Haptics.selectionAsync();
-                  const order: typeof sortBy[] = ['updatedAt', 'createdAt', 'title', 'category'];
-                  const next = order[(order.indexOf(sortBy) + 1) % order.length];
-                  setSortBy(next);
-                }}
-                accessibilityLabel={`Sort by ${sortBy}`}
-                accessibilityRole="button"
-              >
-                <Feather name={SORT_ICONS[sortBy]} size={14} color={C.ash} />
-                <Text style={styles.headerControlText}>{SORT_LABELS[sortBy]}</Text>
-              </Pressable>
-              <Pressable
-                style={[styles.headerControlBtn, styles.headerControlDivider]}
-                hitSlop={8}
-                onPress={() => {
-                  Haptics.selectionAsync();
-                  setSortDir(sortDir === 'desc' ? 'asc' : 'desc');
-                }}
-                accessibilityLabel={sortDir === 'desc' ? 'Sort descending' : 'Sort ascending'}
-                accessibilityRole="button"
-              >
-                <Feather name={sortDir === 'desc' ? 'arrow-down' : 'arrow-up'} size={15} color={C.ash} />
-              </Pressable>
-              <Pressable
-                style={[styles.headerControlBtn, styles.headerControlDivider]}
-                hitSlop={8}
-                onPress={() => {
-                  Haptics.selectionAsync();
-                  LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-                  setViewMode(viewMode === 'card' ? 'list' : 'card');
-                }}
-                accessibilityLabel={viewMode === 'card' ? 'Switch to list view' : 'Switch to card view'}
-                accessibilityRole="button"
-              >
-                <Feather name={viewMode === 'card' ? 'list' : 'grid'} size={15} color={C.ash} />
-              </Pressable>
-            </View>
-          )
+          ) : undefined
         }
       />
+
+      {!selectionMode && (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.headerToolbarScroll}
+        >
+          <View style={styles.headerControls}>
+            <Pressable
+              style={[styles.headerControlBtn, styles.headerControlFoldersBtn]}
+              hitSlop={8}
+              onPress={() => router.push('/(tabs)/folders')}
+              accessibilityLabel="Open folders"
+              accessibilityRole="button"
+            >
+              <Feather name="folder" size={15} color={C.amber} />
+              <Text style={[styles.headerControlText, styles.headerFolderText]}>Folders</Text>
+            </Pressable>
+            <Pressable
+              style={[styles.headerControlBtn, styles.headerControlDivider]}
+              hitSlop={8}
+              onPress={() => {
+                Haptics.selectionAsync();
+                const order: typeof sortBy[] = ['updatedAt', 'createdAt', 'title', 'category'];
+                const next = order[(order.indexOf(sortBy) + 1) % order.length];
+                setSortBy(next);
+              }}
+              accessibilityLabel={`Sort by ${sortBy}`}
+              accessibilityRole="button"
+            >
+              <Feather name={SORT_ICONS[sortBy]} size={14} color={C.ash} />
+              <Text style={styles.headerControlText}>{SORT_LABELS[sortBy]}</Text>
+            </Pressable>
+            <Pressable
+              style={[styles.headerControlBtn, styles.headerControlDivider]}
+              hitSlop={8}
+              onPress={() => {
+                Haptics.selectionAsync();
+                setSortDir(sortDir === 'desc' ? 'asc' : 'desc');
+              }}
+              accessibilityLabel={sortDir === 'desc' ? 'Sort descending' : 'Sort ascending'}
+              accessibilityRole="button"
+            >
+              <Feather name={sortDir === 'desc' ? 'arrow-down' : 'arrow-up'} size={15} color={C.ash} />
+            </Pressable>
+            <Pressable
+              style={[styles.headerControlBtn, styles.headerControlDivider]}
+              hitSlop={8}
+              onPress={() => {
+                Haptics.selectionAsync();
+                LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+                setViewMode(viewMode === 'card' ? 'list' : 'card');
+              }}
+              accessibilityLabel={viewMode === 'card' ? 'Switch to list view' : 'Switch to card view'}
+              accessibilityRole="button"
+            >
+              <Feather name={viewMode === 'card' ? 'list' : 'grid'} size={15} color={C.ash} />
+            </Pressable>
+          </View>
+        </ScrollView>
+      )}
 
       {/* Filter bar */}
       {!selectionMode && (
@@ -833,6 +841,7 @@ function FilterBar({
       horizontal
       showsHorizontalScrollIndicator={false}
       contentContainerStyle={styles.chips}
+      style={styles.filterBar}
     >
       {visibleCategories.map((c) => {
         const isActive = activeCategory === c.key;
@@ -944,6 +953,10 @@ const styles = StyleSheet.create({
     borderColor: C.ink3,
     overflow: 'hidden',
   },
+  headerToolbarScroll: {
+    paddingHorizontal: S[6],
+    paddingBottom: S[3],
+  },
   headerControlBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -971,10 +984,14 @@ const styles = StyleSheet.create({
   chips: {
     flexDirection:  'row',
     paddingHorizontal: Spacing['5'],
+    paddingTop: Spacing['1'],
     paddingBottom:  Spacing['3'],
     gap:            Spacing['2'],
     flexWrap:       'nowrap',
     alignItems:     'center',
+  },
+  filterBar: {
+    marginTop: Spacing['1'],
   },
   chipDivider: {
     width: 1,
