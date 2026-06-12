@@ -7,7 +7,7 @@ import { after, before, test } from 'node:test';
 import type { FastifyInstance } from 'fastify';
 import { buildApp } from './app.js';
 import type { RuntimeConfig } from './config.js';
-import { documentKey } from './r2.js';
+import { documentKey, parseEmailStorageKey, storageUrlToKey } from './r2.js';
 
 let app: FastifyInstance;
 let dataDir: string;
@@ -74,6 +74,26 @@ test('documentKey falls back to legacy path without an email', () => {
   assert.equal(
     documentKey('doc-1', 'application/pdf', 'Lease'),
     'documents/doc-1/Lease.pdf',
+  );
+});
+
+test('storage keys can be parsed back into email folder metadata', () => {
+  assert.equal(
+    storageUrlToKey('r2://bucket/admin@example.com/medical/Nick Rushing/Birth Certificate.pdf'),
+    'admin@example.com/medical/Nick Rushing/Birth Certificate.pdf',
+  );
+
+  assert.deepEqual(
+    parseEmailStorageKey(
+      'admin@example.com/medical/Nick Rushing/Birth Certificate.pdf',
+      'admin@example.com',
+    ),
+    {
+      category: 'medical',
+      ownerName: 'Nick Rushing',
+      title: 'Birth Certificate',
+      mimeType: 'application/pdf',
+    },
   );
 });
 

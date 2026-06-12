@@ -115,6 +115,32 @@ export async function objectExists(
   }
 }
 
+export async function headObjectInfo(
+  client: S3Client,
+  bucket: string,
+  key: string,
+): Promise<{ contentLength?: number; contentType?: string; lastModified?: string } | null> {
+  try {
+    const response = await client.send(new HeadObjectCommand({ Bucket: bucket, Key: key }));
+    return {
+      contentLength: typeof response.ContentLength === 'number' ? response.ContentLength : undefined,
+      contentType: response.ContentType ?? undefined,
+      lastModified: response.LastModified?.toISOString(),
+    };
+  } catch (error) {
+    if (
+      (typeof error === 'object' &&
+        error !== null &&
+        '$metadata' in error &&
+        typeof (error as { $metadata?: { httpStatusCode?: number } }).$metadata?.httpStatusCode === 'number' &&
+        (error as { $metadata?: { httpStatusCode?: number } }).$metadata?.httpStatusCode === 404)
+    ) {
+      return null;
+    }
+    throw error;
+  }
+}
+
 export async function listObjectKeys(
   client: S3Client,
   bucket: string,
@@ -136,6 +162,82 @@ export async function listObjectKeys(
   } while (continuationToken);
 
   return keys;
+}
+
+export function storageUrlToKey(storageUrl: string | undefined): string | null {
+  if (!storageUrl) return null;
+  const match = storageUrl.match(/^r2:\/\/[^/]+\/(.+)$/i);
+  return match ? match[1] : null;
+}
+
+export function mimeTypeFromStorageKey(key: string): string {
+  const extension = key.split('.').pop()?.toLowerCase() ?? '';
+  switch (extension) {
+    case 'pdf':
+      return 'application/pdf';
+    case 'jpg':
+    case 'jpeg':
+      return 'image/jpeg';
+    case 'png':
+      return 'image/png';
+    case 'heic':
+      return 'image/heic';
+    case 'heif':
+      return 'image/heif';
+    case 'webp':
+      return 'image/webp';
+    case 'gif':
+      return 'image/gif';
+    case 'tif':
+    case 'tiff':
+      return 'image/tiff';
+    default:
+      return 'application/octet-stream';
+  }
+}
+
+export function normalizeStorageCategory(value: string): string {
+  const normalized = value
+    .trim()
+    .toLowerCase()
+    .replace(/[\s_-]+/g, '');
+
+  if (normalized === 'receipt' || normalized.includes('receipt')) return 'receipt';
+  if (normalized === 'bill' || normalized.includes('bill')) return 'bill';
+  if (normalized === 'contract' || normalized.includes('contract')) return 'contract';
+  if (normalized === 'id' || normalized === 'ids' || normalized.includes('ident')) return 'id';
+  if (normalized === 'warranty' || normalized.includes('warrant')) return 'warranty';
+  if (normalized === 'medical' || normalized.includes('med') || normalized.includes('health')) return 'medical';
+  if (normalized === 'tax' || normalized.includes('tax')) return 'tax';
+  if (normalized === 'work' || normalized.includes('work') || normalized.includes('job')) return 'work';
+  if (normalized === 'retirement' || normalized.includes('retirement') || normalized.includes('401k') || normalized.includes('ira')) return 'retirement';
+  if (normalized === 'insurance' || normalized.includes('insur')) return 'insurance';
+  if (normalized === 'legal' || normalized.includes('legal')) return 'legal';
+  if (normalized === 'vehicle' || normalized.includes('vehicle') || normalized.includes('auto') || normalized.includes('car')) return 'vehicle';
+  if (normalized === 'property' || normalized.includes('property') || normalized.includes('home') || normalized.includes('house') || normalized.includes('mortgage')) return 'property';
+  if (normalized === 'education' || normalized.includes('school') || normalized.includes('education')) return 'education';
+  if (normalized === 'travel' || normalized.includes('travel') || normalized.includes('trip')) return 'travel';
+  if (normalized === 'pet' || normalized.includes('pet')) return 'pet';
+  return 'other';
+}
+
+export function parseEmailStorageKey(
+  key: string,
+  email: string,
+): { category: string; ownerName: string; title: string; mimeType: string } | null {
+  const parts = key.split('/');
+  if (parts.length < 4) return null;
+  const [keyEmail, category, ownerName, ...fileParts] = parts;
+  if (keyEmail.toLowerCase() !== email.toLowerCase()) return null;
+  const fileName = fileParts.join('/');
+  if (!fileName) return null;
+  const title = fileName.replace(/\.[^/.]+$/, '') || 'Document';
+  return {
+    category: normalizeStorageCategory(category),
+    ownerName,
+    title,
+    mimeType: mimeTypeFromStorageKey(fileName),
+  };
 }
 
 // Sanitize a path segment: keep alphanumerics, spaces, hyphens, underscores,
