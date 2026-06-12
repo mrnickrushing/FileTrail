@@ -156,6 +156,7 @@ workflows:
         script: |
           echo "EXPO_PUBLIC_API_URL=$EXPO_PUBLIC_API_URL" > mobile/.env
           echo "EXPO_PUBLIC_API_KEY=$EXPO_PUBLIC_API_KEY" >> mobile/.env
+          echo "EXPO_PUBLIC_REVENUECAT_IOS_KEY=$EXPO_PUBLIC_REVENUECAT_IOS_KEY" >> mobile/.env
           echo "EXPO_PUBLIC_ANTHROPIC_API_KEY=$EXPO_PUBLIC_ANTHROPIC_API_KEY" >> mobile/.env
           echo "--- mobile/.env contents (keys only) ---"
           grep -o '^[^=]*=.' mobile/.env || true

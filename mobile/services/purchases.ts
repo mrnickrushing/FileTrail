@@ -13,13 +13,15 @@ import Purchases, {
   type PurchasesStoreProduct,
 } from 'react-native-purchases';
 
-// RevenueCat iOS public SDK key — set EXPO_PUBLIC_REVENUECAT_IOS_KEY in Codemagic
-const RC_API_KEY_IOS =
-  process.env.EXPO_PUBLIC_REVENUECAT_IOS_KEY ?? 'appl_irsrRjnQozQoLjXSSQKdXKfgTQN';
+// RevenueCat iOS public SDK key — set EXPO_PUBLIC_REVENUECAT_IOS_KEY in Codemagic.
+// Do not fall back to a placeholder here; missing credentials should disable
+// purchases cleanly instead of crashing startup with an invalid SDK key.
+const RC_API_KEY_IOS = (process.env.EXPO_PUBLIC_REVENUECAT_IOS_KEY ?? '').trim();
 const PRO_PRODUCT_ID = 'FileTrail.monthly';
 const PRO_ENTITLEMENT_ID = 'pro';
 
 let isConfigured = false;
+let configureAttempted = false;
 
 export type BillingActionResult =
   | { ok: true }
@@ -27,6 +29,7 @@ export type BillingActionResult =
       ok: false;
       code:
         | 'cancelled'
+        | 'not_configured'
         | 'not_available'
         | 'not_entitled'
         | 'not_found'
@@ -44,18 +47,39 @@ function hasProEntitlement(customerInfo: CustomerInfo): boolean {
   return typeof customerInfo.entitlements.active[PRO_ENTITLEMENT_ID] !== 'undefined';
 }
 
+function hasValidRevenueCatKey(): boolean {
+  return /^appl_[A-Za-z0-9]+$/.test(RC_API_KEY_IOS);
+}
+
 function configureIfNeeded(): boolean {
   if (!isNativePurchasesPlatform()) {
     return false;
   }
 
-  if (!isConfigured) {
+  if (isConfigured) {
+    return true;
+  }
+
+  if (configureAttempted) {
+    return false;
+  }
+
+  configureAttempted = true;
+
+  if (!hasValidRevenueCatKey()) {
+    console.warn('[purchases] RevenueCat iOS key missing or invalid; purchases disabled');
+    return false;
+  }
+
+  try {
     Purchases.setLogLevel(__DEV__ ? LOG_LEVEL.DEBUG : LOG_LEVEL.ERROR);
     Purchases.configure({ apiKey: RC_API_KEY_IOS });
     isConfigured = true;
+    return true;
+  } catch (error) {
+    console.warn('[purchases] RevenueCat configuration failed', error);
+    return false;
   }
-
-  return true;
 }
 
 async function findPackageFromOfferings(): Promise<PurchasesPackage | null> {
@@ -100,8 +124,8 @@ export async function purchasePro(): Promise<BillingActionResult> {
   if (!configureIfNeeded()) {
     return {
       ok: false,
-      code: 'unsupported_platform',
-      message: 'Purchases are only available on iPhone and Android.',
+      code: 'not_configured',
+      message: 'Purchases are not configured for this build yet.',
     };
   }
 
@@ -170,8 +194,8 @@ export async function restorePurchases(): Promise<BillingActionResult> {
   if (!configureIfNeeded()) {
     return {
       ok: false,
-      code: 'unsupported_platform',
-      message: 'Purchases are only available on iPhone and Android.',
+      code: 'not_configured',
+      message: 'Purchases are not configured for this build yet.',
     };
   }
 

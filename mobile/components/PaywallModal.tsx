@@ -34,6 +34,8 @@ interface PaywallModalProps {
 
 function billingAlertTitle(code: string): string {
   switch (code) {
+    case 'not_configured':
+      return 'Purchases Disabled';
     case 'not_available':
       return 'Purchase Unavailable';
     case 'not_entitled':
