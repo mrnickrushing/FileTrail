@@ -16,6 +16,8 @@ import { router } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { useDocumentStore } from '@/store';
 import { FAB } from '@/components/FAB';
+import { TourBubble } from '@/components/TourBubble';
+import { useTourTip } from '@/hooks/useTourTip';
 import {
   addRecentSearch,
   clearSearchHistory,
@@ -319,7 +321,23 @@ export default function SearchScreen() {
       )}
 
       <FAB onPress={() => router.push('/capture')} />
+      <SearchTourTip />
     </View>
+  );
+}
+
+function SearchTourTip() {
+  const { visible, dismiss } = useTourTip('search-bar');
+  const insets = useSafeAreaInsets();
+  return (
+    <TourBubble
+      title="Search inside every document"
+      body="FileTrail indexes all your document text — search for any word, date, or amount, not just the title."
+      visible={visible}
+      onDismiss={dismiss}
+      anchor={{ top: insets.top + 70, left: 12, right: 12 }}
+      arrow="top-center"
+    />
   );
 }
 
@@ -331,6 +349,8 @@ function StatPill({ icon, label }: { icon: React.ComponentProps<typeof Feather>[
     </View>
   );
 }
+
+// ── Sub-components ─────────────────────────────────────────────────────────────
 
 function SegmentButton({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
   return (

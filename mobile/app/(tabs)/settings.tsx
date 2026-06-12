@@ -2,6 +2,10 @@ import React from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useDocumentStore, useAppStore, useProStore } from '@/store';
+import { TourBubble } from '@/components/TourBubble';
+import { useTourTip } from '@/hooks/useTourTip';
+import { TourBubble } from '@/components/TourBubble';
+import { useTourTip } from '@/hooks/useTourTip';
 import { PaywallModal } from '@/components/PaywallModal';
 import { FAB } from '@/components/FAB';
 import {
@@ -127,9 +131,26 @@ export default function SettingsScreen() {
           }}
         />
       )}
+      <SettingsTourTip />
     </SettingsTabShell>
   );
 }
+
+function SettingsTourTip() {
+  const { visible, dismiss } = useTourTip(‘settings-backup’);
+  const insets = useSafeAreaInsets();
+  return (
+    <TourBubble
+      title="Back up your vault"
+      body="Create a .ptbak backup to iCloud or Google Drive. Restore it any time to recover your documents."
+      visible={visible}
+      onDismiss={dismiss}
+      anchor={{ bottom: Math.max(insets.bottom, 16) + 16, left: 12, right: 12 }}
+      arrow="none"
+    />
+  );
+}
+
 
 const styles = StyleSheet.create({
   backupBanner: {

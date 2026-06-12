@@ -19,6 +19,8 @@ import * as FileSystem from 'expo-file-system';
 import { Feather } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAppStore, useDocumentStore, useProStore } from '@/store';
+import { TourBubble } from '@/components/TourBubble';
+import { useTourTip } from '@/hooks/useTourTip';
 import { apiRequest, isBackendConfigured, getAnthropicApiKey } from '@/services/api';
 import { getFileSize } from '@/services/fileStorage';
 import { createSampleDocument } from '@/services/sampleDocument';
@@ -804,7 +806,38 @@ export default function VaultScreen() {
           }}
         />
       )}
+
+      {/* ── Onboarding tour tips ── */}
+      <VaultTourTips />
     </View>
+  );
+}
+
+function VaultTourTips() {
+  const { visible: fabVisible, dismiss: dismissFab }       = useTourTip('vault-fab');
+  const { visible: filterVisible, dismiss: dismissFilter } = useTourTip('vault-filter');
+  const insets = useSafeAreaInsets();
+  // Position above the floating tab bar + FAB stack
+  const fabTipBottom = Math.max(insets.bottom, 8) + 8 + 62 + 56 + 20;
+  return (
+    <>
+      <TourBubble
+        title="Capture your first document"
+        body="Tap + to photograph a receipt, contract, ID, or any document. AI organises it automatically."
+        visible={fabVisible}
+        onDismiss={dismissFab}
+        anchor={{ bottom: fabTipBottom, right: 12 }}
+        arrow="bottom-right"
+      />
+      <TourBubble
+        title="Filter your vault"
+        body="Tap a category chip to filter by type. Long-press any document to select multiple at once."
+        visible={filterVisible}
+        onDismiss={dismissFilter}
+        anchor={{ top: 230, left: 12 }}
+        arrow="top-left"
+      />
+    </>
   );
 }
 
