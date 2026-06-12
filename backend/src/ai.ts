@@ -152,6 +152,25 @@ function isLikelyPersonName(raw: string): boolean {
   return parts.every((part) => /^[A-Za-z][A-Za-z'’.-]*$/.test(part));
 }
 
+function titleContainsPersonName(title: string, personName: string): boolean {
+  const normalizedTitle = title.toLowerCase();
+  const normalizedName = personName.toLowerCase();
+  if (!normalizedTitle || !normalizedName) return false;
+  return normalizedTitle.includes(normalizedName);
+}
+
+function enrichTitleWithPersonName(title: string, category: DocumentCategory, personName?: string): string {
+  if (!personName || !PERSON_SUBFOLDER_CATEGORIES.has(category)) return title;
+  const cleanTitle = title.trim();
+  const cleanName = normalizePersonName(personName);
+  if (!cleanTitle || !cleanName) return title;
+  if (titleContainsPersonName(cleanTitle, cleanName)) return cleanTitle;
+  if (cleanTitle.toLowerCase().includes(cleanName.split(' ')[0].toLowerCase()) && cleanTitle.length > 18) {
+    return cleanTitle;
+  }
+  return `${cleanTitle} - ${cleanName}`.slice(0, 120);
+}
+
 function extractPersonSubfolderName(input: {
   title?: string;
   ocrText?: string;
@@ -166,7 +185,7 @@ function extractPersonSubfolderName(input: {
     .filter(Boolean);
 
   const inlineLabelPatterns = [
-    /(?:patient name|name of child|child(?:'s)? name|full name|student name|member name|insured name|employee name|traveler name|passenger name|name)[ \t]*[:\-]?[ \t]*([A-Z][A-Za-z'’.-]+(?:[ \t]+[A-Z][A-Za-z'’.-]+){1,3})/i,
+    /(?:patient name|name of child|child(?:'s)? name|full name|student name|member name|insured name|employee name|traveler name|passenger name|name)[ \t]*[:\-]?[ \t]*([A-Za-z][A-Za-z'’.-]+(?:[ \t]+[A-Za-z][A-Za-z'’.-]+){1,3})/i,
   ];
   for (const pattern of inlineLabelPatterns) {
     const match = text.match(pattern);
@@ -188,8 +207,8 @@ function extractPersonSubfolderName(input: {
   }
 
   const titleNamePatterns = [
-    /([A-Z][A-Za-z'’.-]+(?:\s+[A-Z][A-Za-z'’.-]+){1,3})\s+(?:birth certificate|passport|driver(?:'s)? license|social security card)/i,
-    /(?:birth certificate|passport|driver(?:'s)? license|social security card)\s+for\s+([A-Z][A-Za-z'’.-]+(?:\s+[A-Z][A-Za-z'’.-]+){1,3})/i,
+    /([A-Za-z][A-Za-z'’.-]+(?:\s+[A-Za-z][A-Za-z'’.-]+){1,3})\s+(?:birth certificate|passport|driver(?:'s)? license|social security card)/i,
+    /(?:birth certificate|passport|driver(?:'s)? license|social security card)\s+for\s+([A-Za-z][A-Za-z'’.-]+(?:\s+[A-Za-z][A-Za-z'’.-]+){1,3})/i,
   ];
   for (const pattern of titleNamePatterns) {
     const match = (input.title ?? '').match(pattern);
@@ -251,9 +270,14 @@ function heuristicSuggest(input: { title?: string; filename?: string; ocrText?: 
     ocrText: input.ocrText,
     category,
   });
+  const suggestedTitle = enrichTitleWithPersonName(
+    baseTitle.slice(0, 120),
+    category,
+    suggestedSubfolderName,
+  );
 
   return {
-    suggestedTitle: baseTitle.slice(0, 120),
+    suggestedTitle,
     suggestedFolderName: CATEGORY_FOLDER[category],
     ...(suggestedSubfolderName ? { suggestedSubfolderName } : {}),
     category,
@@ -480,6 +504,11 @@ export async function suggestDocument(input: {
     const suggestedSubfolderName: string | undefined = typeof parsed.subfolderName === 'string' && parsed.subfolderName.trim()
       ? parsed.subfolderName.trim().slice(0, 80)
       : heuristicSubfolderName;
+    const suggestedTitleWithPerson = enrichTitleWithPersonName(
+      suggestedTitle,
+      category,
+      suggestedSubfolderName,
+    );
 
     const usageResult = usage
       ? {
@@ -489,7 +518,7 @@ export async function suggestDocument(input: {
         }
       : undefined;
 
-    return { suggestedTitle, suggestedFolderName, suggestedSubfolderName, category, tags, notes, date, vendor, amounts, source: 'claude', usage: usageResult };
+    return { suggestedTitle: suggestedTitleWithPerson, suggestedFolderName, suggestedSubfolderName, category, tags, notes, date, vendor, amounts, source: 'claude', usage: usageResult };
   } catch (err) {
     console.error('[ai.suggestDocument] Claude call failed, falling back to heuristics:', err instanceof Error ? err.message : err);
     return heuristicSuggest({ ...input, ocrText: input.ocrText?.trim() });
