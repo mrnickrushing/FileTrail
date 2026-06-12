@@ -26,6 +26,8 @@ import { router } from 'expo-router';
 import { useIsFocused } from '@react-navigation/native';
 import { Feather } from '@expo/vector-icons';
 import { useDocumentStore } from '@/store';
+import { TourBubble } from '@/components/TourBubble';
+import { useTourTip } from '@/hooks/useTourTip';
 import { DocumentCard } from '@/components/DocumentCard';
 import {
   getRecentSearches,
@@ -257,7 +259,24 @@ export default function SearchScreen() {
           }
         />
       )}
+
+      <SearchTourTip />
     </View>
+  );
+}
+
+function SearchTourTip() {
+  const { visible, dismiss } = useTourTip('search-bar');
+  const insets = useSafeAreaInsets();
+  return (
+    <TourBubble
+      title="Search inside every document"
+      body="FileTrail indexes all your document text — search for any word, date, or amount, not just the title."
+      visible={visible}
+      onDismiss={dismiss}
+      anchor={{ top: insets.top + 70, left: 12, right: 12 }}
+      arrow="top-center"
+    />
   );
 }
 

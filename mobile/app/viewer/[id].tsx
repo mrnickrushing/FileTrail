@@ -29,6 +29,8 @@ import * as FileSystem from 'expo-file-system';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { useDocumentStore, useAppStore, useProStore } from '@/store';
+import { TourBubble } from '@/components/TourBubble';
+import { useTourTip } from '@/hooks/useTourTip';
 import { shareDocument } from '@/services/exportService';
 import { getFileSize } from '@/services/fileStorage';
 import { apiRequest, isBackendConfigured, getAnthropicApiKey } from '@/services/api';
@@ -781,7 +783,24 @@ export default function DocumentViewerScreen() {
           <ActivityIndicator color={C.amber} size="large" />
         </View>
       )}
+
+      <ViewerTourTip />
     </View>
+  );
+}
+
+function ViewerTourTip() {
+  const { visible, dismiss } = useTourTip('viewer-organize');
+  const insets = useSafeAreaInsets();
+  return (
+    <TourBubble
+      title="Smart Organize"
+      body="Tap AI Organize to let Claude rename, categorise, tag, and file this document in one tap."
+      visible={visible}
+      onDismiss={dismiss}
+      anchor={{ bottom: Math.max(insets.bottom, 16) + 24, left: 12, right: 12 }}
+      arrow="none"
+    />
   );
 }
 
