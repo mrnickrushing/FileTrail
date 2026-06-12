@@ -1,0 +1,12 @@
+name = "filetrail-email-inbound"
+main = "src/index.ts"
+compatibility_date = "2025-01-01"
+
+# Public var — the backend that receives parsed email metadata.
+# Update this if the Railway service URL ever changes.
+[vars]
+BACKEND_URL = "https://papertrail-production-de23.up.railway.app"
+
+# Secret (set via CLI, not stored here):
+#   wrangler secret put API_KEY
+# Set this to the same value as the backend API_KEY env var.
