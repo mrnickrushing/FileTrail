@@ -250,6 +250,10 @@ export default function VaultScreen() {
     () => documents.filter(d => !d.folderId).length,
     [documents]
   );
+  const favoriteCount = useMemo(
+    () => documents.filter((d) => d.isFavorite).length,
+    [documents]
+  );
 
   // ── Multi-select state ─────────────────────────────────────────────────────
 
@@ -538,9 +542,184 @@ export default function VaultScreen() {
     return <Redirect href="/account" />;
   }
 
+  const activeFilterCount =
+    (filters.category ? 1 : 0)
+    + (filters.isFavorite ? 1 : 0)
+    + (filters.tags?.length ?? 0);
+
+  const listHeader = selectionMode ? null : (
+    <View style={styles.headerStack}>
+      <View style={styles.topBand}>
+        <View style={styles.topBandCopy}>
+          <Text style={styles.topBandTitle}>Vault</Text>
+          <Text style={styles.topBandSubtitle}>
+            {documents.length} document{documents.length === 1 ? '' : 's'} stored
+          </Text>
+        </View>
+        <View style={styles.topBandHealth}>
+          <HealthRing documents={documents} size={42} strokeWidth={4} compact />
+          <Text style={styles.topBandHealthLabel}>Health</Text>
+        </View>
+      </View>
+
+      <Pressable
+        style={[
+          styles.syncPanel,
+          syncMeta.tone === 'success' && styles.syncPanelSuccess,
+          syncMeta.tone === 'warning' && styles.syncPanelWarning,
+          syncMeta.tone === 'danger' && styles.syncPanelDanger,
+        ]}
+        onPress={() => {
+          if (syncState.phase === 'syncing') return;
+          void onRefresh();
+        }}
+        disabled={syncState.phase === 'syncing'}
+        accessibilityRole="button"
+        accessibilityLabel={`${syncMeta.label}. ${syncMeta.detail}. Last sync ${formatSyncAge(syncState.lastSuccessfulSyncAt)}.`}
+      >
+        <View style={styles.syncPanelMain}>
+          <View style={styles.syncPanelIcon}>
+            <Feather
+              name={syncMeta.icon}
+              size={15}
+              color={
+                syncMeta.tone === 'success'
+                  ? C.success
+                  : syncMeta.tone === 'danger'
+                    ? C.danger
+                    : syncMeta.tone === 'warning'
+                      ? C.amber
+                      : C.ash
+              }
+            />
+          </View>
+          <View style={styles.syncPanelCopy}>
+            <Text
+              style={[
+                styles.syncPanelLabel,
+                syncMeta.tone === 'success' && styles.syncPanelLabelSuccess,
+                syncMeta.tone === 'warning' && styles.syncPanelLabelWarning,
+                syncMeta.tone === 'danger' && styles.syncPanelLabelDanger,
+              ]}
+            >
+              {syncMeta.label}
+            </Text>
+            <Text style={styles.syncPanelDetail}>
+              {syncMeta.detail} • {formatSyncAge(syncState.lastSuccessfulSyncAt)}
+            </Text>
+          </View>
+        </View>
+        <Feather name="refresh-cw" size={14} color={C.ash} />
+      </Pressable>
+
+      <View style={styles.metricsBand}>
+        <MetricCell label="Unfiled" value={unfiledCount} accent={C.amber} />
+        <MetricCell label="Saved" value={favoriteCount} accent={C.success} />
+        <MetricCell label="Pending" value={pendingSyncCount} accent={syncMeta.tone === 'danger' ? C.danger : C.amber} />
+        <MetricCell label="Filters" value={activeFilterCount} accent={C.ash} />
+      </View>
+
+      <View style={styles.controlBand}>
+        <Pressable
+          style={[styles.controlPill, styles.controlPillPrimary]}
+          hitSlop={8}
+          onPress={() => router.push('/(tabs)/folders')}
+          accessibilityLabel="Open folders"
+          accessibilityRole="button"
+        >
+          <Feather name="folder" size={15} color={C.amber} />
+          <Text style={[styles.controlPillText, styles.controlPillTextPrimary]}>Folders</Text>
+        </Pressable>
+        <Pressable
+          style={styles.controlPill}
+          hitSlop={8}
+          onPress={() => router.push('/(tabs)/autopilot')}
+          accessibilityLabel="Open Autopilot"
+          accessibilityRole="button"
+        >
+          <Feather name="zap" size={15} color={C.ash} />
+          <Text style={styles.controlPillText}>Autopilot</Text>
+        </Pressable>
+        <Pressable
+          style={styles.controlPill}
+          hitSlop={8}
+          onPress={() => {
+            Haptics.selectionAsync();
+            const order: typeof sortBy[] = ['updatedAt', 'createdAt', 'title', 'category'];
+            const next = order[(order.indexOf(sortBy) + 1) % order.length];
+            setSortBy(next);
+          }}
+          accessibilityLabel={`Sort by ${sortBy}`}
+          accessibilityRole="button"
+        >
+          <Feather name={SORT_ICONS[sortBy]} size={14} color={C.ash} />
+          <Text style={styles.controlPillText}>{SORT_LABELS[sortBy]}</Text>
+        </Pressable>
+        <Pressable
+          style={styles.controlIconPill}
+          hitSlop={8}
+          onPress={() => {
+            Haptics.selectionAsync();
+            setSortDir(sortDir === 'desc' ? 'asc' : 'desc');
+          }}
+          accessibilityLabel={sortDir === 'desc' ? 'Sort descending' : 'Sort ascending'}
+          accessibilityRole="button"
+        >
+          <Feather name={sortDir === 'desc' ? 'arrow-down' : 'arrow-up'} size={15} color={C.ash} />
+        </Pressable>
+        <Pressable
+          style={styles.controlIconPill}
+          hitSlop={8}
+          onPress={() => {
+            Haptics.selectionAsync();
+            LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+            setViewMode(viewMode === 'card' ? 'list' : 'card');
+          }}
+          accessibilityLabel={viewMode === 'card' ? 'Switch to list view' : 'Switch to card view'}
+          accessibilityRole="button"
+        >
+          <Feather name={viewMode === 'card' ? 'list' : 'grid'} size={15} color={C.ash} />
+        </Pressable>
+      </View>
+
+      <View style={styles.filterSection}>
+        <View style={styles.filterSectionHeader}>
+          <Text style={styles.filterSectionTitle}>Browse</Text>
+          <Text style={styles.filterSectionMeta}>
+            {activeFilterCount > 0 ? `${activeFilterCount} active` : 'All documents'}
+          </Text>
+        </View>
+        <FilterBar
+          filters={filters}
+          allTags={allTags}
+          showAllCategories={showAllCategoryFilters}
+          onCategoryChange={(cat) => setFilters({ ...filters, category: cat })}
+          onToggleCategoryVisibility={() => setShowAllCategoryFilters((value) => !value)}
+          onToggleFavorite={toggleFavoriteFilter}
+          onToggleTag={toggleTagFilter}
+        />
+      </View>
+
+      {!filters.category && !filters.isFavorite && unfiledCount > 0 && (
+        <Pressable
+          style={styles.unfiledBanner}
+          onPress={() => router.push('/(tabs)/folders')}
+          hitSlop={4}
+          accessibilityRole="button"
+          accessibilityLabel={`${unfiledCount} unfiled documents — tap to file them`}
+        >
+          <Feather name="inbox" size={14} color={C.amber} />
+          <Text style={styles.unfiledBannerText}>
+            {unfiledCount} document{unfiledCount !== 1 ? 's' : ''} still need a folder
+          </Text>
+          <Text style={styles.unfiledBannerAction}>Open</Text>
+        </Pressable>
+      )}
+    </View>
+  );
+
   return (
     <View style={styles.container}>
-      {/* Header */}
       <ScreenHeader
         style={{ paddingTop: insets.top + Spacing['4'] }}
         title={selectionMode ? `${selectedIds.size} selected` : 'FileTrail'}
@@ -557,131 +736,6 @@ export default function VaultScreen() {
         }
       />
 
-      {!selectionMode && (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.headerToolbarScroll}
-        >
-          <View style={styles.headerControls}>
-            <Pressable
-              style={[styles.headerControlBtn, styles.headerControlFoldersBtn]}
-              hitSlop={8}
-              onPress={() => router.push('/(tabs)/folders')}
-              accessibilityLabel="Open folders"
-              accessibilityRole="button"
-            >
-              <Feather name="folder" size={15} color={C.amber} />
-              <Text style={[styles.headerControlText, styles.headerFolderText]}>Folders</Text>
-            </Pressable>
-            <Pressable
-              style={[styles.headerControlBtn, styles.headerControlDivider]}
-              hitSlop={8}
-              onPress={() => {
-                Haptics.selectionAsync();
-                const order: typeof sortBy[] = ['updatedAt', 'createdAt', 'title', 'category'];
-                const next = order[(order.indexOf(sortBy) + 1) % order.length];
-                setSortBy(next);
-              }}
-              accessibilityLabel={`Sort by ${sortBy}`}
-              accessibilityRole="button"
-            >
-              <Feather name={SORT_ICONS[sortBy]} size={14} color={C.ash} />
-              <Text style={styles.headerControlText}>{SORT_LABELS[sortBy]}</Text>
-            </Pressable>
-            <Pressable
-              style={[styles.headerControlBtn, styles.headerControlDivider]}
-              hitSlop={8}
-              onPress={() => {
-                Haptics.selectionAsync();
-                setSortDir(sortDir === 'desc' ? 'asc' : 'desc');
-              }}
-              accessibilityLabel={sortDir === 'desc' ? 'Sort descending' : 'Sort ascending'}
-              accessibilityRole="button"
-            >
-              <Feather name={sortDir === 'desc' ? 'arrow-down' : 'arrow-up'} size={15} color={C.ash} />
-            </Pressable>
-            <Pressable
-              style={[styles.headerControlBtn, styles.headerControlDivider]}
-              hitSlop={8}
-              onPress={() => {
-                Haptics.selectionAsync();
-                LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-                setViewMode(viewMode === 'card' ? 'list' : 'card');
-              }}
-              accessibilityLabel={viewMode === 'card' ? 'Switch to list view' : 'Switch to card view'}
-              accessibilityRole="button"
-            >
-              <Feather name={viewMode === 'card' ? 'list' : 'grid'} size={15} color={C.ash} />
-            </Pressable>
-          </View>
-        </ScrollView>
-      )}
-
-      {/* Filter bar */}
-      {!selectionMode && (
-        <Pressable
-          style={[
-            styles.syncBadge,
-            syncMeta.tone === 'success' && styles.syncBadgeSuccess,
-            syncMeta.tone === 'warning' && styles.syncBadgeWarning,
-            syncMeta.tone === 'danger' && styles.syncBadgeDanger,
-          ]}
-          onPress={() => {
-            if (syncState.phase === 'syncing') return;
-            void onRefresh();
-          }}
-          disabled={syncState.phase === 'syncing'}
-          accessibilityRole="button"
-          accessibilityLabel={`${syncMeta.label}. ${syncMeta.detail}. Last sync ${formatSyncAge(syncState.lastSuccessfulSyncAt)}.`}
-        >
-          <View style={styles.syncBadgeMain}>
-            <Feather name={syncMeta.icon} size={14} color={syncMeta.tone === 'success' ? C.success : syncMeta.tone === 'danger' ? C.danger : syncMeta.tone === 'warning' ? C.amber : C.ash} />
-            <Text
-              style={[
-                styles.syncBadgeLabel,
-                syncMeta.tone === 'success' && styles.syncBadgeLabelSuccess,
-                syncMeta.tone === 'warning' && styles.syncBadgeLabelWarning,
-                syncMeta.tone === 'danger' && styles.syncBadgeLabelDanger,
-              ]}
-            >
-              {syncMeta.label}
-            </Text>
-          </View>
-          <Text style={styles.syncBadgeDetail}>
-            {syncMeta.detail} • {formatSyncAge(syncState.lastSuccessfulSyncAt)}
-          </Text>
-        </Pressable>
-      )}
-
-      <FilterBar
-        filters={filters}
-        allTags={allTags}
-        showAllCategories={showAllCategoryFilters}
-        onCategoryChange={(cat) => setFilters({ ...filters, category: cat })}
-        onToggleCategoryVisibility={() => setShowAllCategoryFilters((value) => !value)}
-        onToggleFavorite={toggleFavoriteFilter}
-        onToggleTag={toggleTagFilter}
-      />
-
-      {/* Unfiled nudge — shown when docs exist without a folder */}
-      {!selectionMode && !filters.category && !filters.isFavorite && unfiledCount > 0 && (
-        <Pressable
-          style={styles.unfiledBanner}
-          onPress={() => router.push('/(tabs)/folders')}
-          hitSlop={4}
-          accessibilityRole="button"
-          accessibilityLabel={`${unfiledCount} unfiled documents — tap to file them`}
-        >
-          <Feather name="inbox" size={14} color={C.amber} />
-          <Text style={styles.unfiledBannerText}>
-            {unfiledCount} document{unfiledCount !== 1 ? 's' : ''} unfiled
-          </Text>
-          <Text style={styles.unfiledBannerAction}>File now →</Text>
-        </Pressable>
-      )}
-
-      {/* Document list */}
       {isLoading && visibleDocuments.length === 0 ? (
         <SkeletonList count={5} />
       ) : (
@@ -693,6 +747,7 @@ export default function VaultScreen() {
             visibleDocuments.length === 0 && styles.listEmpty,
             selectionMode && styles.listBulk,
           ]}
+          ListHeaderComponent={listHeader}
           initialNumToRender={10}
           maxToRenderPerBatch={6}
           windowSize={9}
@@ -874,7 +929,6 @@ function FilterBar({
       horizontal
       showsHorizontalScrollIndicator={false}
       contentContainerStyle={styles.chips}
-      style={styles.filterBar}
     >
       {visibleCategories.map((c) => {
         const isActive = activeCategory === c.key;
@@ -970,12 +1024,213 @@ function FilterBar({
   );
 }
 
+function MetricCell({
+  label,
+  value,
+  accent,
+}: {
+  label: string;
+  value: number;
+  accent: string;
+}) {
+  return (
+    <View style={styles.metricCell}>
+      <Text style={[styles.metricCellValue, { color: accent }]}>{value}</Text>
+      <Text style={styles.metricCellLabel}>{label}</Text>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   container:   { flex: 1, backgroundColor: Colors.bg },
+  headerStack: {
+    gap: S[3],
+    paddingHorizontal: Spacing['4'],
+    paddingBottom: Spacing['4'],
+  },
+  topBand: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: C.ink2,
+    borderWidth: 1,
+    borderColor: C.ink3,
+    borderRadius: R.xl,
+    paddingHorizontal: S[4],
+    paddingVertical: S[4],
+  },
+  topBandCopy: {
+    flex: 1,
+    gap: 4,
+  },
+  topBandTitle: {
+    fontSize: T.xl,
+    color: C.cream,
+    fontWeight: '800',
+  },
+  topBandSubtitle: {
+    fontSize: T.sm,
+    color: C.ash,
+  },
+  topBandHealth: {
+    alignItems: 'center',
+    gap: 6,
+    minWidth: 64,
+  },
+  topBandHealthLabel: {
+    fontSize: T.xs,
+    color: C.ash,
+    fontWeight: '700',
+  },
   selectAllBtn: {
     fontSize: T.base,
     color: C.amber,
     fontWeight: '600',
+  },
+  syncPanel: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: S[3],
+    backgroundColor: C.ink2,
+    borderWidth: 1,
+    borderColor: C.ink3,
+    borderRadius: R.lg,
+    paddingHorizontal: S[3],
+    paddingVertical: S[3],
+  },
+  syncPanelSuccess: {
+    backgroundColor: C.success + '14',
+    borderColor: C.success + '33',
+  },
+  syncPanelWarning: {
+    backgroundColor: C.amberDim,
+    borderColor: C.amber + '33',
+  },
+  syncPanelDanger: {
+    backgroundColor: C.danger + '14',
+    borderColor: C.danger + '33',
+  },
+  syncPanelMain: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: S[3],
+    flex: 1,
+  },
+  syncPanelIcon: {
+    width: 30,
+    height: 30,
+    borderRadius: R.md,
+    backgroundColor: C.ink1 + '44',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  syncPanelCopy: {
+    flex: 1,
+    gap: 2,
+  },
+  syncPanelLabel: {
+    fontSize: T.sm,
+    fontWeight: '700',
+    color: C.cream,
+  },
+  syncPanelLabelSuccess: {
+    color: C.success,
+  },
+  syncPanelLabelWarning: {
+    color: C.amber,
+  },
+  syncPanelLabelDanger: {
+    color: C.danger,
+  },
+  syncPanelDetail: {
+    fontSize: T.xs,
+    color: C.ash,
+    lineHeight: 18,
+  },
+  metricsBand: {
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    backgroundColor: C.ink2,
+    borderWidth: 1,
+    borderColor: C.ink3,
+    borderRadius: R.xl,
+    overflow: 'hidden',
+  },
+  metricCell: {
+    flex: 1,
+    minHeight: 72,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: S[3],
+    borderRightWidth: 1,
+    borderRightColor: C.ink3,
+  },
+  metricCellValue: {
+    fontSize: T.lg,
+    fontWeight: '800',
+  },
+  metricCellLabel: {
+    fontSize: T.xs,
+    color: C.ash,
+    fontWeight: '600',
+    marginTop: 4,
+  },
+  controlBand: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: S[2],
+    flexWrap: 'wrap',
+  },
+  controlPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    minHeight: 38,
+    paddingHorizontal: S[3],
+    borderRadius: R.full,
+    backgroundColor: C.ink2,
+    borderWidth: 1,
+    borderColor: C.ink3,
+  },
+  controlPillPrimary: {
+    borderColor: C.amber + '44',
+    backgroundColor: C.amberDim,
+  },
+  controlPillText: {
+    fontSize: T.sm,
+    color: C.ash,
+    fontWeight: '600',
+  },
+  controlPillTextPrimary: {
+    color: C.amber,
+  },
+  controlIconPill: {
+    width: 38,
+    height: 38,
+    borderRadius: R.full,
+    backgroundColor: C.ink2,
+    borderWidth: 1,
+    borderColor: C.ink3,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  filterSection: {
+    gap: S[2],
+  },
+  filterSectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  filterSectionTitle: {
+    fontSize: T.sm,
+    color: C.cream,
+    fontWeight: '700',
+  },
+  filterSectionMeta: {
+    fontSize: T.xs,
+    color: C.ash,
   },
   headerControls: {
     flexDirection: 'row',
@@ -1016,15 +1271,10 @@ const styles = StyleSheet.create({
   },
   chips: {
     flexDirection:  'row',
-    paddingHorizontal: Spacing['5'],
-    paddingTop: Spacing['1'],
-    paddingBottom:  Spacing['3'],
+    paddingRight: Spacing['3'],
     gap:            Spacing['2'],
     flexWrap:       'nowrap',
     alignItems:     'center',
-  },
-  filterBar: {
-    marginTop: Spacing['1'],
   },
   chipDivider: {
     width: 1,
@@ -1065,64 +1315,10 @@ const styles = StyleSheet.create({
     color:      Colors.textMuted,
   },
   chipTagTextActive: { color: C.amber },
-  syncBadge: {
-    marginHorizontal: Spacing['4'],
-    marginBottom: Spacing['3'],
-    paddingHorizontal: S[3],
-    paddingVertical: S[2],
-    borderRadius: R.lg,
-    borderWidth: 1,
-    borderColor: C.ink3,
-    backgroundColor: C.ink2,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: S[3],
-  },
-  syncBadgeSuccess: {
-    backgroundColor: C.success + '14',
-    borderColor: C.success + '33',
-  },
-  syncBadgeWarning: {
-    backgroundColor: C.amberDim,
-    borderColor: C.amber + '33',
-  },
-  syncBadgeDanger: {
-    backgroundColor: C.danger + '14',
-    borderColor: C.danger + '33',
-  },
-  syncBadgeMain: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: S[2],
-    minWidth: 0,
-  },
-  syncBadgeLabel: {
-    fontSize: T.sm,
-    fontWeight: '700',
-    color: C.cream,
-  },
-  syncBadgeLabelSuccess: {
-    color: C.success,
-  },
-  syncBadgeLabelWarning: {
-    color: C.amber,
-  },
-  syncBadgeLabelDanger: {
-    color: C.danger,
-  },
-  syncBadgeDetail: {
-    flexShrink: 1,
-    fontSize: T.xs,
-    color: C.ash,
-    textAlign: 'right',
-  },
   unfiledBanner: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: S[2],
-    marginHorizontal: Spacing['4'],
-    marginBottom: Spacing['2'],
     backgroundColor: C.amberDim,
     borderRadius: R.lg,
     paddingHorizontal: S[3],
