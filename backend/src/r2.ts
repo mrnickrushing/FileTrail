@@ -11,6 +11,7 @@ import {
   GetObjectCommand,
   DeleteObjectCommand,
   HeadObjectCommand,
+  ListObjectsV2Command,
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
@@ -112,6 +113,29 @@ export async function objectExists(
     }
     throw error;
   }
+}
+
+export async function listObjectKeys(
+  client: S3Client,
+  bucket: string,
+  prefix: string,
+): Promise<string[]> {
+  const keys: string[] = [];
+  let continuationToken: string | undefined;
+
+  do {
+    const response = await client.send(new ListObjectsV2Command({
+      Bucket: bucket,
+      Prefix: prefix,
+      ContinuationToken: continuationToken,
+    }));
+    for (const item of response.Contents ?? []) {
+      if (item.Key) keys.push(item.Key);
+    }
+    continuationToken = response.IsTruncated ? response.NextContinuationToken : undefined;
+  } while (continuationToken);
+
+  return keys;
 }
 
 // Sanitize a path segment: keep alphanumerics, spaces, hyphens, underscores,

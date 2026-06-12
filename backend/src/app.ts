@@ -30,6 +30,7 @@ import {
   getDownloadUrl,
   documentKey,
   objectExists,
+  listObjectKeys,
 } from './r2.js';
 
 function parseBody<T>(schema: { parse: (value: unknown) => T }, body: unknown): T {
@@ -127,6 +128,16 @@ export async function buildApp(config: RuntimeConfig, store: FiletrailStore = ne
     return key.startsWith(`${email}/`);
   }
 
+  function titleKeySuffix(title: string, mimeType: string): string {
+    const ext = mimeType.split('/')[1]?.split('+')[0] ?? 'bin';
+    return `/${title
+      .trim()
+      .replace(/[^a-zA-Z0-9 ._-]/g, '_')
+      .replace(/_+/g, '_')
+      .replace(/^_+|_+$/g, '')
+      .substring(0, 100) || 'document'}.${ext}`;
+  }
+
   async function attachStorageUrlsForUser(
     user: { id: string; email: string; fullName: string },
     documents: Array<{
@@ -142,6 +153,7 @@ export async function buildApp(config: RuntimeConfig, store: FiletrailStore = ne
     if (!r2Client || !r2Config) return documents;
     const email = user.email.toLowerCase();
     const fullName = user.fullName;
+    const availableKeys = await listObjectKeys(r2Client, r2Config.bucket, `${email}/`);
 
     return Promise.all(documents.map(async (doc) => {
       if (doc.storageUrl) return doc;
@@ -159,6 +171,25 @@ export async function buildApp(config: RuntimeConfig, store: FiletrailStore = ne
         return {
           ...doc,
           storageUrl: `r2://${r2Config.bucket}/${candidateKey}`,
+        };
+      }
+
+      const titleSuffix = titleKeySuffix(doc.title, doc.mimeType);
+      const categoryPrefix = `/${doc.category.toLowerCase()}/`;
+      const matchingKey = availableKeys.find((key) => {
+        const lower = key.toLowerCase();
+        return lower.startsWith(`${email}/`)
+          && lower.includes(categoryPrefix)
+          && lower.endsWith(titleSuffix);
+      }) ?? availableKeys.find((key) => {
+        const lower = key.toLowerCase();
+        return lower.startsWith(`${email}/`) && lower.endsWith(titleSuffix);
+      });
+
+      if (matchingKey) {
+        return {
+          ...doc,
+          storageUrl: `r2://${r2Config.bucket}/${matchingKey}`,
         };
       }
 
