@@ -131,7 +131,7 @@ interface DocumentState {
   // OCR actions
   retryOCR: (id: string) => void;
   processOCRQueue: () => void;
-  syncWithBackend: () => Promise<void>;
+  syncWithBackend: (options?: { repairStorage?: boolean }) => Promise<void>;
 
   // Bulk document actions
   bulkDelete: (ids: string[]) => Promise<void>;
@@ -593,7 +593,7 @@ export const useDocumentStore = create<DocumentState>()(
         for (const doc of pending) enqueueOCR(doc.id, doc.fileUri);
       },
 
-      syncWithBackend: async () => {
+      syncWithBackend: async (options) => {
         const accountProfile = useAppStore.getState().accountProfile;
         if (!accountProfile?.userId || !accountProfile.storageAccessToken) {
           return;
@@ -607,11 +607,11 @@ export const useDocumentStore = create<DocumentState>()(
           },
         }));
         try {
-        // Before syncing metadata, make sure any local files are actually
-        // present in R2. Older builds could leave behind storageUrl metadata
-        // even when the object upload never completed, so we verify existence
-        // and re-upload any missing objects here.
-        {
+        if (options?.repairStorage) {
+          // Before syncing metadata, make sure any local files are actually
+          // present in R2. Older builds could leave behind storageUrl metadata
+          // even when the object upload never completed, so we verify existence
+          // and re-upload any missing objects here.
           const localDocs = get().documents.filter((d) => d.fileUri);
           const keyedDocs = localDocs.filter((d) => d.storageUrl);
           const existence = keyedDocs.length > 0
