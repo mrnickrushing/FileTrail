@@ -203,8 +203,9 @@ export async function buildApp(config: RuntimeConfig, store: FiletrailStore = ne
     doc: { id: string; title: string; category: string; mimeType: string; storageUrl?: string },
   ): string {
     const storageKey = storageUrlToKey(doc.storageUrl);
-    if (storageKey) return `storage:${storageKey.toLowerCase()}`;
-    return `key:${documentKey(doc.id, doc.mimeType, doc.title, user.email, doc.category, user.fullName).toLowerCase()}`;
+    const key = storageKey
+      ?? documentKey(doc.id, doc.mimeType, doc.title, user.email, doc.category, user.fullName);
+    return `storage:${key.toLowerCase()}`;
   }
 
   function pickPreferredDocument(
