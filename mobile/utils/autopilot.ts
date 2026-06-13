@@ -18,6 +18,7 @@ export type AutopilotSummary = {
   dueSoon: AutopilotAction[];
   expiringSoon: AutopilotAction[];
   needsReview: AutopilotAction[];
+  needsFiling: AutopilotAction[];
   missingDocs: AutopilotAction[];
   people: Array<{ name: string; count: number }>;
 };
@@ -36,18 +37,27 @@ function formatDate(date: string): string {
   return new Date(parsed).toLocaleDateString();
 }
 
-function hasReminderFacts(facts: NonNullable<Document['facts']>): boolean {
+function hasAutopilotContext(doc: Document): boolean {
+  const facts = doc.facts;
   return Boolean(
-    facts.personName?.trim()
-    || facts.expirationDate
-    || facts.dueDate
-    || facts.issueDate
-    || facts.issuer?.trim()
-    || facts.policyNumber?.trim()
-    || facts.accountNumber?.trim()
-    || facts.memberNumber?.trim()
-    || typeof facts.amountDue === 'number'
-  );
+    facts && (
+      facts.personName?.trim()
+      || facts.expirationDate
+      || facts.dueDate
+      || facts.issueDate
+      || facts.issuer?.trim()
+      || facts.policyNumber?.trim()
+      || facts.accountNumber?.trim()
+      || facts.memberNumber?.trim()
+      || typeof facts.amountDue === 'number'
+    )
+  )
+    || Boolean(doc.ocrText?.trim().length && doc.ocrText.trim().length > 40)
+    || Boolean(doc.notes?.trim())
+    || Boolean(doc.vendor?.trim())
+    || Boolean(doc.sourceLabel?.trim())
+    || Boolean(doc.emailSource?.subject?.trim() || doc.emailSource?.sender?.trim())
+    || Boolean(doc.aiSource || doc.aiOrganizedAt);
 }
 
 export function buildAutopilotSummary(documents: Document[]): AutopilotSummary {
@@ -97,7 +107,7 @@ export function buildAutopilotSummary(documents: Document[]): AutopilotSummary {
         tone: 'neutral',
         documentId: doc.id,
       });
-    } else if (!doc.facts || !hasReminderFacts(doc.facts)) {
+    } else if (!hasAutopilotContext(doc)) {
       actions.push({
         id: `review-${doc.id}`,
         kind: 'review',
@@ -140,7 +150,8 @@ export function buildAutopilotSummary(documents: Document[]): AutopilotSummary {
     actions,
     dueSoon: actions.filter((action) => action.kind === 'due'),
     expiringSoon: actions.filter((action) => action.kind === 'expiry'),
-    needsReview: actions.filter((action) => action.kind === 'review' || action.kind === 'filing'),
+    needsReview: actions.filter((action) => action.kind === 'review'),
+    needsFiling: actions.filter((action) => action.kind === 'filing'),
     missingDocs,
     people: Array.from(peopleMap.entries())
       .map(([name, count]) => ({ name, count }))
