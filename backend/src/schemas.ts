@@ -88,6 +88,7 @@ export const folderSchema = z.object({
 export const syncPullSchema = z.object({
   deviceId: z.string().min(1),
   sinceVersion: z.number().int().nonnegative().optional().default(0),
+  repairStorage: z.boolean().optional().default(false),
 });
 
 export const syncPushSchema = z.object({

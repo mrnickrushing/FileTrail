@@ -49,6 +49,7 @@ export type DocumentRecord = {
   ownerEmail?: string;
   fileUri?: string;
   thumbnailUri?: string | null;
+  storageUrl?: string;
   mimeType: string;
   fileSizeBytes: number;
   pageCount: number;

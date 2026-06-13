@@ -689,6 +689,7 @@ export const useDocumentStore = create<DocumentState>()(
           folders: get().folders,
           deletedDocumentIds: get().deletedDocumentIds,
           deletedFolderIds: get().deletedFolderIds,
+          repairStorage: Boolean(options?.repairStorage),
           auth: accountProfile?.userId && accountProfile.storageAccessToken ? {
             userId: accountProfile.userId,
             storageAccessToken: accountProfile.storageAccessToken,

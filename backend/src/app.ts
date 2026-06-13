@@ -370,7 +370,14 @@ export async function buildApp(config: RuntimeConfig, store: FiletrailStore = ne
     }
     const result = await store.pull(input.sinceVersion);
     const userEmail = user.email.toLowerCase();
-    const hydratedDocuments = await attachStorageUrlsForUser(user, result.documents);
+    const userDocuments = result.documents.filter((record) => {
+      if (record.ownerUserId && record.ownerUserId === user.id) return true;
+      if (record.ownerEmail && record.ownerEmail.toLowerCase() === userEmail) return true;
+      return storageKeyMatchesEmail(record.storageUrl, userEmail);
+    });
+    const hydratedDocuments = input.repairStorage
+      ? await attachStorageUrlsForUser(user, userDocuments)
+      : userDocuments;
     const bucketDocuments: Array<{
       id: string;
       title: string;
@@ -392,7 +399,7 @@ export async function buildApp(config: RuntimeConfig, store: FiletrailStore = ne
       source: 'email';
       sourceLabel: string;
     }> = [];
-    if (r2Client && r2Config) {
+    if (input.repairStorage && r2Client && r2Config) {
       const existingKeys = new Set(
         hydratedDocuments
           .map((doc) => storageUrlToKey(doc.storageUrl))
@@ -408,14 +415,9 @@ export async function buildApp(config: RuntimeConfig, store: FiletrailStore = ne
         }
       }
     }
-    const matchesUser = (record: { ownerUserId?: string; ownerEmail?: string; storageUrl?: string }): boolean => {
-      if (record.ownerUserId && record.ownerUserId === user.id) return true;
-      if (record.ownerEmail && record.ownerEmail.toLowerCase() === userEmail) return true;
-      return storageKeyMatchesEmail(record.storageUrl, userEmail);
-    };
     return {
       ...result,
-      documents: dedupeStorageDocuments(user, [...hydratedDocuments, ...bucketDocuments].filter(matchesUser)),
+      documents: dedupeStorageDocuments(user, [...hydratedDocuments, ...bucketDocuments]),
       folders: result.folders.filter((folder) => (
         (folder.ownerUserId && folder.ownerUserId === user.id) ||
         (folder.ownerEmail && folder.ownerEmail.toLowerCase() === userEmail)

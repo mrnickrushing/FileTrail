@@ -91,6 +91,7 @@ export async function syncMetadata(input: {
   deletedDocumentIds: string[];
   deletedFolderIds: string[];
   auth?: { userId?: string; storageAccessToken?: string };
+  repairStorage?: boolean;
   mergeDocuments: (documents: Document[]) => void;
   mergeFolders: (folders: Folder[]) => void;
   applyTombstones: (tombstones: Tombstone[]) => void | Promise<void>;
@@ -138,7 +139,7 @@ export async function syncMetadata(input: {
 
     const pull = await apiRequest<SyncPullResponse>('/v1/sync/pull', {
       method: 'POST',
-      body: { deviceId, sinceVersion },
+      body: { deviceId, sinceVersion, repairStorage: Boolean(input.repairStorage) },
       headers: input.auth?.userId && input.auth.storageAccessToken
         ? {
             'X-FileTrail-User-Id': input.auth.userId,
