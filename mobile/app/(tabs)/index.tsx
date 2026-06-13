@@ -539,7 +539,7 @@ export default function VaultScreen() {
   const onRefresh = useCallback(async () => {
     setIsRefreshing(true);
     try {
-      await syncWithBackend();
+      await syncWithBackend({ repairStorage: true });
     } catch {
       // syncWithBackend already swallows network errors; nothing else to do.
     } finally {
