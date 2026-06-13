@@ -468,6 +468,20 @@ function applyFilters(documents: Document[], filters: SearchFilters): Document[]
   return docs;
 }
 
+let autoSyncTimer: ReturnType<typeof setTimeout> | null = null;
+
+function scheduleAutoSync(repairStorage = false): void {
+  if (autoSyncTimer) clearTimeout(autoSyncTimer);
+  autoSyncTimer = setTimeout(() => {
+    autoSyncTimer = null;
+    const accountProfile = useAppStore.getState().accountProfile;
+    if (!accountProfile?.userId || !accountProfile.storageAccessToken) return;
+    const state = useDocumentStore.getState();
+    if (state.syncState.phase === 'syncing') return;
+    void state.syncWithBackend({ repairStorage }).catch(() => undefined);
+  }, 1500);
+}
+
 export const useDocumentStore = create<DocumentState>()(
   persist(
     (set, get) => ({
@@ -515,6 +529,7 @@ export const useDocumentStore = create<DocumentState>()(
         const now = nowIso();
         const full: Document = { ...doc, createdAt: now, updatedAt: now };
         set((s) => ({ documents: [full, ...s.documents] }));
+        scheduleAutoSync(false);
         // Auto-enqueue OCR for image documents only (not PDFs)
         const isImage = /^image\/(jpeg|png|heic|heif|webp|gif|tiff)/.test(doc.mimeType);
         if (isImage && doc.ocrStatus === 'pending') {
@@ -543,6 +558,7 @@ export const useDocumentStore = create<DocumentState>()(
                   d.id === doc.id ? { ...d, storageUrl, updatedAt: nowIso() } : d
                 ),
               }));
+              scheduleAutoSync(false);
             }
           }).catch(() => {
             // Non-fatal: file is already saved locally
@@ -556,6 +572,7 @@ export const useDocumentStore = create<DocumentState>()(
             doc.id === id ? { ...doc, ...patch, updatedAt: nowIso() } : doc
           ),
         }));
+        scheduleAutoSync(false);
       },
 
       retryOCR: (id) => {
@@ -838,6 +855,7 @@ export const useDocumentStore = create<DocumentState>()(
           documents: s.documents.filter((d) => d.id !== id),
           deletedDocumentIds: appendUnique(s.deletedDocumentIds, [id]),
         }));
+        scheduleAutoSync(false);
       },
 
       removeDocument: async (id) => get().deleteDocument(id),
@@ -848,6 +866,7 @@ export const useDocumentStore = create<DocumentState>()(
             doc.id === id ? { ...doc, isFavorite: !doc.isFavorite, updatedAt: nowIso() } : doc
           ),
         }));
+        scheduleAutoSync(false);
       },
 
       bulkDelete: async (ids) => {
@@ -859,6 +878,7 @@ export const useDocumentStore = create<DocumentState>()(
           documents: s.documents.filter((d) => !ids.includes(d.id)),
           deletedDocumentIds: appendUnique(s.deletedDocumentIds, ids),
         }));
+        scheduleAutoSync(false);
       },
 
       bulkMove: (ids, folderId) => {
@@ -867,6 +887,7 @@ export const useDocumentStore = create<DocumentState>()(
             ids.includes(doc.id) ? { ...doc, folderId, updatedAt: nowIso() } : doc
           ),
         }));
+        scheduleAutoSync(false);
       },
 
       bulkSetTags: (ids, tags) => {
@@ -882,8 +903,9 @@ export const useDocumentStore = create<DocumentState>()(
               const preserved = doc.tags.filter((tag) => !removedSharedTags.includes(tag));
               return { ...doc, tags: appendUnique(preserved, tags), updatedAt: nowIso() };
             });
-          })(),
+            })(),
         }));
+        scheduleAutoSync(false);
       },
 
       updateDocumentTags: (id, tags) => {
@@ -892,6 +914,7 @@ export const useDocumentStore = create<DocumentState>()(
             doc.id === id ? { ...doc, tags, updatedAt: nowIso() } : doc
           ),
         }));
+        scheduleAutoSync(false);
       },
 
       getAllTags: () => {
@@ -909,12 +932,14 @@ export const useDocumentStore = create<DocumentState>()(
             doc.id === documentId ? { ...doc, folderId, updatedAt: nowIso() } : doc
           ),
         }));
+        scheduleAutoSync(false);
       },
 
       addFolder: (name, color = Colors.primary, parentId?) => {
         const now = nowIso();
         const folder: Folder = { id: nanoid(), name, color, ...(parentId != null ? { parentId } : {}), createdAt: now, updatedAt: now };
         set((s) => ({ folders: [...s.folders, folder] }));
+        scheduleAutoSync(false);
         return folder;
       },
 
@@ -944,6 +969,7 @@ export const useDocumentStore = create<DocumentState>()(
           resolved = folder;
           return { folders: [...s.folders, folder] };
         });
+        scheduleAutoSync(false);
         return resolved!;
       },
 
@@ -953,6 +979,7 @@ export const useDocumentStore = create<DocumentState>()(
             folder.id === id ? { ...folder, ...patch, updatedAt: nowIso() } : folder
           ),
         }));
+        scheduleAutoSync(false);
       },
 
       deleteFolder: async (id, moveDocumentsToRoot = true) => {
@@ -964,6 +991,7 @@ export const useDocumentStore = create<DocumentState>()(
             ),
             deletedFolderIds: appendUnique(s.deletedFolderIds, [id]),
           }));
+          scheduleAutoSync(false);
           return;
         }
 
@@ -976,6 +1004,7 @@ export const useDocumentStore = create<DocumentState>()(
           deletedDocumentIds: appendUnique(s.deletedDocumentIds, deletedDocumentIds),
         }));
         await Promise.all(toDelete.map((doc) => deleteDocumentFiles(doc.id).catch(() => undefined)));
+        scheduleAutoSync(false);
       },
 
       setFilters: (filters) => set({ filters }),

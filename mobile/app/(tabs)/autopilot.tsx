@@ -73,6 +73,7 @@ export default function AutopilotScreen() {
           <MetricPill label="Due soon" value={summary.dueSoon.length} />
           <MetricPill label="Expiring" value={summary.expiringSoon.length} />
           <MetricPill label="Review" value={summary.needsReview.length} />
+          <MetricPill label="File" value={summary.needsFiling.length} />
           <MetricPill label="People" value={summary.people.length} />
         </View>
 
@@ -284,10 +285,12 @@ const styles = StyleSheet.create({
   },
   metricsRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: S[2],
   },
   metricPill: {
     flex: 1,
+    flexBasis: '47%',
     minHeight: 66,
     backgroundColor: C.ink2,
     borderRadius: R.lg,
