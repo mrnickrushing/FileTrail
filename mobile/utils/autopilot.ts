@@ -36,6 +36,20 @@ function formatDate(date: string): string {
   return new Date(parsed).toLocaleDateString();
 }
 
+function hasReminderFacts(facts: NonNullable<Document['facts']>): boolean {
+  return Boolean(
+    facts.personName?.trim()
+    || facts.expirationDate
+    || facts.dueDate
+    || facts.issueDate
+    || facts.issuer?.trim()
+    || facts.policyNumber?.trim()
+    || facts.accountNumber?.trim()
+    || facts.memberNumber?.trim()
+    || typeof facts.amountDue === 'number'
+  );
+}
+
 export function buildAutopilotSummary(documents: Document[]): AutopilotSummary {
   const actions: AutopilotAction[] = [];
   const peopleMap = new Map<string, number>();
@@ -74,18 +88,21 @@ export function buildAutopilotSummary(documents: Document[]): AutopilotSummary {
       });
     }
 
-    if (
-      !doc.folderId ||
-      !doc.facts ||
-      (!doc.facts.personName && ['id', 'medical', 'insurance', 'education', 'travel'].includes(doc.category))
-    ) {
+    if (!doc.folderId) {
+      actions.push({
+        id: `filing-${doc.id}`,
+        kind: 'filing',
+        title: !doc.folderId ? `Needs filing: ${doc.title}` : `Needs review: ${doc.title}`,
+        detail: 'Move this into a folder or let Autopilot file it.',
+        tone: 'neutral',
+        documentId: doc.id,
+      });
+    } else if (!doc.facts || !hasReminderFacts(doc.facts)) {
       actions.push({
         id: `review-${doc.id}`,
-        kind: !doc.folderId ? 'filing' : 'review',
-        title: !doc.folderId ? `Needs filing: ${doc.title}` : `Needs review: ${doc.title}`,
-        detail: !doc.folderId
-          ? 'Move this into a folder or let Autopilot file it.'
-          : 'Key details are still missing for reminders and timelines.',
+        kind: 'review',
+        title: `Needs review: ${doc.title}`,
+        detail: 'Add the expiry, due date, person name, or account number so Autopilot can track it.',
         tone: 'neutral',
         documentId: doc.id,
       });
