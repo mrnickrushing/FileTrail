@@ -595,6 +595,9 @@ export const useDocumentStore = create<DocumentState>()(
 
       syncWithBackend: async () => {
         const accountProfile = useAppStore.getState().accountProfile;
+        if (!accountProfile?.userId || !accountProfile.storageAccessToken) {
+          return;
+        }
         set((s) => ({
           syncState: {
             ...s.syncState,
