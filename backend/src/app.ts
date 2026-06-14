@@ -539,7 +539,7 @@ export async function buildApp(config: RuntimeConfig, store: FiletrailStore = ne
         });
       }
       if (documents.length > 0) {
-        await store.push({ deviceId: 'email-inbound', documents, folders: [], deletedDocumentIds: [], deletedFolderIds: [] });
+        await store.push({ documents, folders: [], deletedDocumentIds: [], deletedFolderIds: [] });
       }
     }
 
