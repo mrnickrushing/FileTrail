@@ -23,7 +23,7 @@ const PRO_FEATURES = [
   { icon: '∞', label: 'Unlimited Documents' },
   { icon: '✦', label: 'AI Auto-fill' },
   { icon: '📁', label: 'Folders' },
-  { icon: '☁️', label: 'Cloud Backup' },
+  { icon: '🔔', label: 'Expiry Alerts' },
 ];
 
 interface PaywallModalProps {

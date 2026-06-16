@@ -17,7 +17,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import * as FileSystem from 'expo-file-system';
 import { Feather } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAppStore, useDocumentStore, useProStore } from '@/store';
 import { TourBubble } from '@/components/TourBubble';
 import { useTourTip } from '@/hooks/useTourTip';
@@ -38,7 +37,6 @@ import { HealthRing } from '@/components/HealthRing';
 import { Colors, Typography, Spacing } from '@/theme';
 import { C, T, S, R } from '@/theme/tokens';
 import type { SearchFilters, DocumentCategory, Document } from '@/types/document';
-import type { SyncPhase } from '@/store/documentStore';
 
 // Enable LayoutAnimation on Android
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -81,66 +79,6 @@ const SORT_ICONS: Record<ReturnType<typeof useAppStore.getState>['sortBy'], Reac
   category: 'tag',
 };
 
-function formatSyncAge(value: string | null): string {
-  if (!value) return 'Not synced yet';
-  const deltaMs = Date.now() - new Date(value).getTime();
-  if (!Number.isFinite(deltaMs) || deltaMs < 0) return 'Just now';
-  const minutes = Math.floor(deltaMs / 60000);
-  if (minutes < 1) return 'Just now';
-  if (minutes < 60) return `${minutes}m ago`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  if (days === 1) return 'Yesterday';
-  if (days < 7) return `${days}d ago`;
-  return new Date(value).toLocaleDateString();
-}
-
-function syncBadgeMeta(phase: SyncPhase, pendingCount: number): {
-  label: string;
-  detail: string;
-  icon: React.ComponentProps<typeof Feather>['name'];
-  tone: 'success' | 'warning' | 'danger' | 'neutral';
-} {
-  if (phase === 'syncing') {
-    return {
-      label: 'Syncing',
-      detail: pendingCount > 0 ? `${pendingCount} pending` : 'Updating cloud copy',
-      icon: 'refresh-cw',
-      tone: 'warning',
-    };
-  }
-  if (phase === 'error') {
-    return {
-      label: 'Sync failed',
-      detail: pendingCount > 0 ? `${pendingCount} pending` : 'Tap to retry',
-      icon: 'alert-circle',
-      tone: 'danger',
-    };
-  }
-  if (pendingCount > 0) {
-    return {
-      label: 'Needs sync',
-      detail: `${pendingCount} pending`,
-      icon: 'cloud-off',
-      tone: 'warning',
-    };
-  }
-  if (phase === 'success') {
-    return {
-      label: 'Synced',
-      detail: 'Cloud copy current',
-      icon: 'cloud',
-      tone: 'success',
-    };
-  }
-  return {
-    label: 'Local only',
-    detail: 'Pull to sync',
-    icon: 'hard-drive',
-    tone: 'neutral',
-  };
-}
 
 export default function VaultScreen() {
   const router = useRouter();
@@ -181,27 +119,6 @@ export default function VaultScreen() {
   const isPro = useProStore(s => s.isPro);
   const checkPro = useProStore(s => s.checkPro);
 
-  // Backup nudge: prompt once after user has 3+ documents
-  const docCount = documents.length;
-  React.useEffect(() => {
-    if (docCount < 3) return;
-    const NUDGE_KEY = 'filetrail-backup-nudge-shown';
-    AsyncStorage.getItem(NUDGE_KEY).then((shown) => {
-      if (shown) return;
-      AsyncStorage.setItem(NUDGE_KEY, '1');
-      Alert.alert(
-        'Back Up Your Vault',
-        "You have documents saved. Back them up to Files or iCloud so they're safe if you change devices.",
-        [
-          { text: 'Later', style: 'cancel' },
-          {
-            text: 'Back Up Now',
-            onPress: () => router.push('/(tabs)/settings'),
-          },
-        ]
-      );
-    });
-  }, [docCount, router]);
 
   // ── Filter logic ──────────────────────────────────────────────────────────
 
@@ -229,21 +146,6 @@ export default function VaultScreen() {
     return docs;
   }, [documents, filters, sortBy, sortDir]);
 
-  const pendingSyncCount = useMemo(() => {
-    const lastSuccessful = syncState.lastSuccessfulSyncAt;
-    const pendingDocs = lastSuccessful
-      ? documents.filter((doc) => doc.updatedAt > lastSuccessful).length
-      : documents.length;
-    const pendingFolders = lastSuccessful
-      ? folders.filter((folder) => folder.updatedAt > lastSuccessful).length
-      : folders.length;
-    return pendingDocs + pendingFolders + deletedDocumentIds.length + deletedFolderIds.length;
-  }, [documents, folders, deletedDocumentIds.length, deletedFolderIds.length, syncState.lastSuccessfulSyncAt]);
-
-  const syncMeta = useMemo(
-    () => syncBadgeMeta(syncState.phase, pendingSyncCount),
-    [syncState.phase, pendingSyncCount],
-  );
 
   // Docs without a folder
   const unfiledCount = useMemo(
@@ -586,60 +488,9 @@ export default function VaultScreen() {
         </View>
       </View>
 
-      <Pressable
-        style={[
-          styles.syncPanel,
-          syncMeta.tone === 'success' && styles.syncPanelSuccess,
-          syncMeta.tone === 'warning' && styles.syncPanelWarning,
-          syncMeta.tone === 'danger' && styles.syncPanelDanger,
-        ]}
-        onPress={() => {
-          if (syncState.phase === 'syncing') return;
-          void onRefresh();
-        }}
-        disabled={syncState.phase === 'syncing'}
-        accessibilityRole="button"
-        accessibilityLabel={`${syncMeta.label}. ${syncMeta.detail}. Last sync ${formatSyncAge(syncState.lastSuccessfulSyncAt)}.`}
-      >
-        <View style={styles.syncPanelMain}>
-          <View style={styles.syncPanelIcon}>
-            <Feather
-              name={syncMeta.icon}
-              size={15}
-              color={
-                syncMeta.tone === 'success'
-                  ? C.success
-                  : syncMeta.tone === 'danger'
-                    ? C.danger
-                    : syncMeta.tone === 'warning'
-                      ? C.amber
-                      : C.ash
-              }
-            />
-          </View>
-          <View style={styles.syncPanelCopy}>
-            <Text
-              style={[
-                styles.syncPanelLabel,
-                syncMeta.tone === 'success' && styles.syncPanelLabelSuccess,
-                syncMeta.tone === 'warning' && styles.syncPanelLabelWarning,
-                syncMeta.tone === 'danger' && styles.syncPanelLabelDanger,
-              ]}
-            >
-              {syncMeta.label}
-            </Text>
-            <Text style={styles.syncPanelDetail}>
-              {syncMeta.detail} • {formatSyncAge(syncState.lastSuccessfulSyncAt)}
-            </Text>
-          </View>
-        </View>
-        <Feather name="refresh-cw" size={14} color={C.ash} />
-      </Pressable>
-
       <View style={styles.metricsBand}>
         <MetricCell label="Unfiled" value={unfiledCount} accent={C.amber} />
         <MetricCell label="Saved" value={favoriteCount} accent={C.success} />
-        <MetricCell label="Pending" value={pendingSyncCount} accent={syncMeta.tone === 'danger' ? C.danger : C.amber} />
         <MetricCell label="Filters" value={activeFilterCount} accent={C.ash} />
       </View>
 

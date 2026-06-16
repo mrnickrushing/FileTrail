@@ -50,7 +50,7 @@ const SLIDES: Slide[] = [
     id: '3',
     emoji: '🔒',
     title: 'Private by default.',
-    body: 'Lock your vault with Face ID or Touch ID. Back up with a single tap. Upgrade to Pro for encrypted cloud sync when you\'re ready.',
+    body: 'Lock your vault with Face ID or Touch ID. Create a local backup any time. Upgrade to Pro for AI auto-naming and smart filing.',
   },
 ];
 

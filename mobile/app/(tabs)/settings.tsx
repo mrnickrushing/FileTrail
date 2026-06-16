@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useDocumentStore, useAppStore, useProStore } from '@/store';
+import { useAppStore, useProStore, useOwnerStore } from '@/store';
 import { TourBubble } from '@/components/TourBubble';
 import { useTourTip } from '@/hooks/useTourTip';
 import { PaywallModal } from '@/components/PaywallModal';
@@ -13,49 +13,23 @@ import {
   SettingsCard,
   SettingsNavRow,
   Hint,
-  formatBytes,
 } from '@/components/settings/SettingsUi';
 import { C, R, S, T } from '@/theme/tokens';
 
 export default function SettingsScreen() {
   const router = useRouter();
-  const documents = useDocumentStore((s) => s.documents);
   const accountProfile = useAppStore((s) => s.accountProfile);
   const biometricEnabled = useAppStore((s) => s.biometricEnabled);
   const isPro = useProStore((s) => s.isPro);
   const checkPro = useProStore((s) => s.checkPro);
+  const isOwner = useOwnerStore((s) => s.isOwner);
   const [showPaywall, setShowPaywall] = React.useState(false);
-
-  const totalSize = React.useMemo(
-    () => documents.reduce((sum, doc) => sum + (doc.fileSizeBytes ?? 0), 0),
-    [documents],
-  );
-
-  const docsLabel = `${documents.length} doc${documents.length === 1 ? '' : 's'} • ${formatBytes(totalSize)}`;
-  const backupLabel = isPro
-    ? `${documents.length} doc${documents.length === 1 ? '' : 's'} ready to back up`
-    : 'Upgrade to enable vault backups';
 
   return (
     <SettingsTabShell
       title="Settings"
       overlay={<FAB onPress={() => router.push('/capture')} />}
     >
-      {documents.length >= 5 && (
-        <Pressable
-          style={({ pressed }) => [styles.backupBanner, pressed && styles.pressed]}
-          onPress={() => router.push('/settings/storage')}
-        >
-          <View style={styles.backupBannerCopy}>
-            <Text style={styles.backupBannerTitle}>Back up your vault</Text>
-            <Text style={styles.backupBannerBody}>
-              {backupLabel}
-            </Text>
-          </View>
-          <Text style={styles.backupBannerAction}>Open</Text>
-        </Pressable>
-      )}
-
       <SectionHeader title="Workspace" />
       <SettingsCard>
         <SettingsNavRow
@@ -65,8 +39,8 @@ export default function SettingsScreen() {
           onPress={() => router.push('/settings/account')}
         />
         <SettingsNavRow
-          label="Storage & Backup"
-          value={docsLabel}
+          label="Backup & Restore"
+          value="Save or restore a local .ptbak file"
           icon="hard-drive"
           onPress={() => router.push('/settings/storage')}
         />
@@ -90,6 +64,21 @@ export default function SettingsScreen() {
         />
       </SettingsCard>
 
+      {isOwner && (
+        <>
+          <SectionHeader title="Owner" />
+          <SettingsCard>
+            <SettingsNavRow
+              label="Cloud Sync"
+              value="R2 upload, sync state, backend controls"
+              icon="cloud"
+              onPress={() => router.push('/settings/storage')}
+            />
+          </SettingsCard>
+          <Hint>Owner mode is active. Cloud controls are only visible to you.</Hint>
+        </>
+      )}
+
       <SectionHeader title="Upgrade" />
       <View style={styles.proCard}>
         <View style={styles.proCardHeader}>
@@ -97,10 +86,10 @@ export default function SettingsScreen() {
           <View style={styles.proBadge}><Text style={styles.proBadgeText}>PRO</Text></View>
         </View>
         <Text style={styles.proBody}>
-          Cloud sync across devices, AI auto-naming, expiry detection, shared vaults, and backup workflows.
+          AI auto-naming, expiry detection, smart filing, and priority support.
         </Text>
         <View style={styles.proFeatures}>
-          {['☁️ Encrypted cloud sync', '🤖 AI auto-naming', '🗂 Smart filing', '💾 Backup & restore'].map((feature) => (
+          {['🤖 AI auto-naming', '🗂 Smart filing', '🔔 Expiry alerts', '⭐ Priority support'].map((feature) => (
             <Text key={feature} style={styles.proFeatureItem}>{feature}</Text>
           ))}
         </View>
@@ -146,8 +135,8 @@ function SettingsTourTip() {
   const insets = useSafeAreaInsets();
   return (
     <TourBubble
-      title="Back up your vault"
-      body="Create a .ptbak backup to iCloud or Google Drive. Restore it any time to recover your documents."
+      title="Customize your experience"
+      body="Set up biometric lock, forward documents via email, or unlock Pro for AI-powered filing."
       visible={visible}
       onDismiss={dismiss}
       anchor={{ bottom: Math.max(insets.bottom, 16) + 16, left: 12, right: 12 }}
@@ -156,39 +145,7 @@ function SettingsTourTip() {
   );
 }
 
-
 const styles = StyleSheet.create({
-  backupBanner: {
-    backgroundColor: C.amberDim,
-    borderRadius: R.lg,
-    borderWidth: 1,
-    borderColor: C.amber + '33',
-    paddingHorizontal: S[4],
-    paddingVertical: S[3],
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: S[3],
-    marginBottom: S[2],
-  },
-  backupBannerCopy: {
-    flex: 1,
-    gap: 2,
-  },
-  backupBannerTitle: {
-    fontSize: T.base,
-    color: C.amber,
-    fontWeight: '700',
-  },
-  backupBannerBody: {
-    fontSize: T.sm,
-    color: C.ash,
-    lineHeight: 18,
-  },
-  backupBannerAction: {
-    fontSize: T.sm,
-    color: C.amber,
-    fontWeight: '700',
-  },
   proCard: {
     backgroundColor: C.ink2,
     borderRadius: R.lg,

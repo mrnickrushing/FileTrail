@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, StyleSheet, Text } from 'react-native';
-import { useDocumentStore, useProStore } from '@/store';
+import { useDocumentStore, useProStore, useOwnerStore } from '@/store';
 import { PaywallModal } from '@/components/PaywallModal';
 import { deleteDocumentFiles } from '@/services/fileStorage';
 import { exportAllAsZip } from '@/services/exportService';
@@ -28,6 +28,7 @@ export default function StorageSettingsScreen() {
   const folders = useDocumentStore((s) => s.folders);
   const isPro = useProStore((s) => s.isPro);
   const checkPro = useProStore((s) => s.checkPro);
+  const isOwner = useOwnerStore((s) => s.isOwner);
 
   const [showPaywall, setShowPaywall] = useState(false);
   const [isClearing, setIsClearing] = useState(false);
@@ -196,7 +197,7 @@ export default function StorageSettingsScreen() {
   };
 
   return (
-    <SettingsSubpageShell title="Storage & Backup">
+    <SettingsSubpageShell title="Backup & Restore">
       <SectionHeader title="Storage" />
       <SettingsCard>
         <SettingsRow label="Documents" value={`${documents.length}`} />
@@ -206,9 +207,9 @@ export default function StorageSettingsScreen() {
         <SettingsRow label="Disk Usage" value={formatBytes(totalSize)} />
       </SettingsCard>
 
-      {backendConfigured && (
+      {isOwner && backendConfigured && (
         <>
-          <SectionHeader title="Sync" />
+          <SectionHeader title="Cloud Sync" />
           <SettingsCard>
             <Pressable
               style={({ pressed }) => [styles.centerRow, (pressed || isResettingSync) && styles.pressed]}
