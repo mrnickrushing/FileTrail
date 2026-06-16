@@ -441,9 +441,14 @@ export default function VaultScreen() {
   const onRefresh = useCallback(async () => {
     setIsRefreshing(true);
     try {
-      await syncWithBackend({ repairStorage: true });
+      await Promise.race([
+        syncWithBackend({ repairStorage: true }),
+        new Promise<void>((_, reject) =>
+          setTimeout(() => reject(new Error('sync timeout')), 20_000)
+        ),
+      ]);
     } catch {
-      // syncWithBackend already swallows network errors; nothing else to do.
+      // network errors and timeouts are non-fatal
     } finally {
       setIsRefreshing(false);
     }

@@ -78,9 +78,12 @@ export default function RootLayout() {
     isCheckingForUpdatesRef.current = true;
     lastUpdateCheckAtRef.current = now;
 
+    const withTimeout = <T,>(p: Promise<T>, ms: number): Promise<T> =>
+      Promise.race([p, new Promise<T>((_, reject) => setTimeout(() => reject(new Error('timeout')), ms))]);
+
     try {
       logDebug(`ota-check:${reason}:start`);
-      const update = await Updates.checkForUpdateAsync();
+      const update = await withTimeout(Updates.checkForUpdateAsync(), 12_000);
       logDebug(`ota-check:${reason}:${update.isAvailable ? 'available' : 'none'}`);
       setDebugScreenState('ota', update.isAvailable ? 'available' : 'none');
 
@@ -88,7 +91,7 @@ export default function RootLayout() {
         return;
       }
 
-      await Updates.fetchUpdateAsync();
+      await withTimeout(Updates.fetchUpdateAsync(), 30_000);
       logDebug(`ota-check:${reason}:fetched`);
       setDebugScreenState('ota', 'fetched');
       await Updates.reloadAsync();
