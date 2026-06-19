@@ -503,8 +503,9 @@ export default function VaultScreen() {
         syncState={syncState}
         onDocs={() => setFilters({})}
         onFolders={() => router.push('/(tabs)/folders')}
-        onStorage={() => router.push('/(tabs)/folders')}
+        onStorage={() => router.push('/settings/storage')}
         onSync={() => setShowSyncOverlay(true)}
+        onSaved={() => setFilters({ ...filters, isFavorite: true })}
       />
 
       <View style={styles.controlBand}>

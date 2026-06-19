@@ -25,6 +25,7 @@ interface Props {
   onFolders: () => void;
   onStorage: () => void;
   onSync: () => void;
+  onSaved: () => void;
 }
 
 export function VaultStatsRow({
@@ -37,6 +38,7 @@ export function VaultStatsRow({
   onFolders,
   onStorage,
   onSync,
+  onSaved,
 }: Props) {
   const storage = formatStorageSize(getTotalStorageBytes(documents));
 
@@ -60,7 +62,7 @@ export function VaultStatsRow({
       {syncEnabled ? (
         <StatCell icon="refresh-cw" value={syncValue} label="Synced" color={syncColor} onPress={onSync} last />
       ) : (
-        <StatCell icon="star" value={String(favoriteCount)} label="Saved" color={C.cream} onPress={onSync} last />
+        <StatCell icon="star" value={String(favoriteCount)} label="Saved" color={C.cream} onPress={onSaved} last />
       )}
     </View>
   );
