@@ -171,11 +171,15 @@ export async function uploadDocumentToR2(params: {
     });
 
     // Upload the file bytes directly to R2 via the presigned PUT URL.
-    const result = await FileSystem.uploadAsync(uploadUrl, params.localUri, {
-      httpMethod: 'PUT',
-      headers: { 'Content-Type': params.mimeType },
-      uploadType: FileSystem.FileSystemUploadType.BINARY_CONTENT,
-    });
+    const result = await withTimeout(
+      FileSystem.uploadAsync(uploadUrl, params.localUri, {
+        httpMethod: 'PUT',
+        headers: { 'Content-Type': params.mimeType },
+        uploadType: FileSystem.FileSystemUploadType.BINARY_CONTENT,
+      }),
+      60000,
+      '[r2] upload',
+    );
 
     if (result.status < 200 || result.status >= 300) {
       console.warn('[r2] Upload failed with status', result.status);
@@ -211,7 +215,11 @@ export async function downloadDocumentFromR2(params: {
 
     const dir = await ensureDocumentDirectory(params.documentId);
     const destUri = `${dir}original.${params.extension.toLowerCase()}`;
-    const download = await FileSystem.downloadAsync(downloadUrl, destUri);
+    const download = await withTimeout(
+      FileSystem.downloadAsync(downloadUrl, destUri),
+      60000,
+      '[r2] download',
+    );
     if (download.status < 200 || download.status >= 300) {
       console.warn('[r2] Download failed with status', download.status);
       return null;
@@ -221,6 +229,23 @@ export async function downloadDocumentFromR2(params: {
     console.warn('[r2] downloadDocumentFromR2 failed:', err);
     return null;
   }
+}
+
+/**
+ * Races a promise against a timeout. expo-file-system's uploadAsync/downloadAsync
+ * don't accept an AbortSignal, so a stalled connection (e.g. a flaky upload mid
+ * transfer) would otherwise hang the await forever — which froze the entire
+ * sync loop in syncWithBackend, since uploads run sequentially there. This lets
+ * the caller move on; the underlying request is abandoned, not cancelled.
+ */
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(`${label} timed out after ${timeoutMs}ms`)), timeoutMs);
+    promise.then(
+      (value) => { clearTimeout(timer); resolve(value); },
+      (err) => { clearTimeout(timer); reject(err); },
+    );
+  });
 }
 
 /**

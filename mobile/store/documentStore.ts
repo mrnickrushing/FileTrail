@@ -511,33 +511,44 @@ export const useDocumentStore = create<DocumentState>()(
               return { documents: Array.from(localById.values()) };
             });
             // After merging, download any missing local files from R2 (Pro only).
-            // This is the "new device" restore path.
+            // This is the "new device" restore path — a first sync can have
+            // hundreds of pending files, so download in small concurrent
+            // batches rather than firing every request at once.
             if (isPro) {
-              for (const doc of incoming) {
-                if (!doc.storageUrl) continue;
-                // Use current state after merge
+              const toRestore = incoming.filter((doc) => {
+                if (!doc.storageUrl) return false;
                 const merged = get().documents.find((d) => d.id === doc.id);
-                if (!merged || merged.fileUri) continue;
-                const ext = getExtension(doc.mimeType);
-                downloadDocumentFromR2({
-                  documentId: doc.id,
-                  mimeType: doc.mimeType,
-                  extension: ext,
-                  storageKey: doc.storageUrl
-                    ? doc.storageUrl.replace(/^r2:\/\/[^/]+\//, '')
-                    : undefined,
-                }).then((localUri) => {
-                  if (localUri) {
-                    set((s) => ({
-                      documents: s.documents.map((d) =>
-                        d.id === doc.id ? { ...d, fileUri: localUri } : d
-                      ),
-                    }));
-                  }
-                }).catch(() => {
-                  // Non-fatal: file may not be in R2 yet
-                });
-              }
+                return !!merged && !merged.fileUri;
+              });
+              const RESTORE_BATCH_SIZE = 3;
+              (async () => {
+                for (let i = 0; i < toRestore.length; i += RESTORE_BATCH_SIZE) {
+                  const batch = toRestore.slice(i, i + RESTORE_BATCH_SIZE);
+                  await Promise.all(
+                    batch.map((doc) => {
+                      const ext = getExtension(doc.mimeType);
+                      return downloadDocumentFromR2({
+                        documentId: doc.id,
+                        mimeType: doc.mimeType,
+                        extension: ext,
+                        storageKey: doc.storageUrl
+                          ? doc.storageUrl.replace(/^r2:\/\/[^/]+\//, '')
+                          : undefined,
+                      }).then((localUri) => {
+                        if (localUri) {
+                          set((s) => ({
+                            documents: s.documents.map((d) =>
+                              d.id === doc.id ? { ...d, fileUri: localUri } : d
+                            ),
+                          }));
+                        }
+                      }).catch(() => {
+                        // Non-fatal: file may not be in R2 yet
+                      });
+                    })
+                  );
+                }
+              })();
             }
           },
           mergeFolders: (incoming) => {
