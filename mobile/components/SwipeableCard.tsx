@@ -9,13 +9,15 @@
  * gestures (no PanResponder vs RNGH conflicts).
  */
 
-import React, { useCallback } from 'react';
+import React, { useCallback, useEffect } from 'react';
 import { Alert, View, Text, StyleSheet } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withSpring,
+  withSequence,
+  useReducedMotion,
   runOnJS,
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
@@ -31,15 +33,31 @@ interface Props {
   isFavorite: boolean;
   /** Disable swipe when in selection mode */
   disabled?: boolean;
+  /** Play a one-time left/right nudge on mount to tease the swipe affordance */
+  nudge?: boolean;
 }
 
-export function SwipeableCard({ children, onDelete, onFavorite, isFavorite, disabled }: Props) {
+export function SwipeableCard({ children, onDelete, onFavorite, isFavorite, disabled, nudge }: Props) {
+  const reducedMotion = useReducedMotion();
   const translateX = useSharedValue(0);
   const hasFired = useSharedValue(false);
   const isConfirmingDelete = useSharedValue(false);
 
+  useEffect(() => {
+    if (!nudge || reducedMotion) return;
+    translateX.value = withSequence(
+      withSpring(-16, { damping: 14, stiffness: 160 }),
+      withSpring(12, { damping: 14, stiffness: 160 }),
+      withSpring(0, { damping: 14, stiffness: 160 }),
+    );
+  }, [nudge, reducedMotion, translateX]);
+
   const hapticLight = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  }, []);
+
+  const hapticStart = useCallback(() => {
+    Haptics.selectionAsync();
   }, []);
 
   const resetPosition = useCallback(() => {
@@ -69,6 +87,9 @@ export function SwipeableCard({ children, onDelete, onFavorite, isFavorite, disa
     .enabled(!disabled)
     .activeOffsetX([-8, 8])
     .failOffsetY([-10, 10])
+    .onStart(() => {
+      runOnJS(hapticStart)();
+    })
     .onUpdate((e) => {
       translateX.value = e.translationX;
       if (!hasFired.value && Math.abs(e.translationX) >= ACTION_THRESHOLD) {

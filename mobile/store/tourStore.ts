@@ -5,6 +5,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 export const TOUR_TIP_IDS = [
   'vault-fab',
   'vault-filter',
+  'vault-swipe',
   'search-bar',
   'folders-new',
   'viewer-organize',
