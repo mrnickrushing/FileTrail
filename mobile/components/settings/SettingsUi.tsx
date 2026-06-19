@@ -111,7 +111,11 @@ export function SectionHeader({
   );
 }
 
-/** Tap-to-reveal "?" tooltip for inline help next to a setting label. */
+/**
+ * Tap-to-reveal "?" tooltip for inline help under a setting.
+ * Renders in normal layout flow (not as an absolute overlay) so it can't be
+ * clipped by a parent SettingsCard's `overflow: 'hidden'`.
+ */
 export function InlineHelp({ text }: { text: string }) {
   const [expanded, setExpanded] = React.useState(false);
   const reducedMotion = useReducedMotion();
@@ -268,11 +272,9 @@ export function ToggleField({
   return (
     <View style={styles.toggleRow}>
       <View style={styles.toggleInfo}>
-        <View style={styles.toggleLabelRow}>
-          <Text style={[styles.toggleLabel, disabled && styles.toggleLabelDisabled]}>{label}</Text>
-          {help && <InlineHelp text={help} />}
-        </View>
+        <Text style={[styles.toggleLabel, disabled && styles.toggleLabelDisabled]}>{label}</Text>
         <Text style={styles.toggleSub}>{sub}</Text>
+        {help && <InlineHelp text={help} />}
       </View>
       <Animated.View style={trackStyle}>
         <Switch
@@ -451,11 +453,10 @@ const styles = StyleSheet.create({
     minHeight: 64,
   },
   toggleInfo: { flex: 1, gap: 2 },
-  toggleLabelRow: { flexDirection: 'row', alignItems: 'center', gap: S[2] },
   toggleLabel: { fontSize: T.base, color: C.cream },
   toggleLabelDisabled: { color: C.ash },
   toggleSub: { fontSize: T.xs, color: C.ash, lineHeight: 18 },
-  helpWrap: { position: 'relative' },
+  helpWrap: { marginTop: S[1], alignItems: 'flex-start' },
   helpBadge: {
     width: 20,
     height: 20,
@@ -466,16 +467,11 @@ const styles = StyleSheet.create({
   },
   helpBadgeText: { fontSize: T.xs, color: C.ash, fontWeight: '700' },
   helpBubble: {
-    position: 'absolute',
-    top: 26,
-    right: 0,
-    minWidth: 200,
-    maxWidth: 240,
     backgroundColor: C.ink4,
     borderRadius: R.md,
     padding: S[3],
-    zIndex: 10,
-    elevation: 10,
+    marginTop: S[2],
+    alignSelf: 'stretch',
   },
   helpBubbleText: { fontSize: T.xs, color: C.cream, lineHeight: 18 },
 });
