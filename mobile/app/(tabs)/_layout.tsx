@@ -5,11 +5,18 @@
  * elevated above content with shadow. Safe-area aware bottom inset.
  */
 
-import { Platform, View, StyleSheet } from 'react-native';
+import React, { useEffect } from 'react';
+import { Platform, StyleSheet } from 'react-native';
 import { Tabs } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
-import { C, T, R, S } from '@/theme/tokens';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  useReducedMotion,
+} from 'react-native-reanimated';
+import { C, T, R, S, Springs } from '@/theme/tokens';
 
 const TAB_HEIGHT = 62;
 
@@ -110,10 +117,32 @@ function TabIcon({
   color: string;
   focused: boolean;
 }) {
+  const reducedMotion = useReducedMotion();
+  const scale = useSharedValue(focused ? 1 : 0.9);
+  const bgOpacity = useSharedValue(focused ? 1 : 0);
+
+  useEffect(() => {
+    if (reducedMotion) {
+      scale.value = 1;
+      bgOpacity.value = focused ? 1 : 0;
+      return;
+    }
+    scale.value = withSpring(focused ? 1.08 : 0.9, Springs.bouncy);
+    bgOpacity.value = withSpring(focused ? 1 : 0, Springs.smooth);
+  }, [focused, reducedMotion, scale, bgOpacity]);
+
+  const wrapStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+  const bgStyle = useAnimatedStyle(() => ({
+    opacity: bgOpacity.value,
+  }));
+
   return (
-    <View style={[styles.iconWrap, focused && styles.iconWrapActive]}>
+    <Animated.View style={[styles.iconWrap, wrapStyle]}>
+      <Animated.View style={[styles.iconWrapBg, bgStyle]} />
       <Feather name={name} size={18} color={color} />
-    </View>
+    </Animated.View>
   );
 }
 
@@ -125,7 +154,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  iconWrapActive: {
+  iconWrapBg: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: R.md,
     backgroundColor: C.amberDim,
   },
 });

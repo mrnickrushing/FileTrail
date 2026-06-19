@@ -16,8 +16,23 @@ import {
   Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Animated, {
+  FadeInDown,
+  FadeInUp,
+  ZoomIn,
+  useSharedValue,
+  useAnimatedStyle,
+  withRepeat,
+  withSequence,
+  withTiming,
+  withSpring,
+  cancelAnimation,
+  useReducedMotion,
+} from 'react-native-reanimated';
 import { purchasePro, restorePurchases } from '@/services/purchases';
-import { C, T, R, S } from '@/theme/tokens';
+import { C, T, R, S, Springs } from '@/theme/tokens';
+
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 const PRO_FEATURES = [
   { icon: '∞', label: 'Unlimited Documents' },
@@ -53,6 +68,7 @@ function billingAlertTitle(code: string): string {
 
 export function PaywallModal({ visible, onClose, onSuccess }: PaywallModalProps) {
   const insets = useSafeAreaInsets();
+  const reducedMotion = useReducedMotion();
   const [isPurchasing, setIsPurchasing] = useState(false);
   const [isRestoring, setIsRestoring] = useState(false);
   const isMounted = useRef(true);
@@ -60,6 +76,21 @@ export function PaywallModal({ visible, onClose, onSuccess }: PaywallModalProps)
     isMounted.current = true;
     return () => { isMounted.current = false; };
   }, []);
+
+  const unlockPulse = useSharedValue(1);
+  const unlockPress = useSharedValue(1);
+  useEffect(() => {
+    if (!visible || reducedMotion) return;
+    unlockPulse.value = withRepeat(
+      withSequence(withTiming(1.035, { duration: 900 }), withTiming(1, { duration: 900 })),
+      -1,
+      false,
+    );
+    return () => cancelAnimation(unlockPulse);
+  }, [visible, reducedMotion, unlockPulse]);
+  const unlockStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: unlockPulse.value * unlockPress.value }],
+  }));
 
   if (!visible) return null;
 
@@ -118,27 +149,46 @@ export function PaywallModal({ visible, onClose, onSuccess }: PaywallModalProps)
         {/* Content */}
         <View style={styles.body}>
           {/* Icon + heading */}
-          <Text style={styles.sparkle}>✦</Text>
-          <Text style={styles.heading}>FileTrail Pro</Text>
-          <Text style={styles.subheading}>
+          <Animated.Text
+            entering={reducedMotion ? undefined : ZoomIn.springify().damping(12).delay(60)}
+            style={styles.sparkle}
+          >
+            ✦
+          </Animated.Text>
+          <Animated.Text
+            entering={reducedMotion ? undefined : FadeInUp.duration(260).delay(120)}
+            style={styles.heading}
+          >
+            FileTrail Pro
+          </Animated.Text>
+          <Animated.Text
+            entering={reducedMotion ? undefined : FadeInUp.duration(260).delay(180)}
+            style={styles.subheading}
+          >
             Unlock the full power of your document vault.
-          </Text>
+          </Animated.Text>
 
           {/* Feature list */}
           <View style={styles.featureList}>
-            {PRO_FEATURES.map(({ icon, label }) => (
-              <View key={label} style={styles.featureRow}>
+            {PRO_FEATURES.map(({ icon, label }, i) => (
+              <Animated.View
+                key={label}
+                entering={reducedMotion ? undefined : FadeInDown.duration(260).delay(240 + i * 70)}
+                style={styles.featureRow}
+              >
                 <Text style={styles.featureIcon}>{icon}</Text>
                 <Text style={styles.featureLabel}>{label}</Text>
-              </View>
+              </Animated.View>
             ))}
           </View>
         </View>
 
         {/* Actions */}
         <View style={styles.actions}>
-          <Pressable
-            style={[styles.unlockBtn, isLoading && styles.unlockBtnDisabled]}
+          <AnimatedPressable
+            style={[styles.unlockBtn, isLoading && styles.unlockBtnDisabled, unlockStyle]}
+            onPressIn={() => { unlockPress.value = withSpring(0.96, Springs.snappy); }}
+            onPressOut={() => { unlockPress.value = withSpring(1, Springs.snappy); }}
             onPress={handleUnlock}
             disabled={isLoading}
           >
@@ -147,7 +197,7 @@ export function PaywallModal({ visible, onClose, onSuccess }: PaywallModalProps)
             ) : (
               <Text style={styles.unlockBtnText}>Unlock Pro</Text>
             )}
-          </Pressable>
+          </AnimatedPressable>
 
           <Pressable
             style={styles.restoreBtn}
