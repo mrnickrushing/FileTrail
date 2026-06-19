@@ -238,12 +238,18 @@ export async function uploadDocumentToR2(params: {
         : undefined,
     });
 
+    const sizeBytes = await getFileSize(params.localUri);
+
     // Upload the file bytes directly to R2 via the presigned PUT URL.
-    const result = await FileSystem.uploadAsync(uploadUrl, params.localUri, {
-      httpMethod: 'PUT',
-      headers: { 'Content-Type': params.mimeType },
-      uploadType: FileSystem.FileSystemUploadType.BINARY_CONTENT,
-    });
+    const result = await withTimeout(
+      FileSystem.uploadAsync(uploadUrl, params.localUri, {
+        httpMethod: 'PUT',
+        headers: { 'Content-Type': params.mimeType },
+        uploadType: FileSystem.FileSystemUploadType.BINARY_CONTENT,
+      }),
+      transferTimeoutMs(sizeBytes),
+      '[r2] upload',
+    );
 
     if (result.status < 200 || result.status >= 300) {
       console.warn('[r2] Upload failed with status', result.status);
@@ -303,6 +309,7 @@ export async function downloadDocumentFromR2(params: {
   storageKey?: string; // exact R2 key from document.storageUrl (r2://bucket/<key>)
   userId?: string;
   storageAccessToken?: string;
+  fileSizeBytes?: number; // known size (from synced metadata) — sizes the timeout
 }): Promise<string | null> {
   try {
     // Build query: prefer storageKey (exact path), fall back to mimeType-only
@@ -324,7 +331,11 @@ export async function downloadDocumentFromR2(params: {
 
     const dir = await ensureDocumentDirectory(params.documentId);
     const destUri = `${dir}original.${params.extension.toLowerCase()}`;
-    const download = await FileSystem.downloadAsync(downloadUrl, destUri);
+    const download = await withTimeout(
+      FileSystem.downloadAsync(downloadUrl, destUri),
+      transferTimeoutMs(params.fileSizeBytes ?? 0),
+      '[r2] download',
+    );
     if (download.status < 200 || download.status >= 300) {
       console.warn('[r2] Download failed with status', download.status);
       return null;
@@ -334,6 +345,37 @@ export async function downloadDocumentFromR2(params: {
     console.warn('[r2] downloadDocumentFromR2 failed:', err);
     return null;
   }
+}
+
+/**
+ * Races a promise against a timeout. expo-file-system's uploadAsync/downloadAsync
+ * don't accept an AbortSignal, so a stalled connection (e.g. a flaky upload mid
+ * transfer) would otherwise hang the await forever — which can freeze an entire
+ * sequential sync loop. This lets the caller move on; the underlying request is
+ * abandoned, not cancelled.
+ */
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(`${label} timed out after ${timeoutMs}ms`)), timeoutMs);
+    promise.then(
+      (value) => { clearTimeout(timer); resolve(value); },
+      (err) => { clearTimeout(timer); reject(err); },
+    );
+  });
+}
+
+const MIN_TRANSFER_TIMEOUT_MS = 60_000; // 1 min floor — covers small files plus slow handshakes
+const MAX_TRANSFER_TIMEOUT_MS = 10 * 60_000; // 10 min ceiling — still bounded, never infinite
+const ASSUMED_MIN_THROUGHPUT_BYTES_PER_SEC = 200 * 1024; // ~200KB/s, a conservative slow-cellular floor
+
+// Scales the transfer timeout with file size so a large PDF on a slow
+// connection isn't aborted mid-transfer by a fixed timeout sized for small
+// files, while still bounding the worst case (a stalled connection) instead
+// of waiting forever.
+function transferTimeoutMs(sizeBytes: number): number {
+  if (!sizeBytes || sizeBytes <= 0) return MIN_TRANSFER_TIMEOUT_MS;
+  const estimated = (sizeBytes / ASSUMED_MIN_THROUGHPUT_BYTES_PER_SEC) * 1000;
+  return Math.min(MAX_TRANSFER_TIMEOUT_MS, Math.max(MIN_TRANSFER_TIMEOUT_MS, estimated));
 }
 
 /**

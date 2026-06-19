@@ -711,7 +711,7 @@ export const useDocumentStore = create<DocumentState>()(
             userId: accountProfile.userId,
             storageAccessToken: accountProfile.storageAccessToken,
           } : undefined,
-          mergeDocuments: (incoming) => {
+          mergeDocuments: async (incoming) => {
             const mergedDocs = (() => {
               const localById = new Map(get().documents.map((doc) => [doc.id, doc]));
               for (const doc of incoming) {
@@ -751,30 +751,43 @@ export const useDocumentStore = create<DocumentState>()(
             }
 
             // After merging, download any missing local files from R2.
-            // This is the "new device" restore path.
-            for (const doc of dedupedDocs) {
-              if (!doc.storageUrl || doc.fileUri) continue;
-              const ext = getExtension(doc.mimeType);
-                downloadDocumentFromR2({
-                  documentId: doc.id,
-                  mimeType: doc.mimeType,
-                  extension: ext,
-                  storageKey: doc.storageUrl
-                    ? doc.storageUrl.replace(/^r2:\/\/[^/]+\//, '')
-                    : undefined,
-                  userId: accountProfile?.userId,
-                  storageAccessToken: accountProfile?.storageAccessToken,
-                }).then((localUri) => {
-                if (localUri) {
-                  set((s) => ({
-                    documents: s.documents.map((d) =>
-                      d.id === doc.id ? { ...d, fileUri: localUri } : d
-                    ),
-                  }));
-                }
-              }).catch(() => {
-                // Non-fatal: file may not be in R2 yet
-              });
+            // This is the "new device" restore path — a first sync can have
+            // hundreds of pending files, so download in small concurrent
+            // batches rather than firing every request at once. This is
+            // awaited (mergeDocuments is awaited by syncMetadata) so the sync
+            // cursor only advances once restores have been attempted — the
+            // pull is sync_version-bound, so any document acknowledged before
+            // its restore finishes would never be offered again.
+            const toRestore = dedupedDocs.filter((doc) => doc.storageUrl && !doc.fileUri);
+            const RESTORE_BATCH_SIZE = 3;
+            for (let i = 0; i < toRestore.length; i += RESTORE_BATCH_SIZE) {
+              const batch = toRestore.slice(i, i + RESTORE_BATCH_SIZE);
+              await Promise.all(
+                batch.map((doc) => {
+                  const ext = getExtension(doc.mimeType);
+                  return downloadDocumentFromR2({
+                    documentId: doc.id,
+                    mimeType: doc.mimeType,
+                    extension: ext,
+                    storageKey: doc.storageUrl
+                      ? doc.storageUrl.replace(/^r2:\/\/[^/]+\//, '')
+                      : undefined,
+                    userId: accountProfile?.userId,
+                    storageAccessToken: accountProfile?.storageAccessToken,
+                    fileSizeBytes: doc.fileSizeBytes,
+                  }).then((localUri) => {
+                    if (localUri) {
+                      set((s) => ({
+                        documents: s.documents.map((d) =>
+                          d.id === doc.id ? { ...d, fileUri: localUri } : d
+                        ),
+                      }));
+                    }
+                  }).catch(() => {
+                    // Non-fatal: file may not be in R2 yet
+                  });
+                })
+              );
             }
           },
           mergeFolders: (incoming) => {

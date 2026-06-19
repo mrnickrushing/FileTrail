@@ -92,7 +92,7 @@ export async function syncMetadata(input: {
   deletedFolderIds: string[];
   auth?: { userId?: string; storageAccessToken?: string };
   repairStorage?: boolean;
-  mergeDocuments: (documents: Document[]) => void;
+  mergeDocuments: (documents: Document[]) => void | Promise<void>;
   mergeFolders: (folders: Folder[]) => void;
   applyTombstones: (tombstones: Tombstone[]) => void | Promise<void>;
   markDeletesSynced: (documentIds: string[], folderIds: string[]) => void;
@@ -148,10 +148,12 @@ export async function syncMetadata(input: {
         : undefined,
     });
 
-    // Apply pulled data. All three steps must complete before we clear tombstones.
-    // If applyTombstones throws (e.g. a file-delete fails), markDeletesSynced is
-    // not reached and the tombstones are retried on the next sync — intentional.
-    if (pull.documents.length > 0) input.mergeDocuments(pull.documents);
+    // Apply pulled data. All three steps must complete before we clear tombstones
+    // and advance the sync cursor below — mergeDocuments can include awaiting
+    // R2 restore downloads, and the cursor must not move past documents whose
+    // restore hasn't actually finished (those documents would never be
+    // returned by a future incremental pull, sync_version-bound as it is).
+    if (pull.documents.length > 0) await input.mergeDocuments(pull.documents);
     if (pull.folders.length > 0) input.mergeFolders(pull.folders);
     if (pull.tombstones.length > 0) await input.applyTombstones(pull.tombstones);
 
