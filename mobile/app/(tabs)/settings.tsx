@@ -10,6 +10,7 @@ import Animated, {
   useReducedMotion,
 } from 'react-native-reanimated';
 import { useAppStore, useProStore, useOwnerStore } from '@/store';
+import { CURRENT_APP_VERSION } from '@/store/appStore';
 import { TourBubble } from '@/components/TourBubble';
 import { useTourTip } from '@/hooks/useTourTip';
 import { PaywallModal } from '@/components/PaywallModal';
@@ -29,6 +30,8 @@ export default function SettingsScreen() {
   const router = useRouter();
   const accountProfile = useAppStore((s) => s.accountProfile);
   const biometricEnabled = useAppStore((s) => s.biometricEnabled);
+  const lastSeenChangelogVersion = useAppStore((s) => s.lastSeenChangelogVersion);
+  const hasNewChangelog = lastSeenChangelogVersion !== null && lastSeenChangelogVersion !== CURRENT_APP_VERSION;
   const isPro = useProStore((s) => s.isPro);
   const checkPro = useProStore((s) => s.checkPro);
   const isOwner = useOwnerStore((s) => s.isOwner);
@@ -42,7 +45,7 @@ export default function SettingsScreen() {
       title="Settings"
       overlay={<FAB onPress={() => router.push('/capture')} />}
     >
-      <SectionHeader title="Workspace" />
+      <SectionHeader title="Workspace" icon="grid" />
       <SettingsCard>
         <SettingsNavRow
           label="Account"
@@ -72,13 +75,14 @@ export default function SettingsScreen() {
           label="About"
           value="Version, build, and AI usage"
           icon="info"
+          badge={hasNewChangelog ? "What's new" : undefined}
           onPress={() => router.push('/settings/about')}
         />
       </SettingsCard>
 
       {isOwner && (
         <>
-          <SectionHeader title="Owner" />
+          <SectionHeader title="Owner" icon="shield" />
           <SettingsCard>
             <SettingsNavRow
               label="Cloud Sync"
@@ -91,7 +95,7 @@ export default function SettingsScreen() {
         </>
       )}
 
-      <SectionHeader title="Upgrade" />
+      <SectionHeader title="Upgrade" icon="zap" />
       <Animated.View
         entering={reducedMotion ? undefined : FadeInUp.duration(220)}
         style={styles.proCard}

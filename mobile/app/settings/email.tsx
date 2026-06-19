@@ -47,7 +47,7 @@ export default function EmailSettingsScreen() {
 
   return (
     <SettingsSubpageShell title="Email to Vault">
-      <SectionHeader title="Forwarding Address" />
+      <SectionHeader title="Forwarding Address" icon="mail" />
       <SettingsCard>
         {config?.forwardingAddress ? (
           <TouchableOpacity onPress={handleCopy} activeOpacity={0.7} style={styles.addressRow}>
@@ -71,7 +71,7 @@ export default function EmailSettingsScreen() {
       </Hint>
 
       <View style={styles.sectionRow}>
-        <SectionHeader title="Recent Activity" />
+        <SectionHeader title="Recent Activity" icon="clock" />
         <TouchableOpacity onPress={handleRefresh} style={styles.refreshBtn} disabled={refreshing}>
           <Text style={styles.refreshLabel}>{refreshing ? 'Loading…' : 'Refresh'}</Text>
         </TouchableOpacity>

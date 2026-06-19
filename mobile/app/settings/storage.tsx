@@ -198,7 +198,7 @@ export default function StorageSettingsScreen() {
 
   return (
     <SettingsSubpageShell title="Backup & Restore">
-      <SectionHeader title="Storage" />
+      <SectionHeader title="Storage" icon="hard-drive" />
       <SettingsCard>
         <SettingsRow label="Documents" value={`${documents.length}`} />
         <Divider />
@@ -209,7 +209,7 @@ export default function StorageSettingsScreen() {
 
       {isOwner && backendConfigured && (
         <>
-          <SectionHeader title="Cloud Sync" />
+          <SectionHeader title="Cloud Sync" icon="cloud" />
           <SettingsCard>
             <Pressable
               style={({ pressed }) => [styles.centerRow, (pressed || isResettingSync) && styles.pressed]}
@@ -225,7 +225,7 @@ export default function StorageSettingsScreen() {
         </>
       )}
 
-      <SectionHeader title="Backup & Restore" />
+      <SectionHeader title="Backup & Restore" icon="save" />
       <SettingsCard>
         <ActionRow
           label="Create Backup"
@@ -247,7 +247,7 @@ export default function StorageSettingsScreen() {
         Backups include all document files and metadata. Store the .ptbak file somewhere only you can access.
       </Hint>
 
-      <SectionHeader title="Export" />
+      <SectionHeader title="Export" icon="download" />
       <SettingsCard>
         <ActionRow
           label="Export All as ZIP"
@@ -258,7 +258,7 @@ export default function StorageSettingsScreen() {
         />
       </SettingsCard>
 
-      <SectionHeader title="Danger Zone" />
+      <SectionHeader title="Danger Zone" icon="alert-triangle" />
       <SettingsCard>
         <Pressable
           style={({ pressed }) => [styles.centerRow, (pressed || isClearing || documents.length === 0) && styles.pressed]}

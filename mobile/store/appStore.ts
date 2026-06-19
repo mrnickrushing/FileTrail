@@ -8,6 +8,9 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Constants from 'expo-constants';
+
+export const CURRENT_APP_VERSION = Constants.expoConfig?.version ?? 'unknown';
 
 export type AccountProvider = 'email' | 'apple';
 
@@ -38,6 +41,10 @@ interface AppState {
   accountProfile: AccountProfile | null;
   isAccountAuthenticated: boolean;
 
+  // Last app version the user has seen the "what's new" changelog for —
+  // null only before this field's first hydration, then always set.
+  lastSeenChangelogVersion: string | null;
+
   // Settings
   viewMode: 'card' | 'list';
   sortBy: 'updatedAt' | 'createdAt' | 'title' | 'category';
@@ -57,6 +64,7 @@ interface AppState {
   setAccountAuthenticated: (value: boolean) => void;
   clearAccountSession: () => void;
   clearAccountProfile: () => void;
+  markChangelogSeen: () => void;
   setViewMode: (mode: 'card' | 'list') => void;
   setSortBy: (by: AppState['sortBy']) => void;
   setSortDir: (dir: 'asc' | 'desc') => void;
@@ -73,6 +81,7 @@ export const useAppStore = create<AppState>()(
       hasOnboarded: false,
       accountProfile: null,
       isAccountAuthenticated: false,
+      lastSeenChangelogVersion: null,
       viewMode: 'card',
       sortBy: 'updatedAt',
       sortDir: 'desc',
@@ -94,6 +103,7 @@ export const useAppStore = create<AppState>()(
         accountProfile: null,
         isAccountAuthenticated: false,
       }),
+      markChangelogSeen: () => set({ lastSeenChangelogVersion: CURRENT_APP_VERSION }),
       setViewMode: (viewMode) => set({ viewMode }),
       setSortBy: (sortBy) => set({ sortBy }),
       setSortDir: (sortDir) => set({ sortDir }),
@@ -116,6 +126,7 @@ export const useAppStore = create<AppState>()(
           ? { ...state.accountProfile, passwordHash: undefined }
           : null,
         isAccountAuthenticated: state.isAccountAuthenticated,
+        lastSeenChangelogVersion: state.lastSeenChangelogVersion,
         viewMode: state.viewMode,
         sortBy: state.sortBy,
         sortDir: state.sortDir,
@@ -129,6 +140,12 @@ export const useAppStore = create<AppState>()(
         // shows immediately rather than only after a background→foreground cycle.
         if (state?.biometricEnabled) {
           state.setLocked(true);
+        }
+        // First-ever hydration of this field — baseline it to the current
+        // version so existing installs don't see a spurious "what's new"
+        // badge the moment this feature ships.
+        if (state && state.lastSeenChangelogVersion == null) {
+          state.markChangelogSeen();
         }
       },
     }
