@@ -148,8 +148,8 @@ export function TagEditor({
             </Pressable>
             <AnimatedPressable
               style={[styles.confirmBtn, confirmStyle]}
-              onPressIn={() => { confirmScale.value = withSpring(0.95, Springs.snappy); }}
-              onPressOut={() => { confirmScale.value = withSpring(1, Springs.snappy); }}
+              onPressIn={() => { confirmScale.value = reducedMotion ? 1 : withSpring(0.95, Springs.snappy); }}
+              onPressOut={() => { confirmScale.value = reducedMotion ? 1 : withSpring(1, Springs.snappy); }}
               onPress={() => onConfirm(tags)}
             >
               <Text style={styles.confirmText}>Save</Text>

@@ -31,24 +31,48 @@ interface FolderPickerModalProps {
   onCancel: () => void;
 }
 
-/** Builds the parent list plus a lookup of children per parent, for a collapsible tree. */
-function buildTree(folders: Folder[]): { parents: FolderOption[]; childrenByParent: Map<string, FolderOption[]> } {
-  const parentFolders = folders.filter((f) => !f.parentId);
-  const childrenByParent = new Map<string, FolderOption[]>();
-  for (const parent of parentFolders) {
-    const children = folders
-      .filter((f) => f.parentId === parent.id)
-      .map((c) => ({ id: c.id, name: c.name, color: c.color, depth: 1, hasChildren: false }));
-    childrenByParent.set(parent.id, children);
+/** Groups folders by parent id (any nesting depth) for a collapsible tree. */
+function buildTree(folders: Folder[]): Map<string | null, FolderOption[]> {
+  const byParent = new Map<string | null, Folder[]>();
+  for (const f of folders) {
+    const key = f.parentId ?? null;
+    if (!byParent.has(key)) byParent.set(key, []);
+    byParent.get(key)!.push(f);
   }
-  const parents = parentFolders.map((p) => ({
-    id: p.id,
-    name: p.name,
-    color: p.color,
-    depth: 0,
-    hasChildren: (childrenByParent.get(p.id)?.length ?? 0) > 0,
-  }));
-  return { parents, childrenByParent };
+
+  const optionsByParent = new Map<string | null, FolderOption[]>();
+  function visit(parentId: string | null, depth: number) {
+    const children = byParent.get(parentId) ?? [];
+    optionsByParent.set(
+      parentId,
+      children.map((c) => ({
+        id: c.id,
+        name: c.name,
+        color: c.color,
+        depth,
+        hasChildren: (byParent.get(c.id)?.length ?? 0) > 0,
+      })),
+    );
+    for (const c of children) visit(c.id, depth + 1);
+  }
+  visit(null, 0);
+  return optionsByParent;
+}
+
+/** Flattens the tree depth-first, skipping descendants of collapsed nodes. */
+function flattenVisible(
+  parentId: string | null,
+  optionsByParent: Map<string | null, FolderOption[]>,
+  collapsed: Set<string>,
+): FolderOption[] {
+  const result: FolderOption[] = [];
+  for (const item of optionsByParent.get(parentId) ?? []) {
+    result.push(item);
+    if (item.hasChildren && !collapsed.has(item.id!)) {
+      result.push(...flattenVisible(item.id, optionsByParent, collapsed));
+    }
+  }
+  return result;
 }
 
 export function FolderPickerModal({
@@ -63,15 +87,12 @@ export function FolderPickerModal({
 
   if (!visible) return null;
 
-  const { parents, childrenByParent } = buildTree(folders);
+  const optionsByParent = buildTree(folders);
 
-  const data: FolderOption[] = [{ id: null, name: 'Unfiled', color: '#6B7280', depth: 0, hasChildren: false }];
-  for (const parent of parents) {
-    data.push(parent);
-    if (parent.hasChildren && !collapsed.has(parent.id!)) {
-      data.push(...(childrenByParent.get(parent.id!) ?? []));
-    }
-  }
+  const data: FolderOption[] = [
+    { id: null, name: 'Unfiled', color: '#6B7280', depth: 0, hasChildren: false },
+    ...flattenVisible(null, optionsByParent, collapsed),
+  ];
 
   const toggleCollapsed = (id: string) => {
     setCollapsed((prev) => {
@@ -100,7 +121,11 @@ export function FolderPickerModal({
               exiting={reducedMotion || item.depth === 0 ? undefined : FadeOut.duration(100)}
             >
               <Pressable
-                style={({ pressed }) => [styles.row, pressed && styles.rowPressed, item.depth > 0 && styles.rowChild]}
+                style={({ pressed }) => [
+                  styles.row,
+                  pressed && styles.rowPressed,
+                  item.depth > 0 && { paddingLeft: S[6] * item.depth },
+                ]}
                 onPress={() => onSelect(item.id)}
               >
                 {item.depth > 0 && <Text style={styles.childMark}>›</Text>}
@@ -175,9 +200,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: S[4],
     gap: S[3],
-  },
-  rowChild: {
-    paddingLeft: S[6],
   },
   rowPressed: {
     opacity: 0.6,

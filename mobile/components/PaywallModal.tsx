@@ -187,8 +187,8 @@ export function PaywallModal({ visible, onClose, onSuccess }: PaywallModalProps)
         <View style={styles.actions}>
           <AnimatedPressable
             style={[styles.unlockBtn, isLoading && styles.unlockBtnDisabled, unlockStyle]}
-            onPressIn={() => { unlockPress.value = withSpring(0.96, Springs.snappy); }}
-            onPressOut={() => { unlockPress.value = withSpring(1, Springs.snappy); }}
+            onPressIn={() => { unlockPress.value = reducedMotion ? 1 : withSpring(0.96, Springs.snappy); }}
+            onPressOut={() => { unlockPress.value = reducedMotion ? 1 : withSpring(1, Springs.snappy); }}
             onPress={handleUnlock}
             disabled={isLoading}
           >
