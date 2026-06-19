@@ -10,8 +10,26 @@ import {
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
+import Animated, {
+  FadeIn,
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  useReducedMotion,
+} from 'react-native-reanimated';
 import { ScreenHeader } from '@/components/ScreenHeader';
-import { C, T, R, S } from '@/theme/tokens';
+import { C, T, R, S, Springs } from '@/theme/tokens';
+
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+
+function useRowPressSpring() {
+  const reducedMotion = useReducedMotion();
+  const scale = useSharedValue(1);
+  const style = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
+  const onPressIn = () => { if (!reducedMotion) scale.value = withSpring(0.98, Springs.snappy); };
+  const onPressOut = () => { scale.value = withSpring(1, Springs.snappy); };
+  return { style, onPressIn, onPressOut };
+}
 
 export function SettingsTabShell({
   title,
@@ -111,8 +129,9 @@ export function SettingsNavRow({
   icon: React.ComponentProps<typeof Feather>['name'];
   onPress: () => void;
 }) {
+  const { style, onPressIn, onPressOut } = useRowPressSpring();
   return (
-    <Pressable style={({ pressed }) => [styles.navRow, pressed && styles.pressed]} onPress={onPress}>
+    <AnimatedPressable style={[styles.navRow, style]} onPress={onPress} onPressIn={onPressIn} onPressOut={onPressOut}>
       <View style={styles.navRowMain}>
         <View style={styles.navIconWrap}>
           <Feather name={icon} size={16} color={C.amber} />
@@ -123,7 +142,7 @@ export function SettingsNavRow({
         </View>
       </View>
       <Feather name="chevron-right" size={18} color={C.ash} />
-    </Pressable>
+    </AnimatedPressable>
   );
 }
 
@@ -140,10 +159,13 @@ export function ActionRow({
   disabled: boolean;
   onPress: () => void;
 }) {
+  const { style, onPressIn, onPressOut } = useRowPressSpring();
   return (
-    <Pressable
-      style={({ pressed }) => [styles.actionRow, (pressed || disabled) && styles.pressed]}
+    <AnimatedPressable
+      style={[styles.actionRow, disabled && styles.pressed, style]}
       onPress={onPress}
+      onPressIn={disabled ? undefined : onPressIn}
+      onPressOut={disabled ? undefined : onPressOut}
       disabled={disabled}
     >
       <View style={styles.actionContent}>
@@ -153,7 +175,7 @@ export function ActionRow({
         <Text style={styles.actionSub} numberOfLines={2}>{sub}</Text>
       </View>
       {loading ? <ActivityIndicator color={C.amber} /> : <Text style={styles.actionChevron}>›</Text>}
-    </Pressable>
+    </AnimatedPressable>
   );
 }
 
@@ -187,12 +209,16 @@ export function SpendWarningBanner({
   tone: 'amber' | 'danger';
   message: string;
 }) {
+  const reducedMotion = useReducedMotion();
   return (
-    <View style={[styles.spendWarning, tone === 'danger' && styles.spendWarningDanger]}>
+    <Animated.View
+      entering={reducedMotion ? undefined : FadeIn.duration(200)}
+      style={[styles.spendWarning, tone === 'danger' && styles.spendWarningDanger]}
+    >
       <Text style={[styles.spendWarningText, tone === 'danger' && styles.spendWarningTextDanger]}>
         {message}
       </Text>
-    </View>
+    </Animated.View>
   );
 }
 
