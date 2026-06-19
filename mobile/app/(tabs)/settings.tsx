@@ -2,6 +2,13 @@ import React from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Animated, {
+  FadeInUp,
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  useReducedMotion,
+} from 'react-native-reanimated';
 import { useAppStore, useProStore, useOwnerStore } from '@/store';
 import { TourBubble } from '@/components/TourBubble';
 import { useTourTip } from '@/hooks/useTourTip';
@@ -14,7 +21,9 @@ import {
   SettingsNavRow,
   Hint,
 } from '@/components/settings/SettingsUi';
-import { C, R, S, T } from '@/theme/tokens';
+import { C, R, S, T, Springs } from '@/theme/tokens';
+
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -24,6 +33,9 @@ export default function SettingsScreen() {
   const checkPro = useProStore((s) => s.checkPro);
   const isOwner = useOwnerStore((s) => s.isOwner);
   const [showPaywall, setShowPaywall] = React.useState(false);
+  const reducedMotion = useReducedMotion();
+  const ctaScale = useSharedValue(1);
+  const ctaStyle = useAnimatedStyle(() => ({ transform: [{ scale: ctaScale.value }] }));
 
   return (
     <SettingsTabShell
@@ -80,7 +92,10 @@ export default function SettingsScreen() {
       )}
 
       <SectionHeader title="Upgrade" />
-      <View style={styles.proCard}>
+      <Animated.View
+        entering={reducedMotion ? undefined : FadeInUp.duration(220)}
+        style={styles.proCard}
+      >
         <View style={styles.proCardHeader}>
           <Text style={styles.proTitle}>FileTrail Pro</Text>
           <View style={styles.proBadge}><Text style={styles.proBadgeText}>PRO</Text></View>
@@ -95,21 +110,19 @@ export default function SettingsScreen() {
         </View>
         <View style={styles.proAction}>
           <Text style={styles.proPrice}>{isPro ? 'Pro unlocked' : 'From $4.99/mo'}</Text>
-          <Pressable
-            style={({ pressed }) => [
-              styles.proCTA,
-              isPro && styles.proCTADisabled,
-              pressed && !isPro && styles.pressed,
-            ]}
+          <AnimatedPressable
+            style={[styles.proCTA, isPro && styles.proCTADisabled, ctaStyle]}
+            onPressIn={() => { if (!isPro && !reducedMotion) ctaScale.value = withSpring(0.95, Springs.snappy); }}
+            onPressOut={() => { ctaScale.value = withSpring(1, Springs.snappy); }}
             onPress={() => setShowPaywall(true)}
             disabled={isPro}
             accessibilityRole="button"
             accessibilityLabel={isPro ? 'FileTrail Pro is already unlocked' : 'Unlock FileTrail Pro'}
           >
             <Text style={styles.proCTAText}>{isPro ? 'Pro Active' : 'Unlock Pro'}</Text>
-          </Pressable>
+          </AnimatedPressable>
         </View>
-      </View>
+      </Animated.View>
 
       <Hint>
         Capture is available everywhere now. Use the + button from any tab to add a document without jumping back to Vault.
@@ -216,8 +229,5 @@ const styles = StyleSheet.create({
     fontSize: T.sm,
     fontWeight: '700',
     color: C.ink1,
-  },
-  pressed: {
-    opacity: 0.82,
   },
 });
