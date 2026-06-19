@@ -14,6 +14,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useIsFocused } from '@react-navigation/native';
 import { router } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
+import Animated, { FadeIn, useReducedMotion } from 'react-native-reanimated';
 import { useDocumentStore } from '@/store';
 import { FAB } from '@/components/FAB';
 import { TourBubble } from '@/components/TourBubble';
@@ -26,7 +27,7 @@ import {
 } from '@/services/searchHistory';
 import { useDebounce } from '@/utils/useDebounce';
 import { C, R, S, T } from '@/theme/tokens';
-import type { Document, SearchResult } from '@/types/document';
+import type { Document, DocumentCategory, SearchResult } from '@/types/document';
 
 type ResultItem =
   | { type: 'section'; key: string; label: string; count: number }
@@ -72,11 +73,13 @@ export default function SearchScreen() {
     state.documents.filter((doc) => doc.ocrStatus === 'done').length,
   );
 
+  const reducedMotion = useReducedMotion();
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<SearchResult[]>([]);
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [sortMode, setSortMode] = useState<'relevance' | 'newest'>('relevance');
+  const [categoryFilter, setCategoryFilter] = useState<DocumentCategory | null>(null);
 
   const debouncedQuery = useDebounce(query, 150);
   const trimmedQuery = query.trim();
@@ -96,6 +99,7 @@ export default function SearchScreen() {
 
   const runSearch = useCallback((value: string) => {
     const nextQuery = value.trim();
+    setCategoryFilter(null);
     if (!nextQuery) {
       setResults([]);
       setIsSearching(false);
@@ -148,19 +152,38 @@ export default function SearchScreen() {
     return results;
   }, [results, sortMode]);
 
+  // Categories present across the full result set, most common first, so the
+  // filter chips stay stable regardless of which one is currently selected.
+  const availableCategories = useMemo(() => {
+    const counts = new Map<DocumentCategory, number>();
+    for (const result of results) {
+      counts.set(result.document.category, (counts.get(result.document.category) ?? 0) + 1);
+    }
+    return [...counts.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .map(([category, count]) => ({ category, count }));
+  }, [results]);
+
+  const filteredResults = useMemo(
+    () => (categoryFilter
+      ? sortedResults.filter((result) => result.document.category === categoryFilter)
+      : sortedResults),
+    [sortedResults, categoryFilter],
+  );
+
   const primaryMatches = useMemo(
-    () => sortedResults.filter((result) =>
+    () => filteredResults.filter((result) =>
       result.matchedFields.some((field) => field === 'title' || field === 'tags' || field === 'category'),
     ),
-    [sortedResults],
+    [filteredResults],
   );
 
   const textMatches = useMemo(
-    () => sortedResults.filter((result) =>
+    () => filteredResults.filter((result) =>
       !result.matchedFields.some((field) => field === 'title' || field === 'tags' || field === 'category') &&
       result.matchedFields.includes('ocrText'),
     ),
-    [sortedResults],
+    [filteredResults],
   );
 
   const listData: ResultItem[] = useMemo(() => [
@@ -278,25 +301,36 @@ export default function SearchScreen() {
           keyboardDismissMode="on-drag"
           contentContainerStyle={{ paddingBottom: insets.bottom + S[8] }}
           ListHeaderComponent={(
-            <View style={styles.resultsToolbar}>
-              <View>
-                <Text style={styles.toolbarLabel}>Results</Text>
-                <Text style={styles.toolbarCount}>
-                  {results.length} {results.length === 1 ? 'document' : 'documents'}
-                </Text>
+            <View>
+              <View style={styles.resultsToolbar}>
+                <View>
+                  <Text style={styles.toolbarLabel}>Results</Text>
+                  <Text style={styles.toolbarCount}>
+                    {filteredResults.length} {filteredResults.length === 1 ? 'document' : 'documents'}
+                  </Text>
+                </View>
+                <View style={styles.segmentedControl}>
+                  <SegmentButton
+                    label="Relevance"
+                    active={sortMode === 'relevance'}
+                    onPress={() => setSortMode('relevance')}
+                  />
+                  <SegmentButton
+                    label="Newest"
+                    active={sortMode === 'newest'}
+                    onPress={() => setSortMode('newest')}
+                  />
+                </View>
               </View>
-              <View style={styles.segmentedControl}>
-                <SegmentButton
-                  label="Relevance"
-                  active={sortMode === 'relevance'}
-                  onPress={() => setSortMode('relevance')}
+              {availableCategories.length > 1 ? (
+                <CategoryFilterRow
+                  categories={availableCategories}
+                  total={results.length}
+                  active={categoryFilter}
+                  reducedMotion={reducedMotion}
+                  onSelect={setCategoryFilter}
                 />
-                <SegmentButton
-                  label="Newest"
-                  active={sortMode === 'newest'}
-                  onPress={() => setSortMode('newest')}
-                />
-              </View>
+              ) : null}
             </View>
           )}
           renderItem={({ item }) => {
@@ -363,6 +397,80 @@ function SegmentButton({ label, active, onPress }: { label: string; active: bool
       onPress={onPress}
     >
       <Text style={[styles.segmentText, active && styles.segmentTextActive]}>{label}</Text>
+    </Pressable>
+  );
+}
+
+function CategoryFilterRow({
+  categories,
+  total,
+  active,
+  reducedMotion,
+  onSelect,
+}: {
+  categories: { category: DocumentCategory; count: number }[];
+  total: number;
+  active: DocumentCategory | null;
+  reducedMotion: boolean;
+  onSelect: (category: DocumentCategory | null) => void;
+}) {
+  return (
+    <Animated.View entering={reducedMotion ? undefined : FadeIn.duration(160)}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.categoryRow}
+      >
+        <CategoryChip
+          label="All"
+          count={total}
+          color={C.amber}
+          active={active === null}
+          onPress={() => onSelect(null)}
+        />
+        {categories.map(({ category, count }) => (
+          <CategoryChip
+            key={category}
+            label={formatCategory(category)}
+            count={count}
+            color={CATEGORY_COLORS[category]}
+            active={active === category}
+            onPress={() => onSelect(active === category ? null : category)}
+          />
+        ))}
+      </ScrollView>
+    </Animated.View>
+  );
+}
+
+function CategoryChip({
+  label,
+  count,
+  color,
+  active,
+  onPress,
+}: {
+  label: string;
+  count: number;
+  color: string;
+  active: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      style={({ pressed }) => [
+        styles.categoryChip,
+        active && { backgroundColor: color + '24', borderColor: color },
+        pressed && { opacity: 0.8 },
+      ]}
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityState={{ selected: active }}
+      accessibilityLabel={`${label}, ${count} ${count === 1 ? 'result' : 'results'}`}
+    >
+      <View style={[styles.categoryDot, { backgroundColor: color }]} />
+      <Text style={[styles.categoryChipText, active && { color: C.cream }]}>{label}</Text>
+      <Text style={[styles.categoryChipCount, active && { color: color }]}>{count}</Text>
     </Pressable>
   );
 }
@@ -514,6 +622,10 @@ function EmptyState({ icon, title, body }: { icon: React.ComponentProps<typeof F
 
 function stripMarks(value: string): string {
   return value.replace(/<\/?mark>/g, '');
+}
+
+function formatCategory(category: DocumentCategory): string {
+  return category.charAt(0).toUpperCase() + category.slice(1);
 }
 
 function formatBytes(bytes: number): string {
@@ -674,6 +786,38 @@ const styles = StyleSheet.create({
   },
   segmentTextActive: {
     color: C.amber,
+  },
+  categoryRow: {
+    flexDirection: 'row',
+    gap: S[2],
+    paddingHorizontal: S[4],
+    paddingBottom: S[3],
+  },
+  categoryChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: S[2],
+    paddingHorizontal: S[3],
+    paddingVertical: S[2],
+    borderRadius: R.full,
+    backgroundColor: C.ink2,
+    borderWidth: 1,
+    borderColor: C.ink4,
+  },
+  categoryDot: {
+    width: 8,
+    height: 8,
+    borderRadius: R.full,
+  },
+  categoryChipText: {
+    color: C.ash,
+    fontSize: T.sm,
+    fontWeight: '600',
+  },
+  categoryChipCount: {
+    color: C.faint,
+    fontSize: T.xs,
+    fontWeight: '700',
   },
   sectionHeader: {
     flexDirection: 'row',
