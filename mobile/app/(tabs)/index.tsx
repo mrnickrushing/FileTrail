@@ -176,6 +176,17 @@ export default function VaultScreen() {
   const [isAiOrganizing, setIsAiOrganizing] = useState(false);
   const [aiOrganizeProgress, setAiOrganizeProgress] = useState<{ done: number; total: number } | null>(null);
   const [showAllCategoryFilters, setShowAllCategoryFilters] = useState(false);
+  const { visible: swipeTourTipVisible, dismiss: dismissSwipeTip } = useTourTip('vault-swipe');
+  const hasSwipeableDocs = !selectionMode && visibleDocuments.length > 0;
+  const swipeTipVisible = swipeTourTipVisible && hasSwipeableDocs;
+
+  // No card to swipe right now (empty vault or zero-result filter) — mark
+  // the step seen without showing it so later tour tips aren't blocked.
+  React.useEffect(() => {
+    if (swipeTourTipVisible && !hasSwipeableDocs) {
+      dismissSwipeTip();
+    }
+  }, [swipeTourTipVisible, hasSwipeableDocs, dismissSwipeTip]);
 
   React.useEffect(() => {
     if (filters.category && !COMMON_CATEGORY_KEYS.includes(filters.category as typeof COMMON_CATEGORY_KEYS[number])) {
@@ -652,10 +663,11 @@ export default function VaultScreen() {
           maxToRenderPerBatch={6}
           windowSize={9}
           removeClippedSubviews={Platform.OS === 'android'}
-          renderItem={({ item }) => (
+          renderItem={({ item, index }) => (
             <SwipeableCard
               isFavorite={item.isFavorite}
               disabled={selectionMode}
+              nudge={index === 0 && swipeTipVisible}
               onFavorite={() => {
                 LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
                 toggleFavorite(item.id);
@@ -769,12 +781,18 @@ export default function VaultScreen() {
       )}
 
       {/* ── Onboarding tour tips ── */}
-      <VaultTourTips />
+      <VaultTourTips swipeTipVisible={swipeTipVisible} dismissSwipeTip={dismissSwipeTip} />
     </View>
   );
 }
 
-function VaultTourTips() {
+function VaultTourTips({
+  swipeTipVisible,
+  dismissSwipeTip,
+}: {
+  swipeTipVisible: boolean;
+  dismissSwipeTip: () => void;
+}) {
   const { visible: fabVisible, dismiss: dismissFab }       = useTourTip('vault-fab');
   const { visible: filterVisible, dismiss: dismissFilter } = useTourTip('vault-filter');
   const insets = useSafeAreaInsets();
@@ -796,6 +814,14 @@ function VaultTourTips() {
         visible={filterVisible}
         onDismiss={dismissFilter}
         anchor={{ top: 230, left: 12 }}
+        arrow="top-left"
+      />
+      <TourBubble
+        title="Swipe to act fast"
+        body="Swipe a document right to favorite it, or left to delete it — no need to open it first."
+        visible={swipeTipVisible}
+        onDismiss={dismissSwipeTip}
+        anchor={{ top: 340, left: 12 }}
         arrow="top-left"
       />
     </>
