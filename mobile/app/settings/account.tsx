@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useRouter } from 'expo-router';
+import { Feather } from '@expo/vector-icons';
 import { useDocumentStore, useAppStore, useProStore } from '@/store';
 import { deleteDocumentFiles } from '@/services/fileStorage';
 import { deleteStoredPasswordHash } from '@/services/secureCredentials';
@@ -15,11 +16,52 @@ import {
 } from '@/components/settings/SettingsUi';
 import { C, R, S, T } from '@/theme/tokens';
 
+// Deterministic avatar background — same account always gets the same color,
+// picked from the existing category palette so it stays on-brand.
+const AVATAR_COLORS = Object.values(C.category);
+
+function avatarColorFor(seed: string): string {
+  let hash = 0;
+  for (let i = 0; i < seed.length; i++) hash = (hash * 31 + seed.charCodeAt(i)) >>> 0;
+  return AVATAR_COLORS[hash % AVATAR_COLORS.length];
+}
+
+function initialsFor(fullName: string, email: string): string {
+  const source = fullName.trim() || email;
+  const parts = source.trim().split(/\s+/).filter(Boolean);
+  if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+  return source.slice(0, 2).toUpperCase();
+}
+
+function StatusRow({
+  ok,
+  label,
+  cta,
+}: {
+  ok: boolean;
+  label: string;
+  cta?: string;
+}) {
+  return (
+    <View style={styles.statusRow}>
+      <Feather
+        name={ok ? 'check-circle' : 'slash'}
+        size={18}
+        color={ok ? C.success : C.ash}
+      />
+      <Text style={styles.statusLabel}>{label}</Text>
+      {cta && <Text style={styles.statusCta}>{cta}</Text>}
+      {!ok && <Feather name="chevron-right" size={16} color={C.ash} />}
+    </View>
+  );
+}
+
 export default function AccountSettingsScreen() {
   const router = useRouter();
   const documents = useDocumentStore((s) => s.documents);
   const folders = useDocumentStore((s) => s.folders);
   const accountProfile = useAppStore((s) => s.accountProfile);
+  const biometricEnabled = useAppStore((s) => s.biometricEnabled);
   const clearAccountSession = useAppStore((s) => s.clearAccountSession);
   const clearAccountProfile = useAppStore((s) => s.clearAccountProfile);
   const setAdminAccess = useProStore((s) => s.setAdminAccess);
@@ -108,13 +150,26 @@ export default function AccountSettingsScreen() {
     void checkPro();
   };
 
+  const fullName = accountProfile?.fullName ?? 'FileTrail User';
+  const email = accountProfile?.email ?? 'Unknown';
+
   return (
     <SettingsSubpageShell title="Account">
-      <SectionHeader title="Profile" />
+      <View style={styles.profileCard}>
+        <View style={[styles.avatar, { backgroundColor: avatarColorFor(email) }]}>
+          <Text style={styles.avatarText}>{initialsFor(fullName, email)}</Text>
+        </View>
+        <View style={styles.profileInfo}>
+          <Text style={styles.profileName} numberOfLines={1}>{fullName}</Text>
+          <Text style={styles.profileEmail} numberOfLines={1}>{email}</Text>
+        </View>
+      </View>
+
+      <SectionHeader title="Profile" icon="user" />
       <SettingsCard>
-        <SettingsRow label="Name" value={accountProfile?.fullName ?? 'Unknown'} />
+        <SettingsRow label="Name" value={fullName} />
         <Divider />
-        <SettingsRow label="Email" value={accountProfile?.email ?? 'Unknown'} />
+        <SettingsRow label="Email" value={email} />
         <Divider />
         <SettingsRow
           label="Sign-in Method"
@@ -122,9 +177,23 @@ export default function AccountSettingsScreen() {
         />
       </SettingsCard>
 
-      <SectionHeader title="Session" />
+      <SectionHeader title="Account Status" icon="shield" />
+      <SettingsCard>
+        <StatusRow ok label={accountProfile?.provider === 'apple' ? 'Signed in with Apple' : 'Signed in with email'} />
+        <Divider />
+        <Pressable onPress={() => router.push('/settings/security')}>
+          <StatusRow
+            ok={biometricEnabled}
+            label={biometricEnabled ? 'Biometric lock enabled' : 'Biometric lock not set up'}
+            cta={biometricEnabled ? undefined : 'Set up'}
+          />
+        </Pressable>
+      </SettingsCard>
+
+      <SectionHeader title="Session" icon="log-out" />
       <SettingsCard>
         <Pressable style={({ pressed }) => [styles.actionRow, pressed && styles.pressed]} onPress={handleSignOut}>
+          <Feather name="log-out" size={16} color={C.cream} />
           <Text style={styles.actionText}>Sign Out</Text>
         </Pressable>
         <Divider />
@@ -136,14 +205,17 @@ export default function AccountSettingsScreen() {
           {isDeletingAccount ? (
             <ActivityIndicator color={C.danger} />
           ) : (
-            <Text style={styles.deleteText}>Delete Account</Text>
+            <>
+              <Feather name="trash-2" size={16} color={C.danger} />
+              <Text style={styles.deleteText}>Delete Account</Text>
+            </>
           )}
         </Pressable>
       </SettingsCard>
 
       {adminBypassConfigured && (
         <>
-          <SectionHeader title="Owner Access" />
+          <SectionHeader title="Owner Access" icon="key" />
           <SettingsCard>
             <View style={styles.ownerBlock}>
               <Text style={styles.ownerTitle}>Device Pro Override</Text>
@@ -212,11 +284,49 @@ export default function AccountSettingsScreen() {
 
 const styles = StyleSheet.create({
   actionRow: {
+    flexDirection: 'row',
     minHeight: 52,
     alignItems: 'center',
     justifyContent: 'center',
+    gap: S[2],
     paddingVertical: S[4],
   },
+  profileCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: S[3],
+    backgroundColor: C.ink2,
+    borderRadius: R.lg,
+    borderWidth: 1,
+    borderColor: C.ink3,
+    padding: S[4],
+    marginBottom: S[2],
+  },
+  avatar: {
+    width: 56,
+    height: 56,
+    borderRadius: R.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarText: {
+    fontSize: T.lg,
+    fontWeight: '700',
+    color: C.ink1,
+  },
+  profileInfo: { flex: 1, gap: 2, minWidth: 0 },
+  profileName: { fontSize: T.base, fontWeight: '700', color: C.cream },
+  profileEmail: { fontSize: T.sm, color: C.ash },
+  statusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: S[3],
+    paddingHorizontal: S[4],
+    paddingVertical: S[4],
+    minHeight: 52,
+  },
+  statusLabel: { flex: 1, fontSize: T.base, color: C.cream },
+  statusCta: { fontSize: T.sm, color: C.amber, fontWeight: '600' },
   actionText: {
     fontSize: T.base,
     color: C.cream,

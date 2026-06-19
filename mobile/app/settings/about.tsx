@@ -31,6 +31,11 @@ export default function AboutSettingsScreen() {
   const warning = spendWarning(aiUsageCostUsd);
   const isOwner = useOwnerStore((s) => s.isOwner);
   const setOwner = useOwnerStore((s) => s.setOwner);
+  const markChangelogSeen = useAppStore((s) => s.markChangelogSeen);
+
+  React.useEffect(() => {
+    markChangelogSeen();
+  }, [markChangelogSeen]);
 
   const [tapCount, setTapCount] = React.useState(0);
   const tapTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -57,7 +62,7 @@ export default function AboutSettingsScreen() {
 
   return (
     <SettingsSubpageShell title="About">
-      <SectionHeader title="App" />
+      <SectionHeader title="App" icon="info" />
       <SettingsCard>
         <TouchableOpacity onPress={handleVersionTap} activeOpacity={0.7}>
           <View style={styles.versionRow}>
@@ -72,7 +77,7 @@ export default function AboutSettingsScreen() {
         <SettingsRow label="Build" value={BUILD} />
       </SettingsCard>
 
-      <SectionHeader title="AI Usage" />
+      <SectionHeader title="AI Usage" icon="cpu" />
       <SettingsCard>
         <SettingsRow label="Estimated Spend" value={formatUsd(aiUsageCostUsd)} />
         <Divider />

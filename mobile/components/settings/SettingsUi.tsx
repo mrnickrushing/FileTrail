@@ -6,15 +6,18 @@ import {
   StyleSheet,
   ScrollView,
   ActivityIndicator,
+  Switch,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import Animated, {
   FadeIn,
+  FadeOut,
   useSharedValue,
   useAnimatedStyle,
   withSpring,
+  withSequence,
   useReducedMotion,
 } from 'react-native-reanimated';
 import { ScreenHeader } from '@/components/ScreenHeader';
@@ -93,8 +96,55 @@ export function SettingsSubpageShell({
   );
 }
 
-export function SectionHeader({ title }: { title: string }) {
-  return <Text style={styles.sectionHeader}>{title.toUpperCase()}</Text>;
+export function SectionHeader({
+  title,
+  icon,
+}: {
+  title: string;
+  icon?: React.ComponentProps<typeof Feather>['name'];
+}) {
+  return (
+    <View style={styles.sectionHeaderRow}>
+      {icon && <Feather name={icon} size={12} color={C.ash} style={styles.sectionHeaderIcon} />}
+      <Text style={styles.sectionHeader}>{title.toUpperCase()}</Text>
+    </View>
+  );
+}
+
+/** Tap-to-reveal "?" tooltip for inline help next to a setting label. */
+export function InlineHelp({ text }: { text: string }) {
+  const [expanded, setExpanded] = React.useState(false);
+  const reducedMotion = useReducedMotion();
+  const scale = useSharedValue(1);
+  const badgeStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
+
+  const toggle = () => {
+    if (!reducedMotion) scale.value = withSequence(withSpring(0.85, Springs.snappy), withSpring(1, Springs.snappy));
+    setExpanded((v) => !v);
+  };
+
+  return (
+    <View style={styles.helpWrap}>
+      <AnimatedPressable
+        style={[styles.helpBadge, badgeStyle]}
+        onPress={toggle}
+        hitSlop={8}
+        accessibilityRole="button"
+        accessibilityLabel={expanded ? 'Hide help' : 'Show help'}
+      >
+        <Text style={styles.helpBadgeText}>?</Text>
+      </AnimatedPressable>
+      {expanded && (
+        <Animated.View
+          entering={reducedMotion ? undefined : FadeIn.duration(160)}
+          exiting={reducedMotion ? undefined : FadeOut.duration(120)}
+          style={styles.helpBubble}
+        >
+          <Text style={styles.helpBubbleText}>{text}</Text>
+        </Animated.View>
+      )}
+    </View>
+  );
 }
 
 export function SettingsCard({ children }: { children: React.ReactNode }) {
@@ -123,11 +173,14 @@ export function SettingsNavRow({
   value,
   icon,
   onPress,
+  badge,
 }: {
   label: string;
   value: string;
   icon: React.ComponentProps<typeof Feather>['name'];
   onPress: () => void;
+  /** Small text badge (e.g. "New") shown next to the label */
+  badge?: string;
 }) {
   const { style, onPressIn, onPressOut } = useRowPressSpring();
   return (
@@ -137,7 +190,14 @@ export function SettingsNavRow({
           <Feather name={icon} size={16} color={C.amber} />
         </View>
         <View style={styles.navTextWrap}>
-          <Text style={styles.navLabel}>{label}</Text>
+          <View style={styles.navLabelRow}>
+            <Text style={styles.navLabel}>{label}</Text>
+            {badge && (
+              <View style={styles.navBadge}>
+                <Text style={styles.navBadgeText}>{badge}</Text>
+              </View>
+            )}
+          </View>
           <Text style={styles.navValue} numberOfLines={1}>{value}</Text>
         </View>
       </View>
@@ -176,6 +236,54 @@ export function ActionRow({
       </View>
       {loading ? <ActivityIndicator color={C.amber} /> : <Text style={styles.actionChevron}>›</Text>}
     </AnimatedPressable>
+  );
+}
+
+export function ToggleField({
+  label,
+  sub,
+  value,
+  onValueChange,
+  disabled,
+  help,
+}: {
+  label: string;
+  sub: string;
+  value: boolean;
+  onValueChange: (value: boolean) => void;
+  disabled?: boolean;
+  help?: string;
+}) {
+  const reducedMotion = useReducedMotion();
+  const scale = useSharedValue(1);
+  const trackStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
+
+  const handleChange = (next: boolean) => {
+    if (!reducedMotion) {
+      scale.value = withSequence(withSpring(1.12, Springs.snappy), withSpring(1, Springs.snappy));
+    }
+    onValueChange(next);
+  };
+
+  return (
+    <View style={styles.toggleRow}>
+      <View style={styles.toggleInfo}>
+        <View style={styles.toggleLabelRow}>
+          <Text style={[styles.toggleLabel, disabled && styles.toggleLabelDisabled]}>{label}</Text>
+          {help && <InlineHelp text={help} />}
+        </View>
+        <Text style={styles.toggleSub}>{sub}</Text>
+      </View>
+      <Animated.View style={trackStyle}>
+        <Switch
+          value={value}
+          onValueChange={handleChange}
+          disabled={disabled}
+          trackColor={{ false: C.ink4, true: C.amber }}
+          thumbColor={value ? C.ink1 : C.ash}
+        />
+      </Animated.View>
+    </View>
   );
 }
 
@@ -236,15 +344,21 @@ const styles = StyleSheet.create({
   backText: { fontSize: T.base, color: C.amber, fontWeight: '600' },
   subpageTitle: { fontSize: T.lg, color: C.cream, fontWeight: '700' },
   backSpacer: { width: 88 },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: S[1],
+    marginTop: S[4],
+    marginBottom: S[1],
+    marginLeft: S[2],
+  },
+  sectionHeaderIcon: { marginTop: 1 },
   sectionHeader: {
     fontSize: T.xs,
     fontWeight: '600',
     color: C.ash,
     textTransform: 'uppercase',
     letterSpacing: 0.8,
-    marginTop: S[4],
-    marginBottom: S[1],
-    marginLeft: S[2],
   },
   card: {
     backgroundColor: C.ink2,
@@ -295,8 +409,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   navTextWrap: { flex: 1, gap: 2, minWidth: 0 },
+  navLabelRow: { flexDirection: 'row', alignItems: 'center', gap: S[2] },
   navLabel: { fontSize: T.base, color: C.cream, fontWeight: '600' },
   navValue: { fontSize: T.sm, color: C.ash },
+  navBadge: {
+    backgroundColor: C.amber,
+    borderRadius: R.full,
+    paddingHorizontal: S[2],
+    paddingVertical: 1,
+  },
+  navBadgeText: { fontSize: 10, fontWeight: '700', color: C.ink1 },
   actionRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -321,4 +443,39 @@ const styles = StyleSheet.create({
   spendWarningText: { fontSize: T.xs, color: C.amber, fontWeight: '600', lineHeight: 18 },
   spendWarningTextDanger: { color: C.danger },
   pressed: { opacity: 0.78 },
+  toggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: S[4],
+    paddingVertical: S[3],
+    minHeight: 64,
+  },
+  toggleInfo: { flex: 1, gap: 2 },
+  toggleLabelRow: { flexDirection: 'row', alignItems: 'center', gap: S[2] },
+  toggleLabel: { fontSize: T.base, color: C.cream },
+  toggleLabelDisabled: { color: C.ash },
+  toggleSub: { fontSize: T.xs, color: C.ash, lineHeight: 18 },
+  helpWrap: { position: 'relative' },
+  helpBadge: {
+    width: 20,
+    height: 20,
+    borderRadius: R.full,
+    backgroundColor: C.ink3,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  helpBadgeText: { fontSize: T.xs, color: C.ash, fontWeight: '700' },
+  helpBubble: {
+    position: 'absolute',
+    top: 26,
+    right: 0,
+    minWidth: 200,
+    maxWidth: 240,
+    backgroundColor: C.ink4,
+    borderRadius: R.md,
+    padding: S[3],
+    zIndex: 10,
+    elevation: 10,
+  },
+  helpBubbleText: { fontSize: T.xs, color: C.cream, lineHeight: 18 },
 });

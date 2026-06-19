@@ -24,6 +24,7 @@ import {
   Modal,
 } from 'react-native';
 import { WebView } from 'react-native-webview';
+import Animated, { ZoomIn, useReducedMotion } from 'react-native-reanimated';
 import { useLocalSearchParams, router } from 'expo-router';
 import * as FileSystem from 'expo-file-system';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -126,6 +127,7 @@ function suggestFolderId(
 export default function DocumentViewerScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const insets = useSafeAreaInsets();
+  const reducedMotion = useReducedMotion();
 
   const document = useDocumentStore(s => s.getDocument(id));
   const folders = useDocumentStore(s => s.folders);
@@ -489,7 +491,10 @@ export default function DocumentViewerScreen() {
         showsVerticalScrollIndicator={false}
       >
         {/* Document preview */}
-        <View style={styles.previewCard}>
+        <Animated.View
+          style={styles.previewCard}
+          entering={reducedMotion ? undefined : ZoomIn.duration(280)}
+        >
           {!isPDF ? (
             <ScrollView
               style={styles.zoomScroll}
@@ -517,7 +522,7 @@ export default function DocumentViewerScreen() {
               onOpenExternally={handleShare}
             />
           )}
-        </View>
+        </Animated.View>
 
         {/* Smart Organize — promoted directly under the preview so the highest-
             value action is visible before title/category editing and metadata. */}

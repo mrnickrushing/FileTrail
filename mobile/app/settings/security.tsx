@@ -1,14 +1,14 @@
 import React, { useEffect, useState } from 'react';
-import { StyleSheet, Switch, Text, View, Alert } from 'react-native';
+import { Alert } from 'react-native';
 import { useAppStore } from '@/store';
 import { authenticate, getBiometricCapability } from '@/services/biometricService';
 import {
   SettingsSubpageShell,
   SectionHeader,
   SettingsCard,
+  ToggleField,
   Hint,
 } from '@/components/settings/SettingsUi';
-import { C, T, S } from '@/theme/tokens';
 
 export default function SecuritySettingsScreen() {
   const biometricEnabled = useAppStore((s) => s.biometricEnabled);
@@ -36,29 +36,22 @@ export default function SecuritySettingsScreen() {
 
   return (
     <SettingsSubpageShell title="Security">
-      <SectionHeader title="Vault Lock" />
+      <SectionHeader title="Vault Lock" icon="lock" />
       <SettingsCard>
-        <View style={styles.switchRow}>
-          <View style={styles.switchInfo}>
-            <Text style={[styles.rowLabel, !biometricAvailable && styles.rowLabelDisabled]}>
-              {biometricLabel}
-            </Text>
-            <Text style={styles.switchSub}>
-              {biometricAvailable
-                ? biometricEnabled
-                  ? 'Vault locks when the app backgrounds'
-                  : 'Enable to require biometric unlock when you return'
-                : 'Not available on this device'}
-            </Text>
-          </View>
-          <Switch
-            value={biometricEnabled}
-            onValueChange={handleToggleBiometric}
-            disabled={!biometricAvailable}
-            trackColor={{ false: C.ink4, true: C.amber }}
-            thumbColor={biometricEnabled ? C.ink1 : C.ash}
-          />
-        </View>
+        <ToggleField
+          label={biometricLabel}
+          sub={
+            biometricAvailable
+              ? biometricEnabled
+                ? 'Vault locks when the app backgrounds'
+                : 'Enable to require biometric unlock when you return'
+              : 'Not available on this device'
+          }
+          value={biometricEnabled}
+          onValueChange={handleToggleBiometric}
+          disabled={!biometricAvailable}
+          help="When enabled, FileTrail locks itself every time it goes to the background and asks for Face ID, Touch ID, or your device passcode before showing your documents again."
+        />
       </SettingsCard>
       <Hint>
         This only protects the local vault on this device. It does not change your account sign-in.
@@ -66,29 +59,3 @@ export default function SecuritySettingsScreen() {
     </SettingsSubpageShell>
   );
 }
-
-const styles = StyleSheet.create({
-  switchRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: S[4],
-    paddingVertical: S[3],
-    minHeight: 64,
-  },
-  switchInfo: {
-    flex: 1,
-    gap: 2,
-  },
-  rowLabel: {
-    fontSize: T.base,
-    color: C.cream,
-  },
-  rowLabelDisabled: {
-    color: C.ash,
-  },
-  switchSub: {
-    fontSize: T.xs,
-    color: C.ash,
-    lineHeight: 18,
-  },
-});
