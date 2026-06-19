@@ -488,7 +488,7 @@ export const useDocumentStore = create<DocumentState>()(
           folders: get().folders,
           deletedDocumentIds: get().deletedDocumentIds,
           deletedFolderIds: get().deletedFolderIds,
-          mergeDocuments: (incoming) => {
+          mergeDocuments: async (incoming) => {
             const isPro = useProStore.getState().isPro;
             set((s) => {
               const localById = new Map(s.documents.map((doc) => [doc.id, doc]));
@@ -513,7 +513,11 @@ export const useDocumentStore = create<DocumentState>()(
             // After merging, download any missing local files from R2 (Pro only).
             // This is the "new device" restore path — a first sync can have
             // hundreds of pending files, so download in small concurrent
-            // batches rather than firing every request at once.
+            // batches rather than firing every request at once. This is
+            // awaited (mergeDocuments is awaited by syncMetadata) so the sync
+            // cursor only advances once restores have been attempted — the
+            // pull is sync_version-bound, so any document acknowledged before
+            // its restore finishes would never be offered again.
             if (isPro) {
               const toRestore = incoming.filter((doc) => {
                 if (!doc.storageUrl) return false;
@@ -521,34 +525,33 @@ export const useDocumentStore = create<DocumentState>()(
                 return !!merged && !merged.fileUri;
               });
               const RESTORE_BATCH_SIZE = 3;
-              (async () => {
-                for (let i = 0; i < toRestore.length; i += RESTORE_BATCH_SIZE) {
-                  const batch = toRestore.slice(i, i + RESTORE_BATCH_SIZE);
-                  await Promise.all(
-                    batch.map((doc) => {
-                      const ext = getExtension(doc.mimeType);
-                      return downloadDocumentFromR2({
-                        documentId: doc.id,
-                        mimeType: doc.mimeType,
-                        extension: ext,
-                        storageKey: doc.storageUrl
-                          ? doc.storageUrl.replace(/^r2:\/\/[^/]+\//, '')
-                          : undefined,
-                      }).then((localUri) => {
-                        if (localUri) {
-                          set((s) => ({
-                            documents: s.documents.map((d) =>
-                              d.id === doc.id ? { ...d, fileUri: localUri } : d
-                            ),
-                          }));
-                        }
-                      }).catch(() => {
-                        // Non-fatal: file may not be in R2 yet
-                      });
-                    })
-                  );
-                }
-              })();
+              for (let i = 0; i < toRestore.length; i += RESTORE_BATCH_SIZE) {
+                const batch = toRestore.slice(i, i + RESTORE_BATCH_SIZE);
+                await Promise.all(
+                  batch.map((doc) => {
+                    const ext = getExtension(doc.mimeType);
+                    return downloadDocumentFromR2({
+                      documentId: doc.id,
+                      mimeType: doc.mimeType,
+                      extension: ext,
+                      fileSizeBytes: doc.fileSizeBytes,
+                      storageKey: doc.storageUrl
+                        ? doc.storageUrl.replace(/^r2:\/\/[^/]+\//, '')
+                        : undefined,
+                    }).then((localUri) => {
+                      if (localUri) {
+                        set((s) => ({
+                          documents: s.documents.map((d) =>
+                            d.id === doc.id ? { ...d, fileUri: localUri } : d
+                          ),
+                        }));
+                      }
+                    }).catch(() => {
+                      // Non-fatal: file may not be in R2 yet
+                    });
+                  })
+                );
+              }
             }
           },
           mergeFolders: (incoming) => {
