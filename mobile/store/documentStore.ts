@@ -623,6 +623,46 @@ export const useDocumentStore = create<DocumentState>()(
             lastError: null,
           },
         }));
+        // Shared by mergeDocuments (right after a pull merges new metadata) and
+        // by the unconditional pass below. The pull is sync_version-bound, so a
+        // document that fails to restore (timeout, transient network) and whose
+        // sync_version isn't touched again would never be offered by a future
+        // pull — running this against the full local document set on every
+        // sync, not just newly-pulled ones, is what actually retries it.
+        const restoreMissingFiles = async (docs: Document[]) => {
+          const toRestore = docs.filter((doc) => doc.storageUrl && !doc.fileUri);
+          const RESTORE_BATCH_SIZE = 3;
+          for (let i = 0; i < toRestore.length; i += RESTORE_BATCH_SIZE) {
+            const batch = toRestore.slice(i, i + RESTORE_BATCH_SIZE);
+            await Promise.all(
+              batch.map((doc) => {
+                const ext = getExtension(doc.mimeType);
+                return downloadDocumentFromR2({
+                  documentId: doc.id,
+                  mimeType: doc.mimeType,
+                  extension: ext,
+                  storageKey: doc.storageUrl
+                    ? doc.storageUrl.replace(/^r2:\/\/[^/]+\//, '')
+                    : undefined,
+                  userId: accountProfile?.userId,
+                  storageAccessToken: accountProfile?.storageAccessToken,
+                  fileSizeBytes: doc.fileSizeBytes,
+                }).then((localUri) => {
+                  if (localUri) {
+                    set((s) => ({
+                      documents: s.documents.map((d) =>
+                        d.id === doc.id ? { ...d, fileUri: localUri } : d
+                      ),
+                    }));
+                  }
+                }).catch(() => {
+                  // Non-fatal: file may not be in R2 yet — will retry next sync
+                });
+              })
+            );
+          }
+        };
+
         try {
         if (options?.repairStorage) {
           // Before syncing metadata, make sure any local files are actually
@@ -750,45 +790,11 @@ export const useDocumentStore = create<DocumentState>()(
               set({ documents: dedupedDocs });
             }
 
-            // After merging, download any missing local files from R2.
-            // This is the "new device" restore path — a first sync can have
-            // hundreds of pending files, so download in small concurrent
-            // batches rather than firing every request at once. This is
-            // awaited (mergeDocuments is awaited by syncMetadata) so the sync
-            // cursor only advances once restores have been attempted — the
-            // pull is sync_version-bound, so any document acknowledged before
-            // its restore finishes would never be offered again.
-            const toRestore = dedupedDocs.filter((doc) => doc.storageUrl && !doc.fileUri);
-            const RESTORE_BATCH_SIZE = 3;
-            for (let i = 0; i < toRestore.length; i += RESTORE_BATCH_SIZE) {
-              const batch = toRestore.slice(i, i + RESTORE_BATCH_SIZE);
-              await Promise.all(
-                batch.map((doc) => {
-                  const ext = getExtension(doc.mimeType);
-                  return downloadDocumentFromR2({
-                    documentId: doc.id,
-                    mimeType: doc.mimeType,
-                    extension: ext,
-                    storageKey: doc.storageUrl
-                      ? doc.storageUrl.replace(/^r2:\/\/[^/]+\//, '')
-                      : undefined,
-                    userId: accountProfile?.userId,
-                    storageAccessToken: accountProfile?.storageAccessToken,
-                    fileSizeBytes: doc.fileSizeBytes,
-                  }).then((localUri) => {
-                    if (localUri) {
-                      set((s) => ({
-                        documents: s.documents.map((d) =>
-                          d.id === doc.id ? { ...d, fileUri: localUri } : d
-                        ),
-                      }));
-                    }
-                  }).catch(() => {
-                    // Non-fatal: file may not be in R2 yet
-                  });
-                })
-              );
-            }
+            // After merging, download any missing local files from R2. This is
+            // the "new device" restore path — awaited (mergeDocuments is
+            // awaited by syncMetadata) so the sync cursor only advances once
+            // restores have been attempted for the newly-pulled documents.
+            await restoreMissingFiles(dedupedDocs);
           },
           mergeFolders: (incoming) => {
             set((s) => {
@@ -835,6 +841,14 @@ export const useDocumentStore = create<DocumentState>()(
             }));
           },
         });
+
+          // Unconditional retry pass: mergeDocuments only runs when this cycle's
+          // pull returned new documents, so a document stranded by a transient
+          // restore failure in an earlier cycle (whose sync_version isn't seen
+          // again) would otherwise never be retried. Re-scan the full local set
+          // every sync so it keeps getting picked up until it actually restores.
+          await restoreMissingFiles(get().documents);
+
           set((s) => ({
             syncState: {
               ...s.syncState,
