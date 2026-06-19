@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -8,10 +8,21 @@ import {
   StyleSheet,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Feather } from '@expo/vector-icons';
+import Animated, {
+  Layout,
+  FadeIn,
+  FadeOut,
+  useReducedMotion,
+} from 'react-native-reanimated';
 import { C, T, S, R } from '@/theme/tokens';
 import type { Folder } from '@/types/document';
 
-type FolderOption = Pick<Folder, 'name' | 'color'> & { id: string | null; depth: number };
+type FolderOption = Pick<Folder, 'name' | 'color'> & {
+  id: string | null;
+  depth: number;
+  hasChildren: boolean;
+};
 
 interface FolderPickerModalProps {
   visible: boolean;
@@ -20,15 +31,45 @@ interface FolderPickerModalProps {
   onCancel: () => void;
 }
 
-/** Flattens folders into parent → child order, tagging each with its nesting depth for indentation. */
-function buildHierarchy(folders: Folder[]): FolderOption[] {
-  const parents = folders.filter((f) => !f.parentId);
+/** Groups folders by parent id (any nesting depth) for a collapsible tree. */
+function buildTree(folders: Folder[]): Map<string | null, FolderOption[]> {
+  const byParent = new Map<string | null, Folder[]>();
+  for (const f of folders) {
+    const key = f.parentId ?? null;
+    if (!byParent.has(key)) byParent.set(key, []);
+    byParent.get(key)!.push(f);
+  }
+
+  const optionsByParent = new Map<string | null, FolderOption[]>();
+  function visit(parentId: string | null, depth: number) {
+    const children = byParent.get(parentId) ?? [];
+    optionsByParent.set(
+      parentId,
+      children.map((c) => ({
+        id: c.id,
+        name: c.name,
+        color: c.color,
+        depth,
+        hasChildren: (byParent.get(c.id)?.length ?? 0) > 0,
+      })),
+    );
+    for (const c of children) visit(c.id, depth + 1);
+  }
+  visit(null, 0);
+  return optionsByParent;
+}
+
+/** Flattens the tree depth-first, skipping descendants of collapsed nodes. */
+function flattenVisible(
+  parentId: string | null,
+  optionsByParent: Map<string | null, FolderOption[]>,
+  collapsed: Set<string>,
+): FolderOption[] {
   const result: FolderOption[] = [];
-  for (const parent of parents) {
-    result.push({ id: parent.id, name: parent.name, color: parent.color, depth: 0 });
-    const children = folders.filter((f) => f.parentId === parent.id);
-    for (const child of children) {
-      result.push({ id: child.id, name: child.name, color: child.color, depth: 1 });
+  for (const item of optionsByParent.get(parentId) ?? []) {
+    result.push(item);
+    if (item.hasChildren && !collapsed.has(item.id!)) {
+      result.push(...flattenVisible(item.id, optionsByParent, collapsed));
     }
   }
   return result;
@@ -41,13 +82,26 @@ export function FolderPickerModal({
   onCancel,
 }: FolderPickerModalProps) {
   const insets = useSafeAreaInsets();
+  const reducedMotion = useReducedMotion();
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
 
   if (!visible) return null;
 
+  const optionsByParent = buildTree(folders);
+
   const data: FolderOption[] = [
-    { id: null, name: 'Unfiled', color: '#6B7280', depth: 0 },
-    ...buildHierarchy(folders),
+    { id: null, name: 'Unfiled', color: '#6B7280', depth: 0, hasChildren: false },
+    ...flattenVisible(null, optionsByParent, collapsed),
   ];
+
+  const toggleCollapsed = (id: string) => {
+    setCollapsed((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onCancel}>
@@ -61,14 +115,40 @@ export function FolderPickerModal({
           keyExtractor={(item) => String(item.id)}
           contentContainerStyle={styles.list}
           renderItem={({ item }) => (
-            <Pressable
-              style={({ pressed }) => [styles.row, pressed && styles.rowPressed, item.depth > 0 && styles.rowChild]}
-              onPress={() => onSelect(item.id)}
+            <Animated.View
+              layout={reducedMotion ? undefined : Layout.springify().damping(18)}
+              entering={reducedMotion || item.depth === 0 ? undefined : FadeIn.duration(140)}
+              exiting={reducedMotion || item.depth === 0 ? undefined : FadeOut.duration(100)}
             >
-              {item.depth > 0 && <Text style={styles.childMark}>›</Text>}
-              <View style={[styles.dot, { backgroundColor: item.color }]} />
-              <Text style={styles.folderName} numberOfLines={1}>{item.name}</Text>
-            </Pressable>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.row,
+                  pressed && styles.rowPressed,
+                  item.depth > 0 && { paddingLeft: S[6] * item.depth },
+                ]}
+                onPress={() => onSelect(item.id)}
+              >
+                {item.depth > 0 && <Text style={styles.childMark}>›</Text>}
+                <View style={[styles.dot, { backgroundColor: item.color }]} />
+                <Text style={styles.folderName} numberOfLines={1}>{item.name}</Text>
+                {item.hasChildren && (
+                  <Pressable
+                    hitSlop={10}
+                    style={styles.chevronBtn}
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      toggleCollapsed(item.id!);
+                    }}
+                  >
+                    <Feather
+                      name={collapsed.has(item.id!) ? 'chevron-right' : 'chevron-down'}
+                      size={16}
+                      color={C.ash}
+                    />
+                  </Pressable>
+                )}
+              </Pressable>
+            </Animated.View>
           )}
           ItemSeparatorComponent={() => <View style={styles.sep} />}
         />
@@ -121,9 +201,6 @@ const styles = StyleSheet.create({
     paddingVertical: S[4],
     gap: S[3],
   },
-  rowChild: {
-    paddingLeft: S[6],
-  },
   rowPressed: {
     opacity: 0.6,
   },
@@ -138,9 +215,13 @@ const styles = StyleSheet.create({
     borderRadius: R.full,
   },
   folderName: {
+    flex: 1,
     fontSize: T.base,
     color: C.cream,
     fontWeight: '500',
+  },
+  chevronBtn: {
+    padding: S[1],
   },
   sep: {
     height: 1,

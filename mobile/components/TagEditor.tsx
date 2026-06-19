@@ -10,7 +10,18 @@ import {
   Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { C, T, S, R } from '@/theme/tokens';
+import Animated, {
+  Layout,
+  ZoomIn,
+  ZoomOut,
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  useReducedMotion,
+} from 'react-native-reanimated';
+import { C, T, S, R, Springs } from '@/theme/tokens';
+
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 interface TagEditorProps {
   visible: boolean;
@@ -32,8 +43,11 @@ export function TagEditor({
   onCancel,
 }: TagEditorProps) {
   const insets = useSafeAreaInsets();
+  const reducedMotion = useReducedMotion();
   const [tags, setTags] = useState<string[]>(initialTags);
   const [input, setInput] = useState('');
+  const confirmScale = useSharedValue(1);
+  const confirmStyle = useAnimatedStyle(() => ({ transform: [{ scale: confirmScale.value }] }));
 
   // Reset state when modal opens
   React.useEffect(() => {
@@ -78,10 +92,17 @@ export function TagEditor({
           {tags.length > 0 && (
             <View style={styles.tagRow}>
               {tags.map((tag) => (
-                <Pressable key={tag} style={styles.tag} onPress={() => removeTag(tag)}>
-                  <Text style={styles.tagText}>#{tag}</Text>
-                  <Text style={styles.tagRemove}>×</Text>
-                </Pressable>
+                <Animated.View
+                  key={tag}
+                  layout={reducedMotion ? undefined : Layout.springify().damping(16)}
+                  entering={reducedMotion ? undefined : ZoomIn.springify().damping(14)}
+                  exiting={reducedMotion ? undefined : ZoomOut.duration(120)}
+                >
+                  <Pressable style={styles.tag} onPress={() => removeTag(tag)}>
+                    <Text style={styles.tagText}>#{tag}</Text>
+                    <Text style={styles.tagRemove}>×</Text>
+                  </Pressable>
+                </Animated.View>
               ))}
             </View>
           )}
@@ -125,9 +146,14 @@ export function TagEditor({
             <Pressable style={styles.cancelBtn} onPress={onCancel}>
               <Text style={styles.cancelText}>Cancel</Text>
             </Pressable>
-            <Pressable style={styles.confirmBtn} onPress={() => onConfirm(tags)}>
+            <AnimatedPressable
+              style={[styles.confirmBtn, confirmStyle]}
+              onPressIn={() => { confirmScale.value = reducedMotion ? 1 : withSpring(0.95, Springs.snappy); }}
+              onPressOut={() => { confirmScale.value = reducedMotion ? 1 : withSpring(1, Springs.snappy); }}
+              onPress={() => onConfirm(tags)}
+            >
               <Text style={styles.confirmText}>Save</Text>
-            </Pressable>
+            </AnimatedPressable>
           </View>
         </View>
       </KeyboardAvoidingView>
