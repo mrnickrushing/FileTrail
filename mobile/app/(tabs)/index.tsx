@@ -34,6 +34,11 @@ import { EmptyState } from '@/components/EmptyState';
 import { SwipeableCard } from '@/components/SwipeableCard';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { HealthRing } from '@/components/HealthRing';
+import { HealthDashboardCard } from '@/components/HealthDashboardCard';
+import { VaultStatsRow } from '@/components/VaultStatsRow';
+import { SyncStatusButton } from '@/components/SyncStatusButton';
+import { SyncOverlay } from '@/components/SyncOverlay';
+import { SyncErrorBanner } from '@/components/SyncErrorBanner';
 import { Colors, Typography, Spacing } from '@/theme';
 import { C, T, S, R } from '@/theme/tokens';
 import type { SearchFilters, DocumentCategory, Document } from '@/types/document';
@@ -96,8 +101,6 @@ export default function VaultScreen() {
   const bulkMove = useDocumentStore(s => s.bulkMove);
   const bulkSetTags = useDocumentStore(s => s.bulkSetTags);
   const deleteDocument = useDocumentStore(s => s.deleteDocument);
-  const deletedDocumentIds = useDocumentStore(s => s.deletedDocumentIds);
-  const deletedFolderIds = useDocumentStore(s => s.deletedFolderIds);
   const toggleFavorite = useDocumentStore(s => s.toggleFavorite);
   const updateDocument = useDocumentStore(s => s.updateDocument);
   const updateDocumentTags = useDocumentStore(s => s.updateDocumentTags);
@@ -106,6 +109,7 @@ export default function VaultScreen() {
   const syncWithBackend = useDocumentStore(s => s.syncWithBackend);
   const syncState = useDocumentStore(s => s.syncState);
 
+  const accountProfile = useAppStore(s => s.accountProfile);
   const sortBy = useAppStore(s => s.sortBy);
   const sortDir = useAppStore(s => s.sortDir);
   const viewMode = useAppStore(s => s.viewMode);
@@ -168,6 +172,7 @@ export default function VaultScreen() {
   const [showTagEditor, setShowTagEditor] = useState(false);
   const [showFolderPicker, setShowFolderPicker] = useState(false);
   const [showPaywall, setShowPaywall] = useState(false);
+  const [showSyncOverlay, setShowSyncOverlay] = useState(false);
   const [isAiOrganizing, setIsAiOrganizing] = useState(false);
   const [aiOrganizeProgress, setAiOrganizeProgress] = useState<{ done: number; total: number } | null>(null);
   const [showAllCategoryFilters, setShowAllCategoryFilters] = useState(false);
@@ -478,26 +483,30 @@ export default function VaultScreen() {
     + (filters.isFavorite ? 1 : 0)
     + (filters.tags?.length ?? 0);
 
+  const syncEnabled = Boolean(accountProfile?.userId && accountProfile?.storageAccessToken);
+
   const listHeader = selectionMode ? null : (
     <View style={styles.headerStack}>
-      <View style={styles.topBand}>
-        <View style={styles.topBandCopy}>
-          <Text style={styles.topBandTitle}>Vault</Text>
-          <Text style={styles.topBandSubtitle}>
-            {documents.length} document{documents.length === 1 ? '' : 's'} stored
-          </Text>
-        </View>
-        <View style={styles.topBandHealth}>
-          <HealthRing documents={documents} size={42} strokeWidth={4} compact />
-          <Text style={styles.topBandHealthLabel}>Health</Text>
-        </View>
-      </View>
+      <HealthDashboardCard
+        documents={documents}
+        onSelectCategory={(cat) => {
+          Haptics.selectionAsync();
+          setFilters({ ...filters, category: cat });
+        }}
+      />
 
-      <View style={styles.metricsBand}>
-        <MetricCell label="Unfiled" value={unfiledCount} accent={C.amber} />
-        <MetricCell label="Saved" value={favoriteCount} accent={C.success} />
-        <MetricCell label="Filters" value={activeFilterCount} accent={C.ash} />
-      </View>
+      <VaultStatsRow
+        documents={documents}
+        folders={folders}
+        favoriteCount={favoriteCount}
+        syncEnabled={syncEnabled}
+        syncState={syncState}
+        onDocs={() => setFilters({})}
+        onFolders={() => router.push('/(tabs)/folders')}
+        onStorage={() => router.push('/settings/storage')}
+        onSync={() => setShowSyncOverlay(true)}
+        onSaved={() => setFilters({ ...filters, isFavorite: true })}
+      />
 
       <View style={styles.controlBand}>
         <Pressable
@@ -625,6 +634,8 @@ export default function VaultScreen() {
         }
       />
 
+      {!selectionMode && <SyncErrorBanner />}
+
       {isLoading && visibleDocuments.length === 0 ? (
         <SkeletonList count={5} />
       ) : (
@@ -702,6 +713,12 @@ export default function VaultScreen() {
 
       {/* FAB — hidden in selection mode */}
       {!selectionMode && <FAB onPress={() => router.push('/capture')} />}
+
+      {/* Floating sync status — appears only when sync needs attention */}
+      {!selectionMode && <SyncStatusButton onPress={() => setShowSyncOverlay(true)} />}
+
+      {/* Rich sync progress / recovery sheet */}
+      <SyncOverlay visible={showSyncOverlay} onClose={() => setShowSyncOverlay(false)} />
 
       {/* Bulk action bar */}
       {selectionMode && (
@@ -913,23 +930,6 @@ function FilterBar({
   );
 }
 
-function MetricCell({
-  label,
-  value,
-  accent,
-}: {
-  label: string;
-  value: number;
-  accent: string;
-}) {
-  return (
-    <View style={styles.metricCell}>
-      <Text style={[styles.metricCellValue, { color: accent }]}>{value}</Text>
-      <Text style={styles.metricCellLabel}>{label}</Text>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   container:   { flex: 1, backgroundColor: Colors.bg },
   headerStack: {
@@ -937,133 +937,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing['4'],
     paddingBottom: Spacing['4'],
   },
-  topBand: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: C.ink2,
-    borderWidth: 1,
-    borderColor: C.ink3,
-    borderRadius: R.xl,
-    paddingHorizontal: S[4],
-    paddingVertical: S[4],
-  },
-  topBandCopy: {
-    flex: 1,
-    gap: 4,
-  },
-  topBandTitle: {
-    fontSize: T.xl,
-    color: C.cream,
-    fontWeight: '800',
-  },
-  topBandSubtitle: {
-    fontSize: T.sm,
-    color: C.ash,
-  },
-  topBandHealth: {
-    alignItems: 'center',
-    gap: 6,
-    minWidth: 64,
-  },
-  topBandHealthLabel: {
-    fontSize: T.xs,
-    color: C.ash,
-    fontWeight: '700',
-  },
   selectAllBtn: {
     fontSize: T.base,
     color: C.amber,
     fontWeight: '600',
-  },
-  syncPanel: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: S[3],
-    backgroundColor: C.ink2,
-    borderWidth: 1,
-    borderColor: C.ink3,
-    borderRadius: R.lg,
-    paddingHorizontal: S[3],
-    paddingVertical: S[3],
-  },
-  syncPanelSuccess: {
-    backgroundColor: C.success + '14',
-    borderColor: C.success + '33',
-  },
-  syncPanelWarning: {
-    backgroundColor: C.amberDim,
-    borderColor: C.amber + '33',
-  },
-  syncPanelDanger: {
-    backgroundColor: C.danger + '14',
-    borderColor: C.danger + '33',
-  },
-  syncPanelMain: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: S[3],
-    flex: 1,
-  },
-  syncPanelIcon: {
-    width: 30,
-    height: 30,
-    borderRadius: R.md,
-    backgroundColor: C.ink1 + '44',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  syncPanelCopy: {
-    flex: 1,
-    gap: 2,
-  },
-  syncPanelLabel: {
-    fontSize: T.sm,
-    fontWeight: '700',
-    color: C.cream,
-  },
-  syncPanelLabelSuccess: {
-    color: C.success,
-  },
-  syncPanelLabelWarning: {
-    color: C.amber,
-  },
-  syncPanelLabelDanger: {
-    color: C.danger,
-  },
-  syncPanelDetail: {
-    fontSize: T.xs,
-    color: C.ash,
-    lineHeight: 18,
-  },
-  metricsBand: {
-    flexDirection: 'row',
-    alignItems: 'stretch',
-    backgroundColor: C.ink2,
-    borderWidth: 1,
-    borderColor: C.ink3,
-    borderRadius: R.xl,
-    overflow: 'hidden',
-  },
-  metricCell: {
-    flex: 1,
-    minHeight: 72,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: S[3],
-    borderRightWidth: 1,
-    borderRightColor: C.ink3,
-  },
-  metricCellValue: {
-    fontSize: T.lg,
-    fontWeight: '800',
-  },
-  metricCellLabel: {
-    fontSize: T.xs,
-    color: C.ash,
-    fontWeight: '600',
-    marginTop: 4,
   },
   controlBand: {
     flexDirection: 'row',

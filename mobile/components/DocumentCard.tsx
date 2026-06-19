@@ -7,9 +7,15 @@
  *   - 78px thumbnail (up from 68px)
  *   - Subtle 1px card border for definition on dark backgrounds
  *   - Animated checkbox spring on selection mode enter
+ *
+ * Micro-interactions (all disabled under prefers-reduced-motion):
+ *   - Press: card scales to 0.97 with a snappy spring
+ *   - Favorite: star pops with a bounce when toggled on
+ *   - OCR processing: badge dot pulses
+ *   - Thumbnail: shimmer overlay until the image finishes loading
  */
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -17,10 +23,22 @@ import {
   Pressable,
   StyleSheet,
 } from 'react-native';
-import Animated, { ZoomIn } from 'react-native-reanimated';
+import Animated, {
+  ZoomIn,
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  withTiming,
+  withRepeat,
+  withSequence,
+  cancelAnimation,
+  useReducedMotion,
+} from 'react-native-reanimated';
 import { Feather } from '@expo/vector-icons';
-import { C, T, R, S } from '@/theme/tokens';
+import { C, T, R, S, Springs } from '@/theme/tokens';
 import type { Document, DocumentCategory } from '@/types/document';
+
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 const CATEGORY_LABELS: Record<DocumentCategory, string> = {
   receipt: 'Receipt',
@@ -80,6 +98,54 @@ export function DocumentCard({
   isSelected = false,
 }: DocumentCardProps) {
   const accentColor = CATEGORY_COLORS[document.category];
+  const reducedMotion = useReducedMotion();
+
+  // Press scale feedback.
+  const scale = useSharedValue(1);
+  const cardAnim = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
+  const handlePressIn = () => {
+    if (!reducedMotion) scale.value = withSpring(0.97, Springs.snappy);
+  };
+  const handlePressOut = () => {
+    scale.value = withSpring(1, Springs.snappy);
+  };
+
+  // Favorite star bounce.
+  const starScale = useSharedValue(1);
+  useEffect(() => {
+    if (document.isFavorite && !reducedMotion) {
+      starScale.value = withSequence(withSpring(1.45, Springs.bouncy), withSpring(1, Springs.bouncy));
+    } else {
+      starScale.value = 1;
+    }
+  }, [document.isFavorite, reducedMotion, starScale]);
+  const starAnim = useAnimatedStyle(() => ({ transform: [{ scale: starScale.value }] }));
+
+  // OCR processing pulse.
+  const ocrPulse = useSharedValue(1);
+  useEffect(() => {
+    if (document.ocrStatus === 'processing' && !reducedMotion) {
+      ocrPulse.value = withRepeat(withTiming(0.3, { duration: 700 }), -1, true);
+    } else {
+      cancelAnimation(ocrPulse);
+      ocrPulse.value = 1;
+    }
+    return () => cancelAnimation(ocrPulse);
+  }, [document.ocrStatus, reducedMotion, ocrPulse]);
+  const ocrAnim = useAnimatedStyle(() => ({ opacity: ocrPulse.value }));
+
+  // Thumbnail shimmer until the image loads.
+  const [thumbLoaded, setThumbLoaded] = useState(false);
+  const shimmer = useSharedValue(0.35);
+  useEffect(() => {
+    if (document.thumbnailUri && !thumbLoaded && !reducedMotion) {
+      shimmer.value = withRepeat(withTiming(0.75, { duration: 900 }), -1, true);
+    } else {
+      cancelAnimation(shimmer);
+    }
+    return () => cancelAnimation(shimmer);
+  }, [document.thumbnailUri, thumbLoaded, reducedMotion, shimmer]);
+  const shimmerAnim = useAnimatedStyle(() => ({ opacity: shimmer.value }));
 
   const dateStr = new Date(document.createdAt).toLocaleDateString('en-US', {
     month: 'short',
@@ -91,10 +157,12 @@ export function DocumentCard({
 
   if (compact) {
     return (
-      <Pressable
-        style={styles.compactCard}
+      <AnimatedPressable
+        style={[styles.compactCard, cardAnim]}
         onPress={onPress}
         onLongPress={onLongPress}
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
         accessible
         accessibilityLabel={a11yLabel}
         accessibilityRole="button"
@@ -107,7 +175,15 @@ export function DocumentCard({
         )}
         <View style={styles.compactThumb}>
           {document.thumbnailUri ? (
-            <Image source={{ uri: document.thumbnailUri }} style={styles.compactThumbImage} resizeMode="cover" />
+            <>
+              <Image
+                source={{ uri: document.thumbnailUri }}
+                style={styles.compactThumbImage}
+                resizeMode="cover"
+                onLoad={() => setThumbLoaded(true)}
+              />
+              {!thumbLoaded && <Animated.View style={[StyleSheet.absoluteFill, styles.thumbShimmer, shimmerAnim]} />}
+            </>
           ) : (
             <View style={[styles.compactThumbPlaceholder, { backgroundColor: accentColor + '33' }]}>
               <Feather name={document.mimeType.includes('pdf') ? 'file-text' : 'image'} size={18} color={accentColor} />
@@ -121,20 +197,22 @@ export function DocumentCard({
             <Text style={styles.compactMetaText}>{CATEGORY_LABELS[document.category]} · {dateStr}</Text>
           </View>
         </View>
-        {document.isFavorite && <Feather name="star" size={16} color={C.amber} />}
-      </Pressable>
+        {document.isFavorite && (
+          <Animated.View style={starAnim}>
+            <Feather name="star" size={16} color={C.amber} />
+          </Animated.View>
+        )}
+      </AnimatedPressable>
     );
   }
 
   return (
-    <Pressable
-      style={({ pressed }) => [
-        styles.card,
-        isSelected && styles.cardSelected,
-        pressed && styles.cardPressed,
-      ]}
+    <AnimatedPressable
+      style={[styles.card, isSelected && styles.cardSelected, cardAnim]}
       onPress={onPress}
       onLongPress={onLongPress}
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
       accessible
       accessibilityLabel={a11yLabel}
       accessibilityRole="button"
@@ -161,15 +239,17 @@ export function DocumentCard({
           <View style={styles.titleRow}>
             <Text style={styles.title} numberOfLines={2}>{document.title}</Text>
             {document.ocrStatus === 'processing' && (
-              <View style={styles.ocrBadge}>
+              <Animated.View style={[styles.ocrBadge, ocrAnim]}>
                 <View style={styles.ocrDot} />
-              </View>
+              </Animated.View>
             )}
             {document.ocrStatus === 'failed' && (
               <Feather name="alert-triangle" size={16} color={C.danger} style={styles.ocrFailedIcon} />
             )}
             {document.isFavorite && (
-              <Feather name="star" size={15} color={C.amber} style={styles.favStar} />
+              <Animated.View style={[styles.favStar, starAnim]}>
+                <Feather name="star" size={15} color={C.amber} />
+              </Animated.View>
             )}
           </View>
 
@@ -202,7 +282,15 @@ export function DocumentCard({
         {/* Right: thumbnail */}
         <View style={styles.thumbContainer}>
           {document.thumbnailUri ? (
-            <Image source={{ uri: document.thumbnailUri }} style={styles.thumb} resizeMode="cover" />
+            <>
+              <Image
+                source={{ uri: document.thumbnailUri }}
+                style={styles.thumb}
+                resizeMode="cover"
+                onLoad={() => setThumbLoaded(true)}
+              />
+              {!thumbLoaded && <Animated.View style={[StyleSheet.absoluteFill, styles.thumbShimmer, shimmerAnim]} />}
+            </>
           ) : (
             <View style={[styles.thumbPlaceholder, { backgroundColor: accentColor + '22' }]}>
               <Feather name={document.mimeType.includes('pdf') ? 'file-text' : 'image'} size={26} color={accentColor} />
@@ -210,7 +298,7 @@ export function DocumentCard({
           )}
         </View>
       </View>
-    </Pressable>
+    </AnimatedPressable>
   );
 }
 
@@ -239,9 +327,6 @@ const styles = StyleSheet.create({
   cardSelected: {
     borderWidth: 1.5,
     borderColor: C.amber,
-  },
-  cardPressed: {
-    opacity: 0.82,
   },
   accentStrip: {
     position: 'absolute',
@@ -368,6 +453,9 @@ const styles = StyleSheet.create({
     height: THUMB,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  thumbShimmer: {
+    backgroundColor: C.ink3,
   },
 
   // ── Compact ──────────────────────────────────────────────────

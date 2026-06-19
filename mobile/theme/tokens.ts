@@ -110,14 +110,20 @@ export const Radius = {
 
 export const Shadows = Platform.select({
   ios: {
-    sm: { shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.18, shadowRadius: 2,  elevation: 2  },
-    md: { shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.28, shadowRadius: 10, elevation: 6  },
-    lg: { shadowColor: '#000', shadowOffset: { width: 0, height: 10}, shadowOpacity: 0.38, shadowRadius: 24, elevation: 12 },
+    sm:   { shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.18, shadowRadius: 2,  elevation: 2  },
+    md:   { shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.28, shadowRadius: 10, elevation: 6  },
+    lg:   { shadowColor: '#000', shadowOffset: { width: 0, height: 10}, shadowOpacity: 0.38, shadowRadius: 24, elevation: 12 },
+    // Deep shadow for floating overlays/sheets.
+    xl:   { shadowColor: '#000', shadowOffset: { width: 0, height: 20}, shadowOpacity: 0.45, shadowRadius: 40, elevation: 20 },
+    // Amber halo for active/in-progress elements (e.g. a syncing button).
+    glow: { shadowColor: Colors.primary, shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.5, shadowRadius: 16, elevation: 10 },
   },
   default: {
-    sm: { elevation: 2  },
-    md: { elevation: 6  },
-    lg: { elevation: 12 },
+    sm:   { elevation: 2  },
+    md:   { elevation: 6  },
+    lg:   { elevation: 12 },
+    xl:   { elevation: 20 },
+    glow: { elevation: 10 },
   },
 })!;
 
@@ -125,6 +131,15 @@ export const duration = {
   fast:   150,
   normal: 250,
   slow:   400,
+} as const;
+
+// Reanimated spring presets — pass straight to withSpring(value, Springs.x).
+// Tuned for UI feedback: bouncy for celebratory moments, smooth for entrances,
+// snappy for press feedback that must settle fast without overshoot fatigue.
+export const Springs = {
+  bouncy: { damping: 10, mass: 1,   stiffness: 120 },
+  smooth: { damping: 18, mass: 1,   stiffness: 120 },
+  snappy: { damping: 16, mass: 0.7, stiffness: 200 },
 } as const;
 
 export const HIT_SLOP = { top: 8, bottom: 8, left: 8, right: 8 };
