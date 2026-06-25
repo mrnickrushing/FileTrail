@@ -1,0 +1,39 @@
+name: Marketing Web CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'web/marketing/**'
+      - '.github/workflows/marketing-ci.yml'
+  pull_request:
+    paths:
+      - 'web/marketing/**'
+      - '.github/workflows/marketing-ci.yml'
+
+concurrency:
+  group: marketing-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web/marketing
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: web/marketing/package-lock.json
+
+      - run: npm ci
+
+      - run: npm run build
+
+      - run: npm audit --audit-level=high

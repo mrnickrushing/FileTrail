@@ -7,13 +7,27 @@ interface Env {
 
 const MAX_ATTACHMENT_BYTES = 20 * 1024 * 1024; // 20 MB per attachment
 
-function arrayBufferToBase64(buffer: ArrayBuffer): string {
-  const bytes = new Uint8Array(buffer);
+function bytesToBase64(bytes: Uint8Array): string {
   let binary = '';
   for (let i = 0; i < bytes.byteLength; i++) {
     binary += String.fromCharCode(bytes[i]);
   }
   return btoa(binary);
+}
+
+// postal-mime only returns string content when `attachmentEncoding` is set
+// explicitly (we don't set it, so this is always ArrayBuffer/Uint8Array in
+// practice) — handled for type-correctness against the library's declared type.
+function attachmentSizeBytes(content: string | ArrayBuffer | Uint8Array, encoding?: 'base64' | 'utf8'): number {
+  if (typeof content !== 'string') return content.byteLength;
+  return encoding === 'base64' ? content.length : new TextEncoder().encode(content).byteLength;
+}
+
+function attachmentToBase64(content: string | ArrayBuffer | Uint8Array, encoding?: 'base64' | 'utf8'): string {
+  if (typeof content === 'string') {
+    return encoding === 'base64' ? content : bytesToBase64(new TextEncoder().encode(content));
+  }
+  return bytesToBase64(content instanceof Uint8Array ? content : new Uint8Array(content));
 }
 
 export default {
@@ -32,10 +46,10 @@ export default {
         } = {
           filename: att.filename ?? `attachment.${att.mimeType?.split('/')[1] ?? 'bin'}`,
           mimeType: att.mimeType ?? 'application/octet-stream',
-          sizeBytes: att.content?.byteLength ?? 0,
+          sizeBytes: att.content ? attachmentSizeBytes(att.content, att.encoding) : 0,
         };
-        if (att.content && att.content.byteLength <= MAX_ATTACHMENT_BYTES) {
-          entry.content = arrayBufferToBase64(att.content);
+        if (att.content && entry.sizeBytes <= MAX_ATTACHMENT_BYTES) {
+          entry.content = attachmentToBase64(att.content, att.encoding);
         }
         return entry;
       });

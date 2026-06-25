@@ -1,5 +1,5 @@
 import React from 'react';
-import { Platform, Text, StyleSheet, Alert, TextInput, View, TouchableOpacity } from 'react-native';
+import { Platform, Text, StyleSheet, Alert, View, TouchableOpacity } from 'react-native';
 import Constants from 'expo-constants';
 import { useAppStore, useOwnerStore } from '@/store';
 import {
@@ -13,7 +13,7 @@ import {
   spendWarning,
   SpendWarningBanner,
 } from '@/components/settings/SettingsUi';
-import { C, T, S, R } from '@/theme/tokens';
+import { C, T, S } from '@/theme/tokens';
 
 const APP_VERSION = Constants.expoConfig?.version ?? 'Unknown';
 const BUILD = Platform.OS === 'ios'
@@ -96,7 +96,7 @@ export default function AboutSettingsScreen() {
 }
 
 function promptOwnerCode(setOwner: (v: boolean) => void) {
-  let inputValue = '';
+  const inputValue = '';
   Alert.alert(
     'Owner Access',
     'Enter the owner passcode to unlock cloud controls.',
