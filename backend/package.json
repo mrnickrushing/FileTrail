@@ -30,7 +30,7 @@
     "@types/pdf-parse": "^1.1.5",
     "@types/pg": "^8.11.6",
     "tsx": "^4.16.0",
-    "typescript": "^5.5.0"
+    "typescript": "^6.0.3"
   },
   "overrides": {
     "fast-uri": "^3.1.2"
