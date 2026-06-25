@@ -16,7 +16,7 @@
  */
 
 import * as ImageManipulator from 'expo-image-manipulator';
-import { Platform } from 'react-native';
+import { NativeModules, Platform } from 'react-native';
 
 type MlKitTextRecognitionResult = {
   text: string;
@@ -29,7 +29,11 @@ let TextRecognition: null | {
   recognize: (uri: string) => Promise<MlKitTextRecognitionResult>;
 } = null;
 
-if (Platform.OS === 'ios') {
+// NativeModules.TextRecognition must exist before we trust the JS module: the
+// library's own native-module check (used internally by `recognize`) keys off
+// this same field, and `require` succeeds even when it's absent (e.g. Expo Go,
+// a stale dev client) — it just throws lazily on first use instead.
+if (Platform.OS === 'ios' && NativeModules.TextRecognition) {
   try {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const mod = require('@react-native-ml-kit/text-recognition');
