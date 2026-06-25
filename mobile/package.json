@@ -40,7 +40,7 @@
     "expo-updates": "~0.27.5",
     "nanoid": "^5.0.7",
     "pdf-lib": "^1.17.1",
-    "react": "18.3.1",
+    "react": "^19.2.3",
     "react-native": "0.76.9",
     "react-native-document-scanner-plugin": "^2.0.4",
     "react-native-gesture-handler": "~2.20.0",
