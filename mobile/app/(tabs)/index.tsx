@@ -15,7 +15,7 @@ import {
 import { Redirect, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import { Feather } from '@expo/vector-icons';
 import { useAppStore, useDocumentStore, useProStore } from '@/store';
 import { TourBubble } from '@/components/TourBubble';

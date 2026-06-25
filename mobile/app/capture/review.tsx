@@ -29,7 +29,7 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import { nanoid } from 'nanoid/non-secure';
 import * as Haptics from 'expo-haptics';
 import { useAppStore, useDocumentStore, useProStore, FREE_DOCUMENT_LIMIT } from '@/store';

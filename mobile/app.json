@@ -13,12 +13,6 @@
       "favicon": "./assets/icon.png"
     },
     "userInterfaceStyle": "dark",
-    "newArchEnabled": false,
-    "splash": {
-      "image": "./assets/splash.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#0F0F12"
-    },
     "assetBundlePatterns": [
       "**/*"
     ],
@@ -62,13 +56,20 @@
           "microphonePermission": false
         }
       ],
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash.png",
+          "backgroundColor": "#0F0F12"
+        }
+      ],
       "expo-font",
       "expo-secure-store",
       [
         "expo-build-properties",
         {
           "ios": {
-            "deploymentTarget": "15.5"
+            "deploymentTarget": "16.4"
           }
         }
       ]

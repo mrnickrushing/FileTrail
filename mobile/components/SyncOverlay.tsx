@@ -275,7 +275,7 @@ const styles = StyleSheet.create({
     marginBottom: S[5],
   },
   ringRotate: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     alignItems: 'center',
     justifyContent: 'center',
   },

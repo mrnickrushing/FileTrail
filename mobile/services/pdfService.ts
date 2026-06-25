@@ -8,7 +8,7 @@
  * native module or EAS rebuild and works the same in Expo Go and dev builds.
  */
 
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import { PDFDocument } from 'pdf-lib';
 
 export interface PDFInfo {
@@ -23,7 +23,7 @@ export interface PDFInfo {
  * callers always get a usable, positive page count.
  */
 export async function getPDFInfo(uri: string): Promise<PDFInfo> {
-  const info = await FileSystem.getInfoAsync(uri, { size: true });
+  const info = await FileSystem.getInfoAsync(uri);
   const fileSizeBytes = info.exists && 'size' in info ? (info.size ?? 0) : 0;
 
   let pageCount = 1;

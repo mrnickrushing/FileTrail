@@ -1,32 +1,38 @@
 /**
  * ocr.ts — On-device OCR service (iOS only)
  *
- * Uses react-native-text-recognition which wraps Apple's Vision framework
- * (VNRecognizeTextRequest) on iOS for high-quality on-device text recognition.
+ * Uses @react-native-ml-kit/text-recognition (Google ML Kit) for high-quality
+ * on-device text recognition.
  *
  * Android: OCR is not enabled — isOCRAvailable() returns false on Android.
+ * (ML Kit supports Android too, but this app has not opted into that surface
+ * area yet — kept iOS-only to match prior behavior.)
  *
  * Graceful degradation: if the native module is not linked (Expo Go, simulator
  * without the module, or any non-iOS build) the service returns empty results
  * and isOCRAvailable() returns false so the UI shows the correct fallback.
  *
- * API: TextRecognition.recognize(uri: string): Promise<string[]>
- * Returns an array of recognized text lines.
+ * API: TextRecognition.recognize(uri: string): Promise<{ text: string; blocks: ... }>
  */
 
 import * as ImageManipulator from 'expo-image-manipulator';
 import { Platform } from 'react-native';
 
+type MlKitTextRecognitionResult = {
+  text: string;
+  blocks: { text: string; lines: { text: string }[] }[];
+};
+
 // Dynamic require so the app does not crash when the native module is not linked
 // (Expo Go, Android, web). The try/catch is intentional.
 let TextRecognition: null | {
-  recognize: (uri: string) => Promise<string[]>;
+  recognize: (uri: string) => Promise<MlKitTextRecognitionResult>;
 } = null;
 
 if (Platform.OS === 'ios') {
   try {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const mod = require('react-native-text-recognition');
+    const mod = require('@react-native-ml-kit/text-recognition');
     TextRecognition = mod.default ?? mod;
   } catch {
     // Native module not linked — isOCRAvailable() will return false
@@ -86,9 +92,9 @@ export async function extractText(
 
   try {
     const processedUri = await preprocessImage(imageUri, maxDimension);
-    // recognize() returns string[] — one entry per recognised text line
-    const lines: string[] = await TextRecognition.recognize(processedUri);
-    const text = lines.join('\n');
+    const result = await TextRecognition.recognize(processedUri);
+    const lines = result.blocks.flatMap((block) => block.lines.map((line) => line.text));
+    const text = result.text;
 
     return {
       text,
