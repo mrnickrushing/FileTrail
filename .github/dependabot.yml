@@ -1,0 +1,69 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /backend
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    groups:
+      backend-minor-patch:
+        update-types: ['minor', 'patch']
+
+  - package-ecosystem: npm
+    directory: /mobile
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    groups:
+      mobile-minor-patch:
+        update-types: ['minor', 'patch']
+    ignore:
+      # Expo/React Native major versions must be bumped together by hand
+      # (SDK upgrades touch native code and EAS build profiles).
+      - dependency-name: 'expo'
+        update-types: ['version-update:semver-major']
+      - dependency-name: 'expo-*'
+        update-types: ['version-update:semver-major']
+      - dependency-name: 'react-native'
+        update-types: ['version-update:semver-major']
+      - dependency-name: 'react'
+        update-types: ['version-update:semver-major']
+
+  - package-ecosystem: npm
+    directory: /web/admin
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    groups:
+      admin-minor-patch:
+        update-types: ['minor', 'patch']
+
+  - package-ecosystem: npm
+    directory: /web/marketing
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    groups:
+      marketing-minor-patch:
+        update-types: ['minor', 'patch']
+
+  - package-ecosystem: npm
+    directory: /cloudflare/email-worker
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    groups:
+      email-worker-minor-patch:
+        update-types: ['minor', 'patch']
+
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
