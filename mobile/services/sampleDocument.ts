@@ -7,7 +7,7 @@
  * keep in sync — every install gets a guaranteed-valid, freshly-dated file.
  */
 
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 import { nanoid } from 'nanoid/non-secure';
 import { saveDocumentFile } from './fileStorage';
@@ -65,7 +65,7 @@ export async function createSampleDocument(): Promise<Omit<Document, 'createdAt'
   const fileUri = await saveDocumentFile(id, tempUri, 'pdf');
   await FileSystem.deleteAsync(tempUri, { idempotent: true });
 
-  const info = await FileSystem.getInfoAsync(fileUri, { size: true });
+  const info = await FileSystem.getInfoAsync(fileUri);
   const fileSizeBytes = info.exists && 'size' in info ? (info.size ?? 0) : bytes.length;
 
   return {

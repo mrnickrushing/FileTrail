@@ -164,7 +164,7 @@ const styles = StyleSheet.create({
     borderRadius: R.lg,
   },
   underlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: S[4],

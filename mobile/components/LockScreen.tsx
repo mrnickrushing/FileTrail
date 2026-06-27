@@ -99,7 +99,7 @@ export function LockScreen({ onUnlocked }: LockScreenProps) {
 
 const styles = StyleSheet.create({
   container: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: C.ink1,
     zIndex: 9999,
     justifyContent: 'center',

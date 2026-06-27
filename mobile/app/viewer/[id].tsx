@@ -26,7 +26,7 @@ import {
 import { WebView } from 'react-native-webview';
 import Animated, { ZoomIn, useReducedMotion } from 'react-native-reanimated';
 import { useLocalSearchParams, router } from 'expo-router';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { useDocumentStore, useAppStore, useProStore } from '@/store';
@@ -945,7 +945,7 @@ const pdfStyles = StyleSheet.create({
     backgroundColor: C.ink2,
   },
   loadingOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: C.ink2,
@@ -1280,7 +1280,7 @@ const styles = StyleSheet.create({
   categoryOptionTextSelected: { color: C.amber, fontWeight: '600' },
   categoryCheck: { fontSize: T.base, color: C.amber },
   deletingOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(0,0,0,0.5)',
     alignItems: 'center',
     justifyContent: 'center',

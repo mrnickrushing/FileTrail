@@ -10,7 +10,7 @@
  *   documents/{documentId}/pages/{n}.jpg    — PDF page images (Phase 3+)
  */
 
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { Platform } from 'react-native';
 import { apiRequest } from './api';
@@ -124,7 +124,7 @@ export async function generateThumbnail(
  */
 export async function getFileSize(uri: string): Promise<number> {
   try {
-    const info = await FileSystem.getInfoAsync(uri, { size: true });
+    const info = await FileSystem.getInfoAsync(uri, { size: true } as never);
     return info.exists && 'size' in info ? (info.size ?? 0) : 0;
   } catch {
     return 0;

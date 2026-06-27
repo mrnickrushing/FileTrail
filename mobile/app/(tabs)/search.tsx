@@ -11,8 +11,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useIsFocused } from '@react-navigation/native';
-import { router } from 'expo-router';
+import { router, useIsFocused } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import Animated, { FadeIn, useReducedMotion } from 'react-native-reanimated';
 import { useDocumentStore } from '@/store';

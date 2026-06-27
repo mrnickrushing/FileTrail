@@ -9,10 +9,10 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage, type StateStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { MMKV } from 'react-native-mmkv';
+import { createMMKV } from 'react-native-mmkv';
 import { nanoid } from 'nanoid/non-secure';
 import type { Document, Folder, SearchFilters, SearchResult } from '@/types/document';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import {
   buildPreferredStorageKey,
   checkDocumentsInR2,
@@ -29,7 +29,7 @@ import { useAppStore } from './appStore';
 
 const DOCUMENTS_STORE_KEY = 'filetrail-documents-v2';
 
-const mmkv = new MMKV({ id: 'filetrail-documents' });
+const mmkv = createMMKV({ id: 'filetrail-documents' });
 
 // MMKV is synchronous and natively backed (no JSON round-trip through the
 // React Native bridge), which matters here since document libraries can grow
@@ -57,7 +57,7 @@ const mmkvStorage: StateStorage = {
     mmkv.set(name, value);
   },
   removeItem: (name) => {
-    mmkv.delete(name);
+    mmkv.remove(name);
   },
 };
 

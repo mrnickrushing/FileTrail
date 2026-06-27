@@ -11,7 +11,7 @@
  * export without risking an OOM crash.
  */
 
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import { zip } from 'react-native-zip-archive';
 import type { Document } from '@/types/document';

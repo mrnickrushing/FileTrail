@@ -29,7 +29,7 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import { nanoid } from 'nanoid/non-secure';
 import * as Haptics from 'expo-haptics';
 import { useAppStore, useDocumentStore, useProStore, FREE_DOCUMENT_LIMIT } from '@/store';
@@ -460,7 +460,7 @@ export default function DocumentReviewScreen() {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         router.replace(`/viewer/${documentId}`);
       }
-    } catch (err) {
+    } catch {
       Alert.alert('Save Failed', 'Something went wrong saving your document. Please try again.');
     } finally {
       if (isMounted.current) setIsSaving(false);

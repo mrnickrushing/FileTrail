@@ -6,7 +6,7 @@
  */
 
 import React, { useEffect } from 'react';
-import { Platform, StyleSheet } from 'react-native';
+import { Platform, StyleSheet, type ColorValue } from 'react-native';
 import { Tabs } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
@@ -114,7 +114,7 @@ function TabIcon({
   focused,
 }: {
   name: React.ComponentProps<typeof Feather>['name'];
-  color: string;
+  color: ColorValue;
   focused: boolean;
 }) {
   const reducedMotion = useReducedMotion();
@@ -155,7 +155,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   iconWrapBg: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     borderRadius: R.md,
     backgroundColor: C.amberDim,
   },

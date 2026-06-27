@@ -17,7 +17,7 @@
  * a future Pro feature once a vetted, on-device crypto primitive is in place.
  */
 
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import * as DocumentPicker from 'expo-document-picker';
 import type { Document, Folder } from '@/types/document';
