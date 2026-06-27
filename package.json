@@ -1,6 +1,7 @@
 {
   "name": "papertrail-monorepo",
   "version": "1.0.0",
+  "license": "UNLICENSED",
   "private": true,
   "scripts": {
     "install:backend": "npm ci --prefix backend",
