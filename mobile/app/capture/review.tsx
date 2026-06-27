@@ -460,7 +460,7 @@ export default function DocumentReviewScreen() {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         router.replace(`/viewer/${documentId}`);
       }
-    } catch (err) {
+    } catch {
       Alert.alert('Save Failed', 'Something went wrong saving your document. Please try again.');
     } finally {
       if (isMounted.current) setIsSaving(false);

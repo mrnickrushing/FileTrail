@@ -124,7 +124,7 @@ export async function generateThumbnail(
  */
 export async function getFileSize(uri: string): Promise<number> {
   try {
-    const info = await FileSystem.getInfoAsync(uri);
+    const info = await FileSystem.getInfoAsync(uri, { size: true } as never);
     return info.exists && 'size' in info ? (info.size ?? 0) : 0;
   } catch {
     return 0;

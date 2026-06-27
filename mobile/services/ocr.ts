@@ -35,7 +35,7 @@ let TextRecognition: null | {
 // a stale dev client) — it just throws lazily on first use instead.
 if (Platform.OS === 'ios' && NativeModules.TextRecognition) {
   try {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    // eslint-disable-next-line @typescript-eslint/no-var-requires,@typescript-eslint/no-require-imports
     const mod = require('@react-native-ml-kit/text-recognition');
     TextRecognition = mod.default ?? mod;
   } catch {
@@ -106,8 +106,8 @@ export async function extractText(
       lines,
       processingMs: Date.now() - start,
     };
-  } catch (err) {
-    console.warn('[OCR] extraction failed:', err);
+  } catch (_err) {
+    console.warn('[OCR] extraction failed:', _err);
     return { text: '', confidence: 0, lines: [], processingMs: Date.now() - start };
   }
 }
