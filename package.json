@@ -9,5 +9,10 @@
     "install:admin": "npm ci --prefix web/admin",
     "install:marketing": "npm ci --prefix web/marketing",
     "install:all": "npm run install:backend && npm run install:mobile && npm run install:admin && npm run install:marketing"
+  },
+  "pnpm": {
+    "overrides": {
+      "qs": "^6.15.2"
+    }
   }
 }
