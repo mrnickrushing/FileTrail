@@ -1,4 +1,4 @@
-import { apiRequest, isBackendConfigured } from './api';
+import { apiRequest, isBackendConfigured, BackendHttpError } from './api';
 
 export { hashPassword, verifyPassword } from './hashUtils';
 
@@ -19,7 +19,11 @@ export type BackendAuthResult = {
 };
 
 function errorMessage(err: unknown): string | undefined {
-  return err instanceof Error ? err.message : undefined;
+  // Only BackendHttpError carries a message meant for display — it's the
+  // backend's own response body. Anything else (fetch/AbortController
+  // failures: offline, timeout, DNS) should fall back to the caller's
+  // generic "check your connection" copy instead of a raw runtime message.
+  return err instanceof BackendHttpError ? err.message : undefined;
 }
 
 export async function registerUserWithBackend(params: {
