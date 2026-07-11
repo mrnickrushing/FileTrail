@@ -80,12 +80,12 @@ export async function getSyncStats() {
 }
 
 export async function getShareLinks() {
-  return apiFetch<{ shareLinks: ShareLinkSummary[] }>('/v1/share-links');
+  return apiFetch<{ shareLinks: ShareLinkSummary[] }>('/v1/admin/share-links');
 }
 
 export async function broadcastNotification(title: string, body: string, filter?: { isPro?: boolean }) {
   return apiFetch<{ ok: boolean; recipientCount: number; notificationId: string }>(
-    '/v1/notifications/broadcast',
+    '/v1/admin/notifications/broadcast',
     { method: 'POST', body: JSON.stringify({ title, body, filter }) },
   );
 }

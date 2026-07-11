@@ -4,7 +4,7 @@ import { useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { useDocumentStore, useAppStore, useProStore } from '@/store';
 import { deleteDocumentFiles } from '@/services/fileStorage';
-import { deleteStoredPasswordHash } from '@/services/secureCredentials';
+import { deleteStoredPasswordHash, deleteStoredStorageAccessToken } from '@/services/secureCredentials';
 import { isAdminBypassConfigured, validateAdminBypassCode } from '@/services/adminAccess';
 import {
   SettingsSubpageShell,
@@ -117,6 +117,7 @@ export default function AccountSettingsScreen() {
               }));
 
               await deleteStoredPasswordHash();
+              await deleteStoredStorageAccessToken();
               setAdminAccess(false);
               clearAccountProfile();
               router.replace('/account');

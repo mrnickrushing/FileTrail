@@ -6,7 +6,7 @@ export const revalidate = 0;
 
 async function fetchAnalytics() {
   try {
-    const data = await apiFetch<{ events: AnalyticsEvent[] }>('/v1/analytics/events');
+    const data = await apiFetch<{ events: AnalyticsEvent[] }>('/v1/admin/analytics/events');
     return { events: data.events ?? [], error: '' };
   } catch (e) {
     // analytics endpoint may not exist in the base JSON store — fallback

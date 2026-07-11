@@ -328,7 +328,11 @@ export function documentKey(
   if (userEmail) {
     const safeCategory = safeCategorySegment(category);
     const safeOwnerName = safeSegment(ownerName, 'unknown-person');
-    return `${safeEmailSegment(userEmail)}/${safeCategory}/${safeOwnerName}/${safeName}.${ext}`;
+    // Suffix with a fragment of the document id so two documents with the
+    // same title/category never collide on the same object key (the old
+    // scheme silently overwrote one document's file with another's).
+    const idSuffix = documentId.replace(/[^a-zA-Z0-9]/g, '').slice(0, 8) || 'doc';
+    return `${safeEmailSegment(userEmail)}/${safeCategory}/${safeOwnerName}/${safeName}-${idSuffix}.${ext}`;
   }
   return `documents/${documentId}/${safeName}.${ext}`;
 }

@@ -1,6 +1,7 @@
 import Fastify, { type FastifyInstance } from 'fastify';
 import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
+import rateLimit from '@fastify/rate-limit';
 import { createHash, randomUUID } from 'node:crypto';
 import { ZodError } from 'zod';
 import type { RuntimeConfig } from './config.js';
@@ -23,6 +24,7 @@ import {
 } from './shareLinks.js';
 import { suggestDocument } from './ai.js';
 import { hashPassword, verifyPassword } from './hashUtils.js';
+import { emailSlug, slugFromRecipient } from './emailSlug.js';
 import {
   r2ConfigFromEnv,
   createR2Client,
@@ -44,13 +46,11 @@ function parseBody<T>(schema: { parse: (value: unknown) => T }, body: unknown): 
 export async function buildApp(config: RuntimeConfig, store: FiletrailStore = new JsonStore(config.dataDir)): Promise<FastifyInstance> {
   await store.init();
 
-  function emailSlug(email: string): string {
-    return email
-      .toLowerCase()
-      .trim()
-      .replace(/[^a-z0-9]+/g, '.')
-      .replace(/^\.+|\.+$/g, '')
-      .slice(0, 48);
+  async function resolveUserBySlug(slug: string): Promise<Awaited<ReturnType<FiletrailStore['getUserById']>>> {
+    // No dedicated index for this — fine at current scale. Revisit with a
+    // stored slug column + lookup index if the user table grows large.
+    const candidates = await store.listUsers(5000);
+    return candidates.find((candidate) => emailSlug(candidate.email) === slug) ?? null;
   }
 
   function stableStorageDocumentId(key: string): string {
@@ -141,6 +141,17 @@ export async function buildApp(config: RuntimeConfig, store: FiletrailStore = ne
   await app.register(cors, {
     origin: config.corsOrigins.includes('*') ? true : config.corsOrigins,
   });
+  if (config.corsOrigins.includes('*') && config.nodeEnv === 'production') {
+    app.log.warn(
+      'CORS_ORIGINS is not set — reflecting all origins in production. ' +
+      'Set CORS_ORIGINS to an explicit allow-list once known front-end origins are finalized.',
+    );
+  }
+  await app.register(rateLimit, {
+    global: true,
+    max: 300,
+    timeWindow: '1 minute',
+  });
 
   app.addHook('preHandler', async (request, reply) => {
     // Admin routes have their own ADMIN_KEY hook — skip them here
@@ -152,7 +163,12 @@ export async function buildApp(config: RuntimeConfig, store: FiletrailStore = ne
   });
 
   app.addHook('preHandler', async (request, reply) => {
-    if (!request.url.startsWith('/v1/admin/') || !config.adminKey) return;
+    if (!request.url.startsWith('/v1/admin/')) return;
+    // Fail closed: an unconfigured ADMIN_KEY must never mean "no auth required".
+    if (!config.adminKey) {
+      await reply.code(503).send({ error: 'Admin access is not configured' });
+      return;
+    }
     const auth = request.headers.authorization;
     if (auth !== `Bearer ${config.adminKey}`) {
       await reply.code(401).send({ error: 'Admin access denied' });
@@ -454,7 +470,7 @@ export async function buildApp(config: RuntimeConfig, store: FiletrailStore = ne
     };
   });
 
-  app.post('/v1/ai/suggest-document', async (request) => {
+  app.post('/v1/ai/suggest-document', { config: { rateLimit: { max: 20, timeWindow: '1 minute' } } }, async (request) => {
     const input = parseBody(aiSuggestSchema, request.body);
     return await suggestDocument(input);
   });
@@ -470,17 +486,6 @@ export async function buildApp(config: RuntimeConfig, store: FiletrailStore = ne
     return {
       ...record,
       url: `${config.publicAppUrl.replace(/\/$/, '')}/share/${record.token}`,
-    };
-  });
-
-  app.get('/v1/share-links', async () => {
-    const shareLinks = await store.listShareLinks(200);
-    return {
-      shareLinks: shareLinks.map((record) => ({
-        ...record,
-        expired: Date.parse(record.expiresAt) <= Date.now(),
-        url: `${config.publicAppUrl.replace(/\/$/, '')}/share/${record.token}`,
-      })),
     };
   });
 
@@ -508,18 +513,28 @@ export async function buildApp(config: RuntimeConfig, store: FiletrailStore = ne
 
   app.post('/v1/email/inbound', async (request) => {
     const input = parseBody(emailInboundSchema, request.body);
-    const record = await store.addInboundEmail(input);
+    const slug = slugFromRecipient(input.recipient);
+    const owner = slug ? await resolveUserBySlug(slug) : null;
 
-    if (r2Client && r2Config) {
+    const record = await store.addInboundEmail({
+      ...input,
+      ownerUserId: owner?.id,
+      ownerEmail: owner?.email.toLowerCase(),
+    });
+
+    // Only materialize documents when we can attribute them to a real
+    // account — otherwise they'd sit in the bucket unreachable by anyone
+    // (see the old `email/{id}/{filename}` scheme, which had this exact bug).
+    if (owner && r2Client && r2Config) {
       const now = new Date().toISOString();
       const documents: Parameters<typeof store.push>[0]['documents'] = [];
       for (const att of input.attachments) {
         if (!att.content) continue;
         const id = randomUUID();
-        const key = `email/${id}/${att.filename}`;
+        const titleBase = att.filename.replace(/\.[^.]+$/, '') || att.filename;
+        const key = documentKey(id, att.mimeType, titleBase, owner.email.toLowerCase(), 'other', owner.fullName);
         const buffer = Buffer.from(att.content, 'base64');
         await uploadBuffer(r2Client, r2Config.bucket, key, buffer, att.mimeType);
-        const titleBase = att.filename.replace(/\.[^.]+$/, '') || att.filename;
         documents.push({
           id,
           title: titleBase,
@@ -534,6 +549,8 @@ export async function buildApp(config: RuntimeConfig, store: FiletrailStore = ne
           folderId: null,
           tags: [],
           storageUrl: `r2://${r2Config.bucket}/${key}`,
+          ownerUserId: owner.id,
+          ownerEmail: owner.email.toLowerCase(),
           createdAt: now,
           updatedAt: now,
         });
@@ -546,9 +563,16 @@ export async function buildApp(config: RuntimeConfig, store: FiletrailStore = ne
     return { ok: true, inboundId: record.id, receivedAt: record.receivedAt };
   });
 
-  app.get('/v1/email/inbound', async (request) => {
+  app.get('/v1/email/inbound', async (request, reply) => {
+    const user = await authorizeStorageUser(request);
+    if (!user) {
+      return reply.code(401).send({ error: 'Storage access denied' });
+    }
     const { limit } = request.query as { limit?: string };
-    const emails = await store.listInboundEmails(limit ? Math.max(1, Math.min(200, Number(limit) || 100)) : 100);
+    const emails = await store.listInboundEmails(
+      limit ? Math.max(1, Math.min(200, Number(limit) || 100)) : 100,
+      user.email.toLowerCase(),
+    );
     return { emails };
   });
 
@@ -578,9 +602,23 @@ export async function buildApp(config: RuntimeConfig, store: FiletrailStore = ne
     return { ok: true, accepted };
   });
 
-  app.get('/v1/analytics/events', async () => {
+  // Dashboard-only reads — these expose cross-tenant data, so they live
+  // under /v1/admin/ and are gated by the ADMIN_KEY preHandler above, not
+  // the shared client API key (which ships inside the public app bundle).
+  app.get('/v1/admin/analytics/events', async () => {
     const events = await store.getAnalytics(500);
     return { events };
+  });
+
+  app.get('/v1/admin/share-links', async () => {
+    const shareLinks = await store.listShareLinks(200);
+    return {
+      shareLinks: shareLinks.map((record) => ({
+        ...record,
+        expired: Date.parse(record.expiresAt) <= Date.now(),
+        url: `${config.publicAppUrl.replace(/\/$/, '')}/share/${record.token}`,
+      })),
+    };
   });
 
   // Notification broadcast (admin dashboard)
@@ -589,7 +627,7 @@ export async function buildApp(config: RuntimeConfig, store: FiletrailStore = ne
     sentAt: string; recipientCount: number; filter?: unknown;
   }> = [];
 
-  app.post('/v1/notifications/broadcast', async (request, reply) => {
+  app.post('/v1/admin/notifications/broadcast', async (request, reply) => {
     const { title, body, filter } = request.body as {
       title: string; body: string; filter?: { isPro?: boolean };
     };
@@ -609,11 +647,11 @@ export async function buildApp(config: RuntimeConfig, store: FiletrailStore = ne
     return { ok: true, recipientCount: entry.recipientCount, notificationId: entry.id };
   });
 
-  app.get('/v1/notifications', async () => {
+  app.get('/v1/admin/notifications', async () => {
     return { notifications: notificationLog.slice(0, 100) };
   });
 
-  app.post('/v1/auth/register', async (request, reply) => {
+  app.post('/v1/auth/register', { config: { rateLimit: { max: 5, timeWindow: '15 minutes' } } }, async (request, reply) => {
     const input = parseBody(userRegisterSchema, request.body);
     try {
       const user = await store.registerUser({
@@ -635,20 +673,16 @@ export async function buildApp(config: RuntimeConfig, store: FiletrailStore = ne
     }
   });
 
-  app.post('/v1/auth/login', async (request, reply) => {
+  app.post('/v1/auth/login', { config: { rateLimit: { max: 5, timeWindow: '15 minutes' } } }, async (request, reply) => {
     const input = parseBody(userLoginSchema, request.body);
     const user = await store.getUserByEmail(input.email);
     if (!user) return reply.code(404).send({ error: 'No account found for that email' });
-    const suppliedPassword = input.password ?? input.passwordHash;
-    if (!suppliedPassword) {
-      return reply.code(400).send({ error: 'password is required' });
-    }
-    const { ok, needsRehash } = await verifyPassword(suppliedPassword, user.passwordHash);
+    const { ok, needsRehash } = await verifyPassword(input.password, user.passwordHash);
     if (!ok) {
       return reply.code(401).send({ error: 'Incorrect password' });
     }
     if (needsRehash) {
-      const upgraded = await hashPassword(suppliedPassword);
+      const upgraded = await hashPassword(input.password);
       await store.updateUser(user.id, { passwordHash: upgraded });
     }
     let storageAccessToken = user.storageAccessToken;
@@ -833,7 +867,7 @@ export async function buildApp(config: RuntimeConfig, store: FiletrailStore = ne
    * Returns whether a registered user has Pro. No auth required — low-sensitivity
    * lookup used by the mobile app to sync Pro status from the admin panel.
    */
-  app.get('/v1/users/pro-status', async (request, reply) => {
+  app.get('/v1/users/pro-status', { config: { rateLimit: { max: 20, timeWindow: '1 minute' } } }, async (request, reply) => {
     const { email } = request.query as { email?: string };
     if (!email) return reply.code(400).send({ error: 'email is required' });
     const user = await store.getUserByEmail(email.toLowerCase().trim());
