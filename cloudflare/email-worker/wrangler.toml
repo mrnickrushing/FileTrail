@@ -7,6 +7,13 @@ compatibility_date = "2025-01-01"
 [vars]
 BACKEND_URL = "https://papertrail-production-de23.up.railway.app"
 
-# Secret (set via CLI, not stored here):
+# Secrets (set via CLI, not stored here):
 #   wrangler secret put API_KEY
 # Set this to the same value as the backend API_KEY env var.
+#
+#   wrangler secret put INBOUND_EMAIL_SECRET
+# Set this to the same value as the backend INBOUND_EMAIL_SECRET env var
+# (generate a random value — e.g. `openssl rand -hex 32`). This proves an
+# inbound-email POST actually came from this worker, since API_KEY alone
+# also ships inside the public mobile app bundle and isn't sufficient to
+# trust a client-supplied `recipient` for attributing documents to a user.

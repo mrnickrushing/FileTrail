@@ -3,6 +3,7 @@ import PostalMime from 'postal-mime';
 interface Env {
   BACKEND_URL: string;
   API_KEY?: string;
+  INBOUND_EMAIL_SECRET?: string;
 }
 
 const MAX_ATTACHMENT_BYTES = 20 * 1024 * 1024; // 20 MB per attachment
@@ -56,6 +57,10 @@ export default {
 
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
     if (env.API_KEY) headers['Authorization'] = `Bearer ${env.API_KEY}`;
+    // Proves this request actually came from the worker, not just anyone
+    // holding the public API key — see backend/src/app.ts's /v1/email/inbound
+    // handler for why the API key alone isn't sufficient here.
+    if (env.INBOUND_EMAIL_SECRET) headers['X-FileTrail-Inbound-Secret'] = env.INBOUND_EMAIL_SECRET;
 
     const resp = await fetch(`${env.BACKEND_URL}/v1/email/inbound`, {
       method: 'POST',

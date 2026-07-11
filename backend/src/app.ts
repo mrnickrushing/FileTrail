@@ -50,7 +50,12 @@ export async function buildApp(config: RuntimeConfig, store: FiletrailStore = ne
     // No dedicated index for this — fine at current scale. Revisit with a
     // stored slug column + lookup index if the user table grows large.
     const candidates = await store.listUsers(5000);
-    return candidates.find((candidate) => emailSlug(candidate.email) === slug) ?? null;
+    const matches = candidates.filter((candidate) => emailSlug(candidate.email) === slug);
+    // emailSlug() is lossy (e.g. "a-b@x.com" and "a_b@x.com" both normalize
+    // to "a.b.x.com") — if more than one real account collides on the same
+    // alias, refuse to guess which one owns the mail rather than silently
+    // attributing it to whichever the store happens to list first.
+    return matches.length === 1 ? matches[0] : null;
   }
 
   function stableStorageDocumentId(key: string): string {
@@ -513,7 +518,16 @@ export async function buildApp(config: RuntimeConfig, store: FiletrailStore = ne
 
   app.post('/v1/email/inbound', async (request) => {
     const input = parseBody(emailInboundSchema, request.body);
-    const slug = slugFromRecipient(input.recipient);
+    // The regular API key alone isn't enough to trust `recipient` for
+    // attribution — it ships inside the public mobile bundle, so anyone who
+    // extracts it (and can derive a victim's forwarding alias, which is a
+    // deterministic, non-secret transform of their email) could otherwise
+    // POST a forged inbound email and have arbitrary files materialize in
+    // that victim's vault. Only the Cloudflare email worker knows this
+    // separate secret.
+    const inboundSecret = request.headers['x-filetrail-inbound-secret'];
+    const trustedSource = Boolean(config.inboundEmailSecret) && inboundSecret === config.inboundEmailSecret;
+    const slug = trustedSource ? slugFromRecipient(input.recipient) : null;
     const owner = slug ? await resolveUserBySlug(slug) : null;
 
     const record = await store.addInboundEmail({

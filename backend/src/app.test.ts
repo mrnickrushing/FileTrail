@@ -23,6 +23,7 @@ const config: RuntimeConfig = {
   databaseUrl: null,
   publicAppUrl: 'http://localhost:4000',
   inboundEmailDomain: 'mail.filetrail.test',
+  inboundEmailSecret: 'test-inbound-secret',
   integrations: {
     supabase: false,
     r2: false,
@@ -307,10 +308,26 @@ test('email inbound records can be listed for the owning user only', async () =>
   assert.equal(register.statusCode, 200);
   const storageAccessToken = register.json().storageAccessToken as string;
 
-  const inbound = await app.inject({
+  // Without the worker-only secret, a client-supplied `recipient` must not
+  // be trusted for attribution — otherwise anyone holding just the public
+  // API key could forge mail into another user's vault.
+  const untrustedInbound = await app.inject({
     method: 'POST',
     url: '/v1/email/inbound',
     headers: auth,
+    payload: {
+      recipient: 'filetrail+inboundtest.example.com@mail.filetrail.test',
+      sender: 'attacker@example.com',
+      subject: 'Forged statement',
+      attachments: [{ filename: 'forged.pdf', mimeType: 'application/pdf', sizeBytes: 1200 }],
+    },
+  });
+  assert.equal(untrustedInbound.statusCode, 200);
+
+  const inbound = await app.inject({
+    method: 'POST',
+    url: '/v1/email/inbound',
+    headers: { ...auth, 'x-filetrail-inbound-secret': 'test-inbound-secret' },
     payload: {
       recipient: 'filetrail+inboundtest.example.com@mail.filetrail.test',
       sender: 'billing@example.com',

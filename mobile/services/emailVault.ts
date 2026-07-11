@@ -26,8 +26,17 @@ export async function fetchEmailVaultConfig(email?: string): Promise<EmailVaultC
   return apiRequest<EmailVaultConfig>(`/v1/email/config${query}`);
 }
 
-export async function fetchInboundEmails(limit = 20): Promise<EmailVaultInboundRecord[]> {
+export async function fetchInboundEmails(
+  limit = 20,
+  auth?: { userId?: string; storageAccessToken?: string },
+): Promise<EmailVaultInboundRecord[]> {
   if (!isBackendConfigured()) return [];
-  const response = await apiRequest<{ emails: EmailVaultInboundRecord[] }>(`/v1/email/inbound?limit=${limit}`);
+  if (!auth?.userId || !auth.storageAccessToken) return [];
+  const response = await apiRequest<{ emails: EmailVaultInboundRecord[] }>(`/v1/email/inbound?limit=${limit}`, {
+    headers: {
+      'X-FileTrail-User-Id': auth.userId,
+      'X-FileTrail-Storage-Token': auth.storageAccessToken,
+    },
+  });
   return response.emails;
 }

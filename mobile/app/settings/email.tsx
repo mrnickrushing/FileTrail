@@ -13,6 +13,8 @@ function formatInboundTime(value: string): string {
 
 export default function EmailSettingsScreen() {
   const accountEmail = useAppStore((s) => s.accountProfile?.email);
+  const accountUserId = useAppStore((s) => s.accountProfile?.userId);
+  const accountStorageAccessToken = useAppStore((s) => s.accountProfile?.storageAccessToken);
   const [config, setConfig] = React.useState<EmailVaultConfig | null>(null);
   const [emails, setEmails] = React.useState<EmailVaultInboundRecord[]>([]);
   const [refreshing, setRefreshing] = React.useState(false);
@@ -21,14 +23,14 @@ export default function EmailSettingsScreen() {
     try {
       const [nextConfig, nextEmails] = await Promise.all([
         fetchEmailVaultConfig(accountEmail),
-        fetchInboundEmails(20),
+        fetchInboundEmails(20, { userId: accountUserId, storageAccessToken: accountStorageAccessToken }),
       ]);
       setConfig(nextConfig);
       setEmails(nextEmails);
     } catch {
       // silent
     }
-  }, [accountEmail]);
+  }, [accountEmail, accountUserId, accountStorageAccessToken]);
 
   React.useEffect(() => {
     load();
