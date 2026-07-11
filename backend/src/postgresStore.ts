@@ -18,6 +18,17 @@ function newStorageAccessToken(): string {
   return randomUUID().replace(/-/g, '');
 }
 
+function placeholders(rowCount: number, columnCount: number): string {
+  return Array.from({ length: rowCount }, (_row, rowIndex) => {
+    const cols = Array.from({ length: columnCount }, (_col, colIndex) => `$${rowIndex * columnCount + colIndex + 1}`);
+    return `(${cols.join(', ')})`;
+  }).join(', ');
+}
+
+function flattenRows(rows: unknown[][]): unknown[] {
+  return rows.flatMap((row) => row);
+}
+
 export class PostgresStore implements FiletrailStore {
   private readonly pool: pg.Pool;
 
@@ -38,6 +49,10 @@ export class PostgresStore implements FiletrailStore {
 
   async init(): Promise<void> {
     await this.migrate();
+  }
+
+  async healthCheck(): Promise<void> {
+    await this.pool.query('SELECT 1');
   }
 
   async close(): Promise<void> {
@@ -85,59 +100,65 @@ export class PostgresStore implements FiletrailStore {
       await client.query('BEGIN');
       let syncVersion = await this.currentVersion(client);
 
-      for (const folder of input.folders) {
+      const folderRows = input.folders.map((folder) => {
         syncVersion += 1;
         const payload = { ...folder, syncVersion };
+        return [folder.id, JSON.stringify(payload), syncVersion, folder.updatedAt];
+      });
+      if (folderRows.length > 0) {
         await client.query(
           `INSERT INTO folders (id, payload, sync_version, updated_at)
-           VALUES ($1, $2, $3, $4)
+           VALUES ${placeholders(folderRows.length, 4)}
            ON CONFLICT (id) DO UPDATE
            SET payload = EXCLUDED.payload,
                sync_version = EXCLUDED.sync_version,
                updated_at = EXCLUDED.updated_at`,
-          [folder.id, JSON.stringify(payload), syncVersion, folder.updatedAt],
+          flattenRows(folderRows),
         );
       }
 
-      for (const document of input.documents) {
+      const documentRows = input.documents.map((document) => {
         syncVersion += 1;
         const payload = { ...document, syncVersion };
+        return [document.id, JSON.stringify(payload), syncVersion, document.updatedAt];
+      });
+      if (documentRows.length > 0) {
         await client.query(
           `INSERT INTO documents (id, payload, sync_version, updated_at)
-           VALUES ($1, $2, $3, $4)
+           VALUES ${placeholders(documentRows.length, 4)}
            ON CONFLICT (id) DO UPDATE
            SET payload = EXCLUDED.payload,
                sync_version = EXCLUDED.sync_version,
                updated_at = EXCLUDED.updated_at`,
-          [document.id, JSON.stringify(payload), syncVersion, document.updatedAt],
+          flattenRows(documentRows),
         );
       }
 
-      for (const id of input.deletedDocumentIds) {
-        syncVersion += 1;
-        const deletedAt = new Date().toISOString();
-        await client.query('DELETE FROM documents WHERE id = $1', [id]);
-        await client.query(
-          `INSERT INTO tombstones (id, kind, deleted_at, sync_version)
-           VALUES ($1, 'document', $2, $3)
-           ON CONFLICT (id, kind) DO UPDATE
-           SET deleted_at = EXCLUDED.deleted_at,
-               sync_version = EXCLUDED.sync_version`,
-          [id, deletedAt, syncVersion],
-        );
+      if (input.deletedDocumentIds.length > 0) {
+        await client.query('DELETE FROM documents WHERE id = ANY($1::text[])', [input.deletedDocumentIds]);
       }
-
-      for (const id of input.deletedFolderIds) {
+      const deletedDocumentRows = input.deletedDocumentIds.map((id) => {
         syncVersion += 1;
-        const deletedAt = new Date().toISOString();
-        await client.query('DELETE FROM folders WHERE id = $1', [id]);
+        return [id, 'document', new Date().toISOString(), syncVersion];
+      });
+
+      if (input.deletedFolderIds.length > 0) {
+        await client.query('DELETE FROM folders WHERE id = ANY($1::text[])', [input.deletedFolderIds]);
+      }
+      const deletedFolderRows = input.deletedFolderIds.map((id) => {
+        syncVersion += 1;
+        return [id, 'folder', new Date().toISOString(), syncVersion];
+      });
+
+      const tombstoneRows = [...deletedDocumentRows, ...deletedFolderRows];
+      if (tombstoneRows.length > 0) {
         await client.query(
           `INSERT INTO tombstones (id, kind, deleted_at, sync_version)
-           VALUES ($1, 'folder', $2, $3)
+           VALUES ${placeholders(tombstoneRows.length, 4)}
            ON CONFLICT (id, kind) DO UPDATE
            SET deleted_at = EXCLUDED.deleted_at,
                sync_version = EXCLUDED.sync_version`,
-          [id, deletedAt, syncVersion],
+          flattenRows(tombstoneRows),
         );
       }
 
@@ -301,23 +322,23 @@ export class PostgresStore implements FiletrailStore {
   }
 
   async addAnalytics(events: Array<Omit<AnalyticsRecord, 'id' | 'createdAt'>>): Promise<number> {
+    if (events.length === 0) return 0;
     const client = await this.pool.connect();
     try {
       await client.query('BEGIN');
-      for (const event of events) {
-        await client.query(
-          `INSERT INTO analytics_events (id, event, device_id, user_id, properties, created_at)
-           VALUES ($1, $2, $3, $4, $5, $6)`,
-          [
-            randomUUID(),
-            event.event,
-            event.deviceId ?? null,
-            event.userId ?? null,
-            event.properties ? JSON.stringify(event.properties) : null,
-            new Date().toISOString(),
-          ],
-        );
-      }
+      const rows = events.map((event) => [
+        randomUUID(),
+        event.event,
+        event.deviceId ?? null,
+        event.userId ?? null,
+        event.properties ? JSON.stringify(event.properties) : null,
+        new Date().toISOString(),
+      ]);
+      await client.query(
+        `INSERT INTO analytics_events (id, event, device_id, user_id, properties, created_at)
+         VALUES ${placeholders(rows.length, 6)}`,
+        flattenRows(rows),
+      );
       await client.query('COMMIT');
       return events.length;
     } catch (error) {
@@ -348,7 +369,7 @@ export class PostgresStore implements FiletrailStore {
 
   async registerUser(input: Omit<UserRecord, 'isPro' | 'createdAt'>): Promise<UserRecord> {
     const createdAt = new Date().toISOString();
-    await this.pool.query(
+    const inserted = await this.pool.query(
       `INSERT INTO users (id, full_name, email, password_hash, provider, apple_user_id, storage_access_token, is_pro, created_at)
        VALUES ($1, $2, $3, $4, $5, $6, $7, false, $8)
        ON CONFLICT (email) DO NOTHING`,
@@ -363,6 +384,9 @@ export class PostgresStore implements FiletrailStore {
         createdAt,
       ],
     );
+    if (inserted.rowCount === 0) {
+      throw new Error('Email already registered');
+    }
     const existing = await this.getUserByEmail(input.email);
     if (!existing) throw new Error('Registration failed');
     if (!existing.storageAccessToken) {
@@ -431,7 +455,7 @@ export class PostgresStore implements FiletrailStore {
     }));
   }
 
-  async updateUser(id: string, patch: { isPro?: boolean; fullName?: string; email?: string; storageAccessToken?: string; passwordHash?: string }): Promise<UserRecord | null> {
+  async updateUser(id: string, patch: { isPro?: boolean; fullName?: string; email?: string; storageAccessToken?: string; passwordHash?: string; provider?: UserRecord['provider']; appleUserId?: string }): Promise<UserRecord | null> {
     const sets: string[] = [];
     const values: unknown[] = [];
     let idx = 1;
@@ -440,6 +464,8 @@ export class PostgresStore implements FiletrailStore {
     if (patch.email !== undefined) { sets.push(`email = $${idx++}`); values.push(patch.email); }
     if (patch.storageAccessToken !== undefined) { sets.push(`storage_access_token = $${idx++}`); values.push(patch.storageAccessToken); }
     if (patch.passwordHash !== undefined) { sets.push(`password_hash = $${idx++}`); values.push(patch.passwordHash); }
+    if (patch.provider !== undefined) { sets.push(`provider = $${idx++}`); values.push(patch.provider); }
+    if (patch.appleUserId !== undefined) { sets.push(`apple_user_id = $${idx++}`); values.push(patch.appleUserId); }
     if (sets.length === 0) return this.getUserById(id);
     values.push(id);
     await this.pool.query(`UPDATE users SET ${sets.join(', ')} WHERE id = $${idx}`, values);

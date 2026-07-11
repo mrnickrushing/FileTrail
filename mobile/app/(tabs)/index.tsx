@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -88,6 +88,7 @@ const SORT_ICONS: Record<ReturnType<typeof useAppStore.getState>['sortBy'], Reac
 export default function VaultScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const refreshTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Fine-grained selectors avoid re-rendering the whole Vault on unrelated
   // store changes (e.g. another document's OCR status flip).
@@ -454,18 +455,29 @@ export default function VaultScreen() {
   }, [isAddingSample, addDocument]);
 
   const [isRefreshing, setIsRefreshing] = useState(false);
+  useEffect(() => () => {
+    if (refreshTimeoutRef.current) {
+      clearTimeout(refreshTimeoutRef.current);
+    }
+  }, []);
+
   const onRefresh = useCallback(async () => {
     setIsRefreshing(true);
     try {
+      const timeoutPromise = new Promise<void>((_, reject) => {
+        refreshTimeoutRef.current = setTimeout(() => reject(new Error('sync timeout')), 20_000);
+      });
       await Promise.race([
         syncWithBackend({ repairStorage: true }),
-        new Promise<void>((_, reject) =>
-          setTimeout(() => reject(new Error('sync timeout')), 20_000)
-        ),
+        timeoutPromise,
       ]);
     } catch {
       // network errors and timeouts are non-fatal
     } finally {
+      if (refreshTimeoutRef.current) {
+        clearTimeout(refreshTimeoutRef.current);
+        refreshTimeoutRef.current = null;
+      }
       setIsRefreshing(false);
     }
   }, [syncWithBackend]);

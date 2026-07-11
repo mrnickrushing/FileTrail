@@ -2,7 +2,8 @@ import Fastify, { type FastifyInstance } from 'fastify';
 import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
 import rateLimit from '@fastify/rate-limit';
-import { createHash, randomUUID } from 'node:crypto';
+import { createHash, createPublicKey, randomUUID, verify as verifySignature } from 'node:crypto';
+import type { JsonWebKey as NodeJsonWebKey } from 'node:crypto';
 import { ZodError } from 'zod';
 import type { RuntimeConfig } from './config.js';
 import { JsonStore } from './store.js';
@@ -10,6 +11,7 @@ import type { FiletrailStore } from './storeInterface.js';
 import {
   aiSuggestSchema,
   analyticsBatchSchema,
+  appleAuthSchema,
   emailInboundSchema,
   shareLinkCreateSchema,
   syncPullSchema,
@@ -41,6 +43,105 @@ import {
 
 function parseBody<T>(schema: { parse: (value: unknown) => T }, body: unknown): T {
   return schema.parse(body);
+}
+
+const APPLE_ISSUER = 'https://appleid.apple.com';
+const APPLE_JWKS_URL = `${APPLE_ISSUER}/auth/keys`;
+const APPLE_JWKS_CACHE_MS = 60 * 60 * 1000;
+
+type AppleJwk = JsonWebKey & {
+  kid: string;
+  alg?: string;
+  kty?: string;
+  use?: string;
+};
+
+type AppleIdentityClaims = {
+  iss?: string;
+  aud?: string;
+  exp?: number;
+  sub?: string;
+  email?: string;
+  nonce?: string;
+};
+
+let appleJwksCache: { expiresAt: number; keys: AppleJwk[] } | null = null;
+
+function base64UrlToBuffer(value: string): Buffer {
+  const normalized = value.replace(/-/g, '+').replace(/_/g, '/');
+  const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, '=');
+  return Buffer.from(padded, 'base64');
+}
+
+function decodeJwtPart<T>(value: string): T {
+  return JSON.parse(base64UrlToBuffer(value).toString('utf8')) as T;
+}
+
+async function getAppleJwks(): Promise<AppleJwk[]> {
+  if (appleJwksCache && appleJwksCache.expiresAt > Date.now()) {
+    return appleJwksCache.keys;
+  }
+
+  const response = await fetch(APPLE_JWKS_URL);
+  if (!response.ok) {
+    throw new Error('Could not fetch Apple signing keys');
+  }
+  const body = await response.json() as { keys?: AppleJwk[] };
+  const keys = Array.isArray(body.keys) ? body.keys : [];
+  appleJwksCache = { keys, expiresAt: Date.now() + APPLE_JWKS_CACHE_MS };
+  return keys;
+}
+
+async function verifyAppleIdentityToken(
+  identityToken: string,
+  rawNonce: string,
+  allowedAudiences: string[],
+): Promise<AppleIdentityClaims> {
+  const parts = identityToken.split('.');
+  if (parts.length !== 3) {
+    throw new Error('Invalid Apple identity token');
+  }
+
+  const [encodedHeader, encodedPayload, encodedSignature] = parts;
+  const header = decodeJwtPart<{ alg?: string; kid?: string }>(encodedHeader);
+  if (header.alg !== 'RS256' || !header.kid) {
+    throw new Error('Unsupported Apple identity token');
+  }
+
+  const key = (await getAppleJwks()).find((candidate) => candidate.kid === header.kid);
+  if (!key) {
+    appleJwksCache = null;
+    throw new Error('Apple signing key not found');
+  }
+
+  const publicKey = createPublicKey({ key: key as unknown as NodeJsonWebKey, format: 'jwk' });
+  const signedData = Buffer.from(`${encodedHeader}.${encodedPayload}`);
+  const signature = base64UrlToBuffer(encodedSignature);
+  const validSignature = verifySignature('RSA-SHA256', signedData, publicKey, signature);
+  if (!validSignature) {
+    throw new Error('Invalid Apple identity token signature');
+  }
+
+  const claims = decodeJwtPart<AppleIdentityClaims>(encodedPayload);
+  if (claims.iss !== APPLE_ISSUER) {
+    throw new Error('Invalid Apple identity token issuer');
+  }
+  if (!claims.aud || !allowedAudiences.includes(claims.aud)) {
+    throw new Error('Invalid Apple identity token audience');
+  }
+  if (!claims.exp || claims.exp <= Math.floor(Date.now() / 1000)) {
+    throw new Error('Expired Apple identity token');
+  }
+  if (!claims.sub) {
+    throw new Error('Apple identity token is missing subject');
+  }
+
+  const rawNonceHash = createHash('sha256').update(rawNonce).digest('hex');
+  if (claims.nonce !== rawNonce && claims.nonce !== rawNonceHash) {
+    throw new Error('Invalid Apple identity token nonce');
+  }
+
+  return claims;
 }
 
 export async function buildApp(config: RuntimeConfig, store: FiletrailStore = new JsonStore(config.dataDir)): Promise<FastifyInstance> {
@@ -145,13 +246,8 @@ export async function buildApp(config: RuntimeConfig, store: FiletrailStore = ne
   await app.register(helmet);
   await app.register(cors, {
     origin: config.corsOrigins.includes('*') ? true : config.corsOrigins,
+    methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
   });
-  if (config.corsOrigins.includes('*') && config.nodeEnv === 'production') {
-    app.log.warn(
-      'CORS_ORIGINS is not set — reflecting all origins in production. ' +
-      'Set CORS_ORIGINS to an explicit allow-list once known front-end origins are finalized.',
-    );
-  }
   await app.register(rateLimit, {
     global: true,
     max: 300,
@@ -180,12 +276,24 @@ export async function buildApp(config: RuntimeConfig, store: FiletrailStore = ne
     }
   });
 
-  app.get('/health', async () => ({
-    ok: true,
-    service: 'filetrail-backend',
-    time: new Date().toISOString(),
-    integrations: config.integrations,
-  }));
+  app.get('/health', async (_request, reply) => {
+    try {
+      await store.healthCheck();
+      return {
+        ok: true,
+        service: 'filetrail-backend',
+        time: new Date().toISOString(),
+        integrations: config.integrations,
+      };
+    } catch {
+      return reply.code(503).send({
+        ok: false,
+        service: 'filetrail-backend',
+        time: new Date().toISOString(),
+        integrations: config.integrations,
+      });
+    }
+  });
 
   app.get('/v1/config', async () => ({
     apiVersion: 1,
@@ -680,6 +788,81 @@ export async function buildApp(config: RuntimeConfig, store: FiletrailStore = ne
         email: user.email,
         provider: user.provider,
         appleUserId: user.appleUserId,
+        createdAt: user.createdAt,
+      };
+    } catch {
+      return reply.code(409).send({ error: 'Email already registered' });
+    }
+  });
+
+  app.post('/v1/auth/apple', { config: { rateLimit: { max: 5, timeWindow: '15 minutes' } } }, async (request, reply) => {
+    const input = parseBody(appleAuthSchema, request.body);
+    let claims: AppleIdentityClaims;
+    try {
+      claims = await verifyAppleIdentityToken(input.identityToken, input.nonce, config.appleClientIds);
+    } catch {
+      return reply.code(401).send({ error: 'Apple identity token could not be verified' });
+    }
+
+    const appleUserId = claims.sub!;
+    const fallbackEmail = `apple-${createHash('sha256').update(appleUserId).digest('hex').slice(0, 24)}@private.filetrail`;
+    const email = (claims.email || input.email || fallbackEmail).toLowerCase().trim();
+    const fullName = input.fullName?.trim() || 'FileTrail User';
+    const existingByApple = (await store.listUsers(5000)).find((user) => user.appleUserId === appleUserId);
+    const existingByEmail = await store.getUserByEmail(email);
+    const existing = existingByApple ?? existingByEmail;
+
+    if (existing) {
+      if (existing.provider !== 'apple' && existing.appleUserId !== appleUserId) {
+        return reply.code(409).send({ error: 'Email already registered with password sign in' });
+      }
+      if (existing.appleUserId && existing.appleUserId !== appleUserId) {
+        return reply.code(409).send({ error: 'Apple ID does not match this account' });
+      }
+
+      let storageAccessToken = existing.storageAccessToken;
+      let user = existing;
+      if (!storageAccessToken || !existing.appleUserId || existing.provider !== 'apple') {
+        storageAccessToken = storageAccessToken || randomUUID().replace(/-/g, '');
+        user = await store.updateUser(existing.id, {
+          provider: 'apple',
+          appleUserId,
+          storageAccessToken,
+        }) ?? existing;
+      }
+
+      return {
+        ok: true,
+        userId: user.id,
+        storageAccessToken,
+        fullName: user.fullName,
+        email: user.email,
+        provider: user.provider,
+        appleUserId: user.appleUserId,
+        isPro: user.isPro,
+        createdAt: user.createdAt,
+      };
+    }
+
+    try {
+      const user = await store.registerUser({
+        id: randomUUID(),
+        fullName,
+        email,
+        passwordHash: `apple:${createHash('sha256').update(appleUserId).digest('hex')}`,
+        provider: 'apple',
+        appleUserId,
+        storageAccessToken: randomUUID().replace(/-/g, ''),
+      });
+      return {
+        ok: true,
+        userId: user.id,
+        storageAccessToken: user.storageAccessToken,
+        fullName: user.fullName,
+        email: user.email,
+        provider: user.provider,
+        appleUserId: user.appleUserId,
+        isPro: user.isPro,
         createdAt: user.createdAt,
       };
     } catch {

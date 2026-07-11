@@ -6,7 +6,7 @@
  * Uses a horizontal FlatList so slides scroll naturally.
  */
 
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -58,13 +58,26 @@ export default function OnboardingScreen() {
   const insets = useSafeAreaInsets();
   const setHasOnboarded = useAppStore(s => s.setHasOnboarded);
   const listRef = useRef<FlatList>(null);
+  const navigationFrameRef = useRef<number | null>(null);
   const [activeIndex, setActiveIndex] = useState(0);
+
+  useEffect(() => () => {
+    if (navigationFrameRef.current !== null) {
+      cancelAnimationFrame(navigationFrameRef.current);
+    }
+  }, []);
 
   function finish(skipped: boolean) {
     track(skipped ? 'onboarding_skipped' : 'onboarding_completed');
     setHasOnboarded(true);
     // Defer so Zustand persist can flush to AsyncStorage before navigation
-    requestAnimationFrame(() => router.replace('/account'));
+    if (navigationFrameRef.current !== null) {
+      cancelAnimationFrame(navigationFrameRef.current);
+    }
+    navigationFrameRef.current = requestAnimationFrame(() => {
+      router.replace('/account');
+      navigationFrameRef.current = null;
+    });
   }
 
   function next() {

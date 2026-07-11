@@ -8,6 +8,7 @@ import type { FastifyInstance } from 'fastify';
 import { buildApp } from './app.js';
 import type { RuntimeConfig } from './config.js';
 import { documentKey, parseEmailStorageKey, storageUrlToKey } from './r2.js';
+import { JsonStore } from './store.js';
 
 let app: FastifyInstance;
 let dataDir: string;
@@ -24,6 +25,7 @@ const config: RuntimeConfig = {
   publicAppUrl: 'http://localhost:4000',
   inboundEmailDomain: 'mail.filetrail.test',
   inboundEmailSecret: 'test-inbound-secret',
+  appleClientIds: ['com.papertraill.app'],
   integrations: {
     supabase: false,
     r2: false,
@@ -110,6 +112,28 @@ test('health endpoint is public', async () => {
   assert.equal(res.json().ok, true);
 });
 
+test('health endpoint returns 503 when store health check fails', async () => {
+  class FailingHealthStore extends JsonStore {
+    async healthCheck(): Promise<void> {
+      throw new Error('store unavailable');
+    }
+  }
+
+  const failingDataDir = await mkdtemp(path.join(tmpdir(), 'filetrail-health-fail-'));
+  const failingApp = await buildApp(
+    { ...config, dataDir: failingDataDir },
+    new FailingHealthStore(failingDataDir),
+  );
+  try {
+    const res = await failingApp.inject({ method: 'GET', url: '/health' });
+    assert.equal(res.statusCode, 503);
+    assert.equal(res.json().ok, false);
+  } finally {
+    await failingApp.close();
+    await rm(failingDataDir, { recursive: true, force: true });
+  }
+});
+
 test('v1 endpoints require API key when configured', async () => {
   const res = await app.inject({ method: 'GET', url: '/v1/config' });
   assert.equal(res.statusCode, 401);
@@ -147,6 +171,39 @@ test('auth login verifies the stored password after reinstall', async () => {
   assert.equal(login.statusCode, 200);
   assert.equal(login.json().email, 'reconnect@example.com');
   assert.ok(login.json().storageAccessToken);
+});
+
+test('duplicate registration is rejected without returning existing account tokens', async () => {
+  const auth = { Authorization: 'Bearer test-key' };
+  const email = `duplicate-${Date.now()}@example.com`;
+  const first = await app.inject({
+    method: 'POST',
+    url: '/v1/auth/register',
+    headers: auth,
+    payload: {
+      id: 'duplicate-user-1',
+      fullName: 'First User',
+      email,
+      passwordHash: createHash('sha256').update('password-one').digest('hex'),
+      provider: 'email',
+    },
+  });
+  assert.equal(first.statusCode, 200);
+
+  const second = await app.inject({
+    method: 'POST',
+    url: '/v1/auth/register',
+    headers: auth,
+    payload: {
+      id: 'duplicate-user-2',
+      fullName: 'Second User',
+      email,
+      passwordHash: createHash('sha256').update('password-two').digest('hex'),
+      provider: 'email',
+    },
+  });
+  assert.equal(second.statusCode, 409);
+  assert.equal(second.json().storageAccessToken, undefined);
 });
 
 test('sync push and pull stores metadata', async () => {

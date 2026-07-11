@@ -26,6 +26,7 @@ export type SyncPullOutput = {
 
 export interface FiletrailStore {
   init(): Promise<void>;
+  healthCheck(): Promise<void>;
   push(input: SyncPushInput): Promise<{ syncVersion: number }>;
   pull(sinceVersion: number): Promise<SyncPullOutput>;
   createShareLink(input: ShareLinkCreateInput): Promise<ShareLinkRecord>;
@@ -39,7 +40,7 @@ export interface FiletrailStore {
   getUserByEmail(email: string): Promise<UserRecord | null>;
   getUserById(id: string): Promise<UserRecord | null>;
   listUsers(limit?: number): Promise<UserRecord[]>;
-  updateUser(id: string, patch: { isPro?: boolean; fullName?: string; email?: string; storageAccessToken?: string; passwordHash?: string }): Promise<UserRecord | null>;
+  updateUser(id: string, patch: { isPro?: boolean; fullName?: string; email?: string; storageAccessToken?: string; passwordHash?: string; provider?: UserRecord['provider']; appleUserId?: string }): Promise<UserRecord | null>;
   deleteUser(id: string): Promise<void>;
   deleteShareLink(token: string): Promise<void>;
   adminStats(): Promise<{

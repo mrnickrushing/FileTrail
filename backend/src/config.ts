@@ -12,6 +12,7 @@ export type RuntimeConfig = {
   publicAppUrl: string;
   inboundEmailDomain: string | null;
   inboundEmailSecret: string | null;
+  appleClientIds: string[];
   integrations: {
     supabase: boolean;
     r2: boolean;
@@ -27,19 +28,40 @@ function boolFromEnv(...keys: string[]): boolean {
 
 export function loadConfig(): RuntimeConfig {
   const corsRaw = process.env.CORS_ORIGINS?.trim() || '*';
+  const nodeEnv = process.env.NODE_ENV || 'development';
+  const apiKey = process.env.API_KEY?.trim() || null;
+  const adminKey = process.env.ADMIN_KEY?.trim() || null;
+  const corsOrigins = corsRaw === '*' ? ['*'] : corsRaw.split(',').map((origin) => origin.trim()).filter(Boolean);
+  const appleClientIds = (process.env.APPLE_CLIENT_IDS || process.env.APPLE_CLIENT_ID || 'com.papertraill.app')
+    .split(',')
+    .map((clientId) => clientId.trim())
+    .filter(Boolean);
+
+  if (nodeEnv === 'production') {
+    const missing = [
+      !apiKey ? 'API_KEY' : null,
+      !adminKey ? 'ADMIN_KEY' : null,
+      corsOrigins.includes('*') ? 'CORS_ORIGINS' : null,
+      appleClientIds.length === 0 ? 'APPLE_CLIENT_ID or APPLE_CLIENT_IDS' : null,
+    ].filter(Boolean);
+    if (missing.length > 0) {
+      throw new Error(`Production configuration is incomplete: ${missing.join(', ')}`);
+    }
+  }
 
   return {
-    nodeEnv: process.env.NODE_ENV || 'development',
+    nodeEnv,
     host: process.env.HOST || '0.0.0.0',
     port: Number(process.env.PORT || 4000),
-    corsOrigins: corsRaw === '*' ? ['*'] : corsRaw.split(',').map((origin) => origin.trim()).filter(Boolean),
-    apiKey: process.env.API_KEY?.trim() || null,
-    adminKey: process.env.ADMIN_KEY?.trim() || null,
+    corsOrigins,
+    apiKey,
+    adminKey,
     dataDir: process.env.DATA_DIR || '.data',
     databaseUrl: process.env.DATABASE_URL?.trim() || null,
     publicAppUrl: process.env.PUBLIC_APP_URL || 'http://localhost:4000',
     inboundEmailDomain: process.env.INBOUND_EMAIL_DOMAIN?.trim() || null,
     inboundEmailSecret: process.env.INBOUND_EMAIL_SECRET?.trim() || null,
+    appleClientIds,
     integrations: {
       supabase: boolFromEnv('SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY'),
       r2: boolFromEnv(

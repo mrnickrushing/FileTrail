@@ -31,6 +31,7 @@ components:
       properties:
         status:
           type: string
+          minLength: 1
+          maxLength: 64
       required:
         - status
-

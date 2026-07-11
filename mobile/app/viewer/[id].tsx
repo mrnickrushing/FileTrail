@@ -156,9 +156,15 @@ export default function DocumentViewerScreen() {
   const [showTagEditor, setShowTagEditor] = useState(false);
   const [showFolderPicker, setShowFolderPicker] = useState(false);
   const isMounted = useRef(true);
+  const titleFocusTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const notesFocusTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     isMounted.current = true;
-    return () => { isMounted.current = false; };
+    return () => {
+      isMounted.current = false;
+      if (titleFocusTimer.current) clearTimeout(titleFocusTimer.current);
+      if (notesFocusTimer.current) clearTimeout(notesFocusTimer.current);
+    };
   }, []);
   useEffect(() => {
     isEditingTitleRef.current = isEditingTitle;
@@ -579,7 +585,11 @@ export default function DocumentViewerScreen() {
             onPress={() => {
               isEditingTitleRef.current = true;
               setIsEditingTitle(true);
-              setTimeout(() => titleInputRef.current?.focus(), 50);
+              if (titleFocusTimer.current) clearTimeout(titleFocusTimer.current);
+              titleFocusTimer.current = setTimeout(() => {
+                titleInputRef.current?.focus();
+                titleFocusTimer.current = null;
+              }, 50);
             }}
             style={styles.titleRow}
           >
@@ -657,7 +667,11 @@ export default function DocumentViewerScreen() {
             style={styles.notesRow}
             onPress={() => {
               setIsEditingNotes(true);
-              setTimeout(() => notesInputRef.current?.focus(), 50);
+              if (notesFocusTimer.current) clearTimeout(notesFocusTimer.current);
+              notesFocusTimer.current = setTimeout(() => {
+                notesInputRef.current?.focus();
+                notesFocusTimer.current = null;
+              }, 50);
             }}
           >
             {isEditingNotes ? (

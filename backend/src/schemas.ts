@@ -154,3 +154,11 @@ export const userLoginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(1),
 });
+
+export const appleAuthSchema = z.object({
+  identityToken: z.string().min(1),
+  nonce: z.string().min(16),
+  email: z.string().email().optional(),
+  fullName: z.string().min(1).optional(),
+  appleUserId: z.string().min(1).optional(),
+});

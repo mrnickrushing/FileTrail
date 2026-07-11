@@ -46,6 +46,10 @@ export class JsonStore implements FiletrailStore {
     }
   }
 
+  async healthCheck(): Promise<void> {
+    await this.read();
+  }
+
   private async readFromDisk(): Promise<AppData> {
     try {
       const raw = await readFile(this.filePath, 'utf8');
@@ -184,10 +188,7 @@ export class JsonStore implements FiletrailStore {
       if (!data.users) data.users = {};
       const existing = Object.values(data.users).find(u => u.email === input.email);
       if (existing) {
-        if (!existing.storageAccessToken) {
-          existing.storageAccessToken = newStorageAccessToken();
-        }
-        return existing;
+        throw new Error('Email already registered');
       }
       const record: UserRecord = {
         ...input,
@@ -220,7 +221,7 @@ export class JsonStore implements FiletrailStore {
       .slice(0, limit);
   }
 
-  async updateUser(id: string, patch: { isPro?: boolean; fullName?: string; email?: string; storageAccessToken?: string; passwordHash?: string }): Promise<UserRecord | null> {
+  async updateUser(id: string, patch: { isPro?: boolean; fullName?: string; email?: string; storageAccessToken?: string; passwordHash?: string; provider?: UserRecord['provider']; appleUserId?: string }): Promise<UserRecord | null> {
     return this.mutate((data) => {
       if (!data.users?.[id]) return null;
       data.users[id] = { ...data.users[id], ...patch };

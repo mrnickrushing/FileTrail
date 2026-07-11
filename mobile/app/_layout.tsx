@@ -78,8 +78,15 @@ export default function RootLayout() {
     isCheckingForUpdatesRef.current = true;
     lastUpdateCheckAtRef.current = now;
 
-    const withTimeout = <T,>(p: Promise<T>, ms: number): Promise<T> =>
-      Promise.race([p, new Promise<T>((_, reject) => setTimeout(() => reject(new Error('timeout')), ms))]);
+    const withTimeout = <T,>(p: Promise<T>, ms: number): Promise<T> => {
+      let timeout: ReturnType<typeof setTimeout> | null = null;
+      const timeoutPromise = new Promise<T>((_, reject) => {
+        timeout = setTimeout(() => reject(new Error('timeout')), ms);
+      });
+      return Promise.race([p, timeoutPromise]).finally(() => {
+        if (timeout) clearTimeout(timeout);
+      });
+    };
 
     try {
       logDebug(`ota-check:${reason}:start`);
@@ -160,7 +167,8 @@ export default function RootLayout() {
     if (!hasHydrated) return;
     // Defer hide by one frame so the navigation redirect commits before the
     // splash disappears, preventing a flash of the tabs screen on cold start.
-    requestAnimationFrame(() => { void SplashScreen.hideAsync(); });
+    const frame = requestAnimationFrame(() => { void SplashScreen.hideAsync(); });
+    return () => cancelAnimationFrame(frame);
   }, [hasHydrated]);
 
   useEffect(() => {

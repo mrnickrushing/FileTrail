@@ -14,6 +14,7 @@ import {
 import { Redirect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as AppleAuthentication from 'expo-apple-authentication';
+import * as Crypto from 'expo-crypto';
 import { useAppStore, useProStore, useTourStore } from '@/store';
 import {
   getAdminProfileDefaults,
@@ -21,7 +22,7 @@ import {
   validateAdminBypassCode,
 } from '@/services/adminAccess';
 import { C, R, S, T } from '@/theme/tokens';
-import { hashPassword, verifyPassword, registerUserWithBackend, loginUserWithBackend } from '@/services/userService';
+import { hashPassword, verifyPassword, registerUserWithBackend, loginUserWithBackend, signInWithAppleBackend } from '@/services/userService';
 import { createHash } from '@/services/hashUtils';
 import {
   getStoredPasswordHash,
@@ -54,6 +55,14 @@ async function appleRelayFallbackHashed(userId: string): Promise<string> {
   // ends up in plaintext as a synthetic email address.
   const digest = await createHash(userId);
   return `apple-${digest.slice(0, 24)}@private.filetrail`;
+}
+
+function bytesToHex(bytes: Uint8Array): string {
+  return Array.from(bytes).map((byte) => byte.toString(16).padStart(2, '0')).join('');
+}
+
+async function createAppleNonce(): Promise<string> {
+  return bytesToHex(await Crypto.getRandomBytesAsync(32));
 }
 
 export default function AccountScreen() {
@@ -204,15 +213,12 @@ export default function AccountScreen() {
     }
 
     const pwHash = await hashPassword(password);
-    await setStoredPasswordHash(pwHash);
-    setLocalPasswordHash(pwHash);
     const newProfile = {
       fullName: trimmedName,
       email: normalizedEmail,
       provider: 'email' as const,
       createdAt: new Date().toISOString(),
     };
-    startTour();
 
     const id = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
     const regResult = await registerUserWithBackend({
@@ -222,6 +228,13 @@ export default function AccountScreen() {
       passwordHash: pwHash,
       provider: 'email',
     });
+    if (!regResult.ok || !regResult.userId || !regResult.storageAccessToken) {
+      fail('Could not create your backend account. Check your connection and try again.');
+      return;
+    }
+    await setStoredPasswordHash(pwHash);
+    setLocalPasswordHash(pwHash);
+    startTour();
     // Persist the server-assigned userId so backend sync can reference it later.
     completeAccountSetup({
       ...newProfile,
@@ -359,12 +372,20 @@ export default function AccountScreen() {
 
     setBusyAction('apple');
     try {
+      const rawNonce = await createAppleNonce();
+      const nonceDigest = await createHash(rawNonce);
       const credential = await AppleAuthentication.signInAsync({
         requestedScopes: [
           AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
           AppleAuthentication.AppleAuthenticationScope.EMAIL,
         ],
+        nonce: nonceDigest,
       });
+
+      if (!credential.identityToken) {
+        fail('Apple did not return an identity token. Try again.');
+        return;
+      }
 
       const credentialName = appleFullName(credential.fullName);
       const fallbackEmail = await appleRelayFallbackHashed(credential.user);
@@ -386,21 +407,26 @@ export default function AccountScreen() {
           appleUserId: credential.user,
           createdAt: new Date().toISOString(),
         };
-        startTour();
-        // Register Apple user on backend (fire-and-forget — local auth already set)
-        const appleId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
-        const appleResult = await registerUserWithBackend({
-          id: appleId,
+        const appleResult = await signInWithAppleBackend({
+          identityToken: credential.identityToken,
+          nonce: rawNonce,
           fullName: appleProfile.fullName,
           email: appleProfile.email,
-          passwordHash: '',
-          provider: 'apple',
           appleUserId: credential.user,
         });
+        if (!appleResult.ok || !appleResult.userId || !appleResult.storageAccessToken) {
+          fail('Apple sign in could not create your FileTrail account. Try again.');
+          return;
+        }
+        startTour();
         completeAccountSetup({
           ...appleProfile,
+          fullName: appleResult.fullName ?? appleProfile.fullName,
+          email: appleResult.email ?? appleProfile.email,
           userId: appleResult.userId,
           storageAccessToken: appleResult.storageAccessToken,
+          appleUserId: appleResult.appleUserId ?? credential.user,
+          createdAt: appleResult.createdAt ?? appleProfile.createdAt,
         });
         return;
       }
@@ -421,26 +447,27 @@ export default function AccountScreen() {
         return;
       }
 
-      if (!accountProfile.userId || !accountProfile.storageAccessToken) {
-        const appleResult = await registerUserWithBackend({
-          id: `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`,
-          fullName: accountProfile.fullName,
-          email: accountProfile.email,
-          passwordHash: '',
-          provider: 'apple',
-          appleUserId: credential.user,
-        });
-        if (appleResult.userId && appleResult.storageAccessToken) {
-          completeAccountSetup({
-            ...accountProfile,
-            userId: appleResult.userId,
-            storageAccessToken: appleResult.storageAccessToken,
-          });
-          return;
-        }
+      const appleResult = await signInWithAppleBackend({
+        identityToken: credential.identityToken,
+        nonce: rawNonce,
+        fullName: accountProfile.fullName,
+        email: accountProfile.email,
+        appleUserId: credential.user,
+      });
+      if (!appleResult.ok || !appleResult.userId || !appleResult.storageAccessToken) {
+        fail('Apple sign in could not reconnect this account. Try again.');
+        return;
       }
 
-      setAccountAuthenticated(true);
+      completeAccountSetup({
+        ...accountProfile,
+        fullName: appleResult.fullName ?? accountProfile.fullName,
+        email: appleResult.email ?? accountProfile.email,
+        userId: appleResult.userId,
+        storageAccessToken: appleResult.storageAccessToken,
+        appleUserId: appleResult.appleUserId ?? credential.user,
+        createdAt: appleResult.createdAt ?? accountProfile.createdAt,
+      });
     } catch (err) {
       if (
         err &&
