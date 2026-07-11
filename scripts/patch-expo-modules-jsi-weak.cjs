@@ -29,6 +29,11 @@ const WEAK_LET_RE = /\bweak let\b/g;
 
 function walk(dir, files) {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
+    // entry.name is a single path segment reported by readdirSync for a real
+    // entry inside `dir` (itself always rooted at the hardcoded pkgDir below,
+    // never external/user input) — Node's readdir never returns '.', '..',
+    // or names containing '/', so this can't escape dir's subtree.
     const full = path.join(dir, entry.name);
     if (entry.isDirectory()) {
       walk(full, files);
