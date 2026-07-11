@@ -9,7 +9,7 @@
  * Footer: expandable OCR text panel.
  */
 
-import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
+import React, { useState as useReactState, useCallback, useRef, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -147,14 +147,14 @@ export default function DocumentViewerScreen() {
   const recordAiUsageCost = useAppStore(s => s.recordAiUsageCost);
   const checkPro = useProStore(s => s.checkPro);
 
-  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [isEditingTitle, setIsEditingTitle] = useReactState(false);
   // Ref so title editing state can be read without stale closure
   const isEditingTitleRef = useRef(false);
-  const [editTitle, setEditTitle] = useState(document?.title ?? '');
-  const [showOCR, setShowOCR] = useState(false);
-  const [showCategoryPicker, setShowCategoryPicker] = useState(false);
-  const [showTagEditor, setShowTagEditor] = useState(false);
-  const [showFolderPicker, setShowFolderPicker] = useState(false);
+  const [editTitle, setEditTitle] = useReactState(document?.title ?? '');
+  const [showOCR, setShowOCR] = useReactState(false);
+  const [showCategoryPicker, setShowCategoryPicker] = useReactState(false);
+  const [showTagEditor, setShowTagEditor] = useReactState(false);
+  const [showFolderPicker, setShowFolderPicker] = useReactState(false);
   const isMounted = useRef(true);
   const titleFocusTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const notesFocusTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -178,8 +178,8 @@ export default function DocumentViewerScreen() {
     }
   }, [document?.title, isEditingTitle]);
 
-  const [isEditingNotes, setIsEditingNotes] = useState(false);
-  const [editNotes, setEditNotes] = useState(document?.notes ?? '');
+  const [isEditingNotes, setIsEditingNotes] = useReactState(false);
+  const [editNotes, setEditNotes] = useReactState(document?.notes ?? '');
   const notesInputRef = useRef<TextInput>(null);
 
   useEffect(() => {
@@ -190,15 +190,15 @@ export default function DocumentViewerScreen() {
     }
   }, [document?.notes, isEditingNotes]);
 
-  const [showPaywall, setShowPaywall] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [isSharing, setIsSharing] = useState(false);
-  const [isAiOrganizing, setIsAiOrganizing] = useState(false);
-  const [aiSummary, setAiSummary] = useState<string | null>(null);
+  const [showPaywall, setShowPaywall] = useReactState(false);
+  const [isDeleting, setIsDeleting] = useReactState(false);
+  const [isSharing, setIsSharing] = useReactState(false);
+  const [isAiOrganizing, setIsAiOrganizing] = useReactState(false);
+  const [aiSummary, setAiSummary] = useReactState<string | null>(null);
 
   // PDF-specific state
-  const [pdfPage, setPdfPage] = useState(1);
-  const [pdfTotal] = useState(document?.pageCount ?? 1);
+  const [pdfPage, setPdfPage] = useReactState(1);
+  const [pdfTotal] = useReactState(document?.pageCount ?? 1);
 
   const titleInputRef = useRef<TextInput>(null);
 
@@ -837,8 +837,8 @@ interface PDFViewerProps {
 function PDFViewer({
   uri, filename, page, totalPages, onPageChange, onOpenExternally,
 }: PDFViewerProps) {
-  const [isLoading, setIsLoading] = useState(true);
-  const [hasError, setHasError] = useState(false);
+  const [isLoading, setIsLoading] = useReactState(true);
+  const [hasError, setHasError] = useReactState(false);
 
   if (hasError) {
     return (

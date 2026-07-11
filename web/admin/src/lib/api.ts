@@ -88,6 +88,7 @@ export type AnalyticsEvent = {
 };
 
 export async function getHealth() {
+  // Backend /health verifies its store dependency (PostgresStore runs SELECT 1).
   return apiFetch<HealthResponse>('/health');
 }
 

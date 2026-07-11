@@ -13,7 +13,7 @@
  *   - Hit Save → document written to DB + files saved to disk
  */
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState as useReactState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -150,23 +150,23 @@ export default function DocumentReviewScreen() {
   const isPro = useProStore(s => s.isPro);
   const checkPro = useProStore(s => s.checkPro);
 
-  const [title, setTitle] = useState(() => generateTitle(params.source, params.mimeType));
-  const [category, setCategory] = useState<DocumentCategory>('other');
-  const [suggestedTags, setSuggestedTags] = useState<string[]>([]);
-  const [suggestedNotes, setSuggestedNotes] = useState<string>('');
-  const [suggestedFolderName, setSuggestedFolderName] = useState<string>('');
-  const [suggestedSubfolderName, setSuggestedSubfolderName] = useState<string>('');
-  const [suggestedAiSource, setSuggestedAiSource] = useState<'heuristic' | 'claude' | null>(null);
-  const [suggestedDate, setSuggestedDate] = useState<string>('');
-  const [suggestedVendor, setSuggestedVendor] = useState<string>('');
-  const [suggestedAmounts, setSuggestedAmounts] = useState<number[]>([]);
-  const [suggestedFacts, setSuggestedFacts] = useState<DocumentFacts | undefined>();
-  const [ocrText, setOCRText] = useState<string | null>(null);
-  const [ocrStatus, setOCRStatus] = useState<'idle' | 'processing' | 'done' | 'unavailable'>('idle');
-  const [aiStatus, setAiStatus] = useState<'idle' | 'processing' | 'done'>('idle');
-  const [isSaving, setIsSaving] = useState(false);
-  const [showPaywall, setShowPaywall] = useState(false);
-  const [showAllCategories, setShowAllCategories] = useState(false);
+  const [title, setTitle] = useReactState(() => generateTitle(params.source, params.mimeType));
+  const [category, setCategory] = useReactState<DocumentCategory>('other');
+  const [suggestedTags, setSuggestedTags] = useReactState<string[]>([]);
+  const [suggestedNotes, setSuggestedNotes] = useReactState<string>('');
+  const [suggestedFolderName, setSuggestedFolderName] = useReactState<string>('');
+  const [suggestedSubfolderName, setSuggestedSubfolderName] = useReactState<string>('');
+  const [suggestedAiSource, setSuggestedAiSource] = useReactState<'heuristic' | 'claude' | null>(null);
+  const [suggestedDate, setSuggestedDate] = useReactState<string>('');
+  const [suggestedVendor, setSuggestedVendor] = useReactState<string>('');
+  const [suggestedAmounts, setSuggestedAmounts] = useReactState<number[]>([]);
+  const [suggestedFacts, setSuggestedFacts] = useReactState<DocumentFacts | undefined>();
+  const [ocrText, setOCRText] = useReactState<string | null>(null);
+  const [ocrStatus, setOCRStatus] = useReactState<'idle' | 'processing' | 'done' | 'unavailable'>('idle');
+  const [aiStatus, setAiStatus] = useReactState<'idle' | 'processing' | 'done'>('idle');
+  const [isSaving, setIsSaving] = useReactState(false);
+  const [showPaywall, setShowPaywall] = useReactState(false);
+  const [showAllCategories, setShowAllCategories] = useReactState(false);
   const isMounted = useRef(true);
   const inferredImageMimeType = inferImageMimeType(params.uri, params.mimeType);
 

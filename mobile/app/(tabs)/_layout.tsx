@@ -18,6 +18,8 @@ import Animated, {
 } from 'react-native-reanimated';
 import { C, T, R, S, Springs } from '@/theme/tokens';
 
+export { ErrorBoundary } from 'expo-router';
+
 const TAB_HEIGHT = 62;
 
 export default function TabLayout() {

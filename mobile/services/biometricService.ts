@@ -5,6 +5,10 @@
  *   - Capability check (Face ID, Touch ID, Fingerprint)
  *   - Prompt for authentication
  *   - Friendly error messages
+ *
+ * This is a local vault-lock prompt only, not a backend sign-in result.
+ * Account credentials and storage tokens are handled separately by the
+ * auth flow and SecureStore; biometric success never replaces server auth.
  */
 
 import * as LocalAuthentication from 'expo-local-authentication';

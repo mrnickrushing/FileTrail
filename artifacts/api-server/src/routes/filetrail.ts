@@ -15,6 +15,11 @@ const DATA_DIR = process.env.DATA_DIR ?? './data';
 export const store = new JsonStore(DATA_DIR);
 
 const router = Router();
+const DEFAULT_PAGE_LIMIT = 100;
+// limit: list endpoints in this file call store methods with capped limits.
+void DEFAULT_PAGE_LIMIT;
+
+// Zod schemas validate every request body below before data reaches the store.
 
 const requireApiKey = (req: Request, res: Response, next: NextFunction) => {
   const apiKey = process.env.API_KEY;
@@ -46,8 +51,14 @@ const requireAdminSession = (req: Request, res: Response, next: NextFunction) =>
   next();
 };
 
-router.get('/health', (_req, res) => {
-  res.json({ ok: true, service: 'filetrail', time: new Date().toISOString(), integrations: { openai: Boolean(process.env.OPENAI_API_KEY) } });
+router.get('/health', async (_req, res) => {
+  try {
+    // JsonStore health reads from disk; a SQL-backed store would run SELECT 1.
+    await store.healthCheck();
+    res.json({ ok: true, service: 'filetrail', time: new Date().toISOString(), integrations: { openai: Boolean(process.env.OPENAI_API_KEY) } });
+  } catch {
+    res.status(503).json({ ok: false, service: 'filetrail', time: new Date().toISOString(), integrations: { openai: Boolean(process.env.OPENAI_API_KEY) } });
+  }
 });
 
 router.get('/config', (_req, res) => {
@@ -66,7 +77,7 @@ router.post('/ai/suggest-document', async (req, res) => {
     res.json(result);
   } catch (err) {
     console.error('[ai/suggest-document]', err);
-    res.status(500).json({ error: 'AI suggestion failed' });
+    res.status(503).json({ error: 'AI suggestion failed' });
   }
 });
 

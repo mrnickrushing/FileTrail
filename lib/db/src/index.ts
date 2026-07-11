@@ -4,6 +4,9 @@ import * as schema from "./schema";
 
 const { Pool } = pg;
 
+// This barrel has no pgTable definitions. Concrete schema files under
+// ./schema must declare their own primaryKey() columns before export.
+
 if (!process.env.DATABASE_URL) {
   throw new Error(
     "DATABASE_URL must be set. Did you forget to provision a database?",

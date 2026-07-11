@@ -40,8 +40,10 @@ export default function AboutSettingsScreen() {
   const [tapCount, setTapCount] = React.useState(0);
   const tapTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  React.useEffect(() => () => {
-    if (tapTimer.current) clearTimeout(tapTimer.current);
+  React.useEffect(() => {
+    return () => {
+      if (tapTimer.current) clearTimeout(tapTimer.current);
+    };
   }, []);
 
   const handleVersionTap = () => {

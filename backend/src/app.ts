@@ -4,7 +4,7 @@ import helmet from '@fastify/helmet';
 import rateLimit from '@fastify/rate-limit';
 import { createHash, createPublicKey, randomUUID, verify as verifySignature } from 'node:crypto';
 import type { JsonWebKey as NodeJsonWebKey } from 'node:crypto';
-import { ZodError } from 'zod';
+import { ZodError, z } from 'zod';
 import type { RuntimeConfig } from './config.js';
 import { JsonStore } from './store.js';
 import type { FiletrailStore } from './storeInterface.js';
@@ -44,6 +44,59 @@ import {
 function parseBody<T>(schema: { parse: (value: unknown) => T }, body: unknown): T {
   return schema.parse(body);
 }
+
+const emailConfigQuerySchema = z.object({
+  email: z.string().email().max(320).optional(),
+});
+
+const inboundEmailQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(200).optional(),
+});
+
+const proStatusQuerySchema = z.object({
+  email: z.string().email().max(320),
+});
+
+const storageUploadBodySchema = z.object({
+  documentId: z.string().min(1).max(256),
+  mimeType: z.string().min(1).max(128),
+  fileName: z.string().min(1).max(255).optional(),
+  category: z.string().min(1).max(64).optional(),
+  ownerName: z.string().min(1).max(160).optional(),
+});
+
+const storageDownloadQuerySchema = z.object({
+  mimeType: z.string().min(1).max(128).optional(),
+  storageKey: z.string().min(1).max(1024).optional(),
+  fileName: z.string().min(1).max(255).optional(),
+  category: z.string().min(1).max(64).optional(),
+  ownerName: z.string().min(1).max(160).optional(),
+});
+
+const storageExistsBodySchema = z.object({
+  items: z.array(z.object({
+    documentId: z.string().min(1).max(256),
+    storageKey: z.string().min(1).max(1024).optional(),
+    mimeType: z.string().min(1).max(128).optional(),
+    fileName: z.string().min(1).max(255).optional(),
+    category: z.string().min(1).max(64).optional(),
+    ownerName: z.string().min(1).max(160).optional(),
+  })).min(1).max(200),
+});
+
+const adminNotificationSchema = z.object({
+  title: z.string().min(1).max(80),
+  body: z.string().min(1).max(256),
+  filter: z.object({ isPro: z.boolean().optional() }).optional(),
+});
+
+const adminUserPatchSchema = z.object({
+  isPro: z.boolean().optional(),
+  fullName: z.string().min(1).max(160).optional(),
+  email: z.string().email().max(320).optional(),
+}).refine((patch) => Object.keys(patch).length > 0, {
+  message: 'At least one user field is required',
+});
 
 const APPLE_ISSUER = 'https://appleid.apple.com';
 const APPLE_JWKS_URL = `${APPLE_ISSUER}/auth/keys`;
@@ -278,6 +331,7 @@ export async function buildApp(config: RuntimeConfig, store: FiletrailStore = ne
 
   app.get('/health', async (_request, reply) => {
     try {
+      // store.healthCheck() verifies the backing store; PostgresStore runs SELECT 1.
       await store.healthCheck();
       return {
         ok: true,
@@ -690,16 +744,16 @@ export async function buildApp(config: RuntimeConfig, store: FiletrailStore = ne
     if (!user) {
       return reply.code(401).send({ error: 'Storage access denied' });
     }
-    const { limit } = request.query as { limit?: string };
+    const { limit } = inboundEmailQuerySchema.parse(request.query);
     const emails = await store.listInboundEmails(
-      limit ? Math.max(1, Math.min(200, Number(limit) || 100)) : 100,
+      limit ?? 100,
       user.email.toLowerCase(),
     );
     return { emails };
   });
 
   app.get('/v1/email/config', async (request) => {
-    const { email } = request.query as { email?: string };
+    const { email } = emailConfigQuerySchema.parse(request.query);
     const forwardingAddress = config.inboundEmailDomain && email
       ? `filetrail+${emailSlug(email)}@${config.inboundEmailDomain}`
       : null;
@@ -750,12 +804,7 @@ export async function buildApp(config: RuntimeConfig, store: FiletrailStore = ne
   }> = [];
 
   app.post('/v1/admin/notifications/broadcast', async (request, reply) => {
-    const { title, body, filter } = request.body as {
-      title: string; body: string; filter?: { isPro?: boolean };
-    };
-    if (!title || !body) {
-      return reply.code(400).send({ error: 'title and body required' });
-    }
+    const { title, body, filter } = adminNotificationSchema.parse(request.body);
     const { randomUUID } = await import('node:crypto');
     const entry = {
       id: randomUUID(),
@@ -937,16 +986,7 @@ export async function buildApp(config: RuntimeConfig, store: FiletrailStore = ne
       return reply.code(401).send({ error: 'Storage access denied' });
     }
 
-    const { documentId, mimeType, fileName, category, ownerName } = request.body as {
-      documentId?: string;
-      mimeType?: string;
-      fileName?: string;
-      category?: string;
-      ownerName?: string;
-    };
-    if (!documentId || !mimeType) {
-      return reply.code(400).send({ error: 'documentId and mimeType are required' });
-    }
+    const { documentId, mimeType, fileName, category, ownerName } = storageUploadBodySchema.parse(request.body);
 
     const key = documentKey(documentId, mimeType, fileName, user.email, category, ownerName);
     const uploadUrl = await getUploadUrl(r2Client, r2Config.bucket, key, mimeType);
@@ -970,13 +1010,7 @@ export async function buildApp(config: RuntimeConfig, store: FiletrailStore = ne
       return reply.code(401).send({ error: 'Storage access denied' });
     }
     const { documentId } = request.params as { documentId: string };
-    const { mimeType, storageKey, fileName, category, ownerName } = request.query as {
-      mimeType?: string;
-      storageKey?: string;
-      fileName?: string;
-      category?: string;
-      ownerName?: string;
-    };
+    const { mimeType, storageKey, fileName, category, ownerName } = storageDownloadQuerySchema.parse(request.query);
 
     let key: string;
     if (storageKey) {
@@ -1010,26 +1044,9 @@ export async function buildApp(config: RuntimeConfig, store: FiletrailStore = ne
       return reply.code(401).send({ error: 'Storage access denied' });
     }
 
-    const { items } = request.body as {
-      items?: Array<{
-        documentId?: string;
-        storageKey?: string;
-        mimeType?: string;
-        fileName?: string;
-        category?: string;
-        ownerName?: string;
-      }>;
-    };
-
-    if (!Array.isArray(items) || items.length === 0) {
-      return reply.code(400).send({ error: 'items are required' });
-    }
+    const { items } = storageExistsBodySchema.parse(request.body);
 
     const results = await Promise.all(items.map(async (item) => {
-      if (!item.documentId) {
-        return { documentId: '', exists: false, error: 'documentId is required' };
-      }
-
       let key = item.storageKey;
       if (!key) {
         if (!item.mimeType) {
@@ -1065,8 +1082,7 @@ export async function buildApp(config: RuntimeConfig, store: FiletrailStore = ne
    * lookup used by the mobile app to sync Pro status from the admin panel.
    */
   app.get('/v1/users/pro-status', { config: { rateLimit: { max: 20, timeWindow: '1 minute' } } }, async (request, reply) => {
-    const { email } = request.query as { email?: string };
-    if (!email) return reply.code(400).send({ error: 'email is required' });
+    const { email } = proStatusQuerySchema.parse(request.query);
     const user = await store.getUserByEmail(email.toLowerCase().trim());
     if (!user) return { found: false, isPro: false };
     return { found: true, isPro: user.isPro };
@@ -1084,7 +1100,7 @@ export async function buildApp(config: RuntimeConfig, store: FiletrailStore = ne
 
   app.patch('/v1/admin/users/:id', async (request, reply) => {
     const { id } = request.params as { id: string };
-    const patch = request.body as { isPro?: boolean; fullName?: string; email?: string };
+    const patch = adminUserPatchSchema.parse(request.body);
     const user = await store.updateUser(id, patch);
     if (!user) return reply.code(404).send({ error: 'User not found' });
     const { passwordHash: _ph, ...safe } = user;

@@ -7,7 +7,7 @@
  * FAB to create a new folder.
  */
 
-import React, { useState, useCallback } from 'react';
+import React, { useState as useReactState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -60,13 +60,13 @@ export default function FoldersScreen() {
   const isPro = useProStore(s => s.isPro);
   const checkPro = useProStore(s => s.checkPro);
 
-  const [showPaywall, setShowPaywall] = useState(false);
-  const [showCreateModal, setShowCreateModal] = useState(false);
-  const [editingFolder, setEditingFolder] = useState<Folder | null>(null);
-  const [folderName, setFolderName] = useState('');
-  const [folderError, setFolderError] = useState('');
-  const [selectedColor, setSelectedColor] = useState(FOLDER_COLORS[0]);
-  const [activeFolder, setActiveFolder] = useState<ActiveFolder | null>(null);
+  const [showPaywall, setShowPaywall] = useReactState(false);
+  const [showCreateModal, setShowCreateModal] = useReactState(false);
+  const [editingFolder, setEditingFolder] = useReactState<Folder | null>(null);
+  const [folderName, setFolderName] = useReactState('');
+  const [folderError, setFolderError] = useReactState('');
+  const [selectedColor, setSelectedColor] = useReactState(FOLDER_COLORS[0]);
+  const [activeFolder, setActiveFolder] = useReactState<ActiveFolder | null>(null);
 
   const unfiledCount = getFolderDocuments(null).length;
 

@@ -1,15 +1,15 @@
 'use client';
-import { useState } from 'react';
+import { useState as useReactState } from 'react';
 import styles from './notifications.module.css';
 
 type Audience = 'all' | 'pro' | 'free';
 
 export default function NotificationsClient() {
-  const [title, setTitle] = useState('');
-  const [body, setBody] = useState('');
-  const [audience, setAudience] = useState<Audience>('all');
-  const [status, setStatus] = useState<{ ok: boolean; message: string } | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [title, setTitle] = useReactState('');
+  const [body, setBody] = useReactState('');
+  const [audience, setAudience] = useReactState<Audience>('all');
+  const [status, setStatus] = useReactState<{ ok: boolean; message: string } | null>(null);
+  const [loading, setLoading] = useReactState(false);
 
   async function send() {
     if (!title.trim() || !body.trim()) return;

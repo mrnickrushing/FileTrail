@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState as useReactState } from 'react';
 import { ActivityIndicator, Alert, Pressable, StyleSheet, Text } from 'react-native';
 import { useDocumentStore, useProStore, useOwnerStore } from '@/store';
 import { PaywallModal } from '@/components/PaywallModal';
@@ -30,15 +30,15 @@ export default function StorageSettingsScreen() {
   const checkPro = useProStore((s) => s.checkPro);
   const isOwner = useOwnerStore((s) => s.isOwner);
 
-  const [showPaywall, setShowPaywall] = useState(false);
-  const [isClearing, setIsClearing] = useState(false);
-  const [isExporting, setIsExporting] = useState(false);
-  const [exportProgress, setExportProgress] = useState<string | null>(null);
-  const [isBackingUp, setIsBackingUp] = useState(false);
-  const [backupProgress, setBackupProgress] = useState<string | null>(null);
-  const [isRestoring, setIsRestoring] = useState(false);
-  const [restoreProgress, setRestoreProgress] = useState<string | null>(null);
-  const [isResettingSync, setIsResettingSync] = useState(false);
+  const [showPaywall, setShowPaywall] = useReactState(false);
+  const [isClearing, setIsClearing] = useReactState(false);
+  const [isExporting, setIsExporting] = useReactState(false);
+  const [exportProgress, setExportProgress] = useReactState<string | null>(null);
+  const [isBackingUp, setIsBackingUp] = useReactState(false);
+  const [backupProgress, setBackupProgress] = useReactState<string | null>(null);
+  const [isRestoring, setIsRestoring] = useReactState(false);
+  const [restoreProgress, setRestoreProgress] = useReactState<string | null>(null);
+  const [isResettingSync, setIsResettingSync] = useReactState(false);
 
   const backendConfigured = isBackendConfigured();
   const totalSize = useMemo(

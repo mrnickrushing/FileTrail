@@ -65,6 +65,13 @@ const ChartContainer = React.forwardRef<
 })
 ChartContainer.displayName = "Chart"
 
+const safeCssIdent = (value: string) => value.replace(/[^a-zA-Z0-9_-]/g, "_")
+const safeCssValue = (value: string) => (
+  /^(#[0-9a-fA-F]{3,8}|hsl[a]?\([^;{}]*\)|rgb[a]?\([^;{}]*\)|var\(--[a-zA-Z0-9_-]+\))$/.test(value.trim())
+    ? value.trim()
+    : "transparent"
+)
+
 const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
   const colorConfig = Object.entries(config).filter(
     ([, config]) => config.theme || config.color
@@ -75,26 +82,25 @@ const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
   }
 
   return (
-    <style
-      dangerouslySetInnerHTML={{
-        __html: Object.entries(THEMES)
-          .map(
-            ([theme, prefix]) => `
-${prefix} [data-chart=${id}] {
+    <style>
+      {Object.entries(THEMES)
+        .map(
+          ([theme, prefix]) => `
+${prefix} [data-chart=${safeCssIdent(id)}] {
 ${colorConfig
   .map(([key, itemConfig]) => {
     const color =
       itemConfig.theme?.[theme as keyof typeof itemConfig.theme] ||
       itemConfig.color
-    return color ? `  --color-${key}: ${color};` : null
+    return color ? `  --color-${safeCssIdent(key)}: ${safeCssValue(color)};` : null
   })
+  .filter(Boolean)
   .join("\n")}
 }
 `
-          )
-          .join("\n"),
-      }}
-    />
+        )
+        .join("\n")}
+    </style>
   )
 }
 

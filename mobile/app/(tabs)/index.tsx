@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState as useReactState } from 'react';
 import {
   View,
   Text,
@@ -168,15 +168,15 @@ export default function VaultScreen() {
 
   // ── Multi-select state ─────────────────────────────────────────────────────
 
-  const [selectionMode, setSelectionMode] = useState(false);
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [showTagEditor, setShowTagEditor] = useState(false);
-  const [showFolderPicker, setShowFolderPicker] = useState(false);
-  const [showPaywall, setShowPaywall] = useState(false);
-  const [showSyncOverlay, setShowSyncOverlay] = useState(false);
-  const [isAiOrganizing, setIsAiOrganizing] = useState(false);
-  const [aiOrganizeProgress, setAiOrganizeProgress] = useState<{ done: number; total: number } | null>(null);
-  const [showAllCategoryFilters, setShowAllCategoryFilters] = useState(false);
+  const [selectionMode, setSelectionMode] = useReactState(false);
+  const [selectedIds, setSelectedIds] = useReactState<Set<string>>(new Set());
+  const [showTagEditor, setShowTagEditor] = useReactState(false);
+  const [showFolderPicker, setShowFolderPicker] = useReactState(false);
+  const [showPaywall, setShowPaywall] = useReactState(false);
+  const [showSyncOverlay, setShowSyncOverlay] = useReactState(false);
+  const [isAiOrganizing, setIsAiOrganizing] = useReactState(false);
+  const [aiOrganizeProgress, setAiOrganizeProgress] = useReactState<{ done: number; total: number } | null>(null);
+  const [showAllCategoryFilters, setShowAllCategoryFilters] = useReactState(false);
   const { visible: swipeTourTipVisible, dismiss: dismissSwipeTip } = useTourTip('vault-swipe');
   const hasSwipeableDocs = !selectionMode && visibleDocuments.length > 0;
   const swipeTipVisible = swipeTourTipVisible && hasSwipeableDocs;
@@ -439,7 +439,7 @@ export default function VaultScreen() {
     setFilters({ ...filters, tags: next.length ? next : undefined });
   }, [filters, setFilters]);
 
-  const [isAddingSample, setIsAddingSample] = useState(false);
+  const [isAddingSample, setIsAddingSample] = useReactState(false);
   const handleTrySampleDocument = useCallback(async () => {
     if (isAddingSample) return;
     setIsAddingSample(true);
@@ -454,11 +454,13 @@ export default function VaultScreen() {
     }
   }, [isAddingSample, addDocument]);
 
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  useEffect(() => () => {
-    if (refreshTimeoutRef.current) {
-      clearTimeout(refreshTimeoutRef.current);
-    }
+  const [isRefreshing, setIsRefreshing] = useReactState(false);
+  useEffect(() => {
+    return () => {
+      if (refreshTimeoutRef.current) {
+        clearTimeout(refreshTimeoutRef.current);
+      }
+    };
   }, []);
 
   const onRefresh = useCallback(async () => {

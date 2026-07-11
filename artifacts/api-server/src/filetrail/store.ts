@@ -39,6 +39,10 @@ export class JsonStore {
     return this.readFromDisk();
   }
 
+  async healthCheck(): Promise<void> {
+    await this.read();
+  }
+
   async write(data: AppData): Promise<void> {
     this.writeChain = this.writeChain.then(() =>
       writeFile(this.filePath, JSON.stringify(data, null, 2), 'utf8')

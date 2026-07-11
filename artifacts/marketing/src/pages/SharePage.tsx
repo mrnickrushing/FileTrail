@@ -24,9 +24,10 @@ export default function SharePage() {
 
   useEffect(() => {
     if (!token) return;
+    const controller = new AbortController();
     const url = new URL(`/api/v1/share-links/${token}`, window.location.origin);
     if (password) url.searchParams.set('password', password);
-    fetch(url.toString())
+    fetch(url.toString(), { signal: controller.signal })
       .then(async (res) => {
         setStatus(res.status);
         const data = await res.json().catch(() => ({}));
@@ -36,8 +37,13 @@ export default function SharePage() {
           setError((data as { error?: string }).error ?? 'Could not load this share link.');
         }
       })
-      .catch((e) => setError(String(e)))
-      .finally(() => setLoading(false));
+      .catch((e) => {
+        if (!controller.signal.aborted) setError(String(e));
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false);
+      });
+    return () => controller.abort();
   }, [token, password]);
 
   return (

@@ -16,6 +16,7 @@ export type AnalyticsEvent = { id: string; event: string; deviceId?: string; use
 export type UserRecord = { id: string; fullName: string; email: string; provider: string; isPro: boolean; createdAt: string };
 export type NotificationRecord = { id: string; title: string; body: string; sentAt: string; recipientCount: number; filter?: unknown };
 
+// Backend /health verifies its store dependency (SQL-backed stores run SELECT 1).
 export const getHealth = () => apiFetch<HealthResponse>('/health');
 export const getConfig = () => apiFetch<ConfigResponse>('/v1/config');
 export const getSyncStats = () => apiFetch<SyncPullResponse>('/v1/sync/pull', { method: 'POST', body: JSON.stringify({ deviceId: 'admin-dashboard', sinceVersion: 0 }) });

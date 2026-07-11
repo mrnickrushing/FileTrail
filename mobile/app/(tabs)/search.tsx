@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState as useReactState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -73,12 +73,12 @@ export default function SearchScreen() {
   );
 
   const reducedMotion = useReducedMotion();
-  const [query, setQuery] = useState('');
-  const [results, setResults] = useState<SearchResult[]>([]);
-  const [recentSearches, setRecentSearches] = useState<string[]>([]);
-  const [isSearching, setIsSearching] = useState(false);
-  const [sortMode, setSortMode] = useState<'relevance' | 'newest'>('relevance');
-  const [categoryFilter, setCategoryFilter] = useState<DocumentCategory | null>(null);
+  const [query, setQuery] = useReactState('');
+  const [results, setResults] = useReactState<SearchResult[]>([]);
+  const [recentSearches, setRecentSearches] = useReactState<string[]>([]);
+  const [isSearching, setIsSearching] = useReactState(false);
+  const [sortMode, setSortMode] = useReactState<'relevance' | 'newest'>('relevance');
+  const [categoryFilter, setCategoryFilter] = useReactState<DocumentCategory | null>(null);
 
   const debouncedQuery = useDebounce(query, 150);
   const trimmedQuery = query.trim();

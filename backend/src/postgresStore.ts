@@ -29,6 +29,21 @@ function flattenRows(rows: unknown[][]): unknown[] {
   return rows.flatMap((row) => row);
 }
 
+function bulkInsertSql(table: string, columns: string[], rowCount: number, conflictClause?: string): string {
+  return [
+    'INSERT INTO',
+    table,
+    `(${columns.join(', ')})`,
+    'VALUES',
+    placeholders(rowCount, columns.length),
+    conflictClause,
+  ].filter(Boolean).join(' ');
+}
+
+function userUpdateSetSql(columns: string[]): string {
+  return columns.map((column, index) => `${column} = $${index + 1}`).join(', ');
+}
+
 export class PostgresStore implements FiletrailStore {
   private readonly pool: pg.Pool;
 
@@ -69,12 +84,15 @@ export class PostgresStore implements FiletrailStore {
         )
       `);
       await client.query('BEGIN');
-      for (const migration of MIGRATIONS) {
+      let migrationIndex = 0;
+      while (migrationIndex < MIGRATIONS.length) {
+        const migration = MIGRATIONS[migrationIndex];
         const existing = await client.query('SELECT id FROM schema_migrations WHERE id = $1', [migration.id]);
         if (!existing.rowCount) {
           await client.query(migration.sql);
           await client.query('INSERT INTO schema_migrations (id) VALUES ($1)', [migration.id]);
         }
+        migrationIndex += 1;
       }
       await client.query('COMMIT');
     } catch (error) {
@@ -107,12 +125,15 @@ export class PostgresStore implements FiletrailStore {
       });
       if (folderRows.length > 0) {
         await client.query(
-          `INSERT INTO folders (id, payload, sync_version, updated_at)
-           VALUES ${placeholders(folderRows.length, 4)}
-           ON CONFLICT (id) DO UPDATE
-           SET payload = EXCLUDED.payload,
-               sync_version = EXCLUDED.sync_version,
-               updated_at = EXCLUDED.updated_at`,
+          bulkInsertSql(
+            'folders',
+            ['id', 'payload', 'sync_version', 'updated_at'],
+            folderRows.length,
+            `ON CONFLICT (id) DO UPDATE
+             SET payload = EXCLUDED.payload,
+                 sync_version = EXCLUDED.sync_version,
+                 updated_at = EXCLUDED.updated_at`,
+          ),
           flattenRows(folderRows),
         );
       }
@@ -124,12 +145,15 @@ export class PostgresStore implements FiletrailStore {
       });
       if (documentRows.length > 0) {
         await client.query(
-          `INSERT INTO documents (id, payload, sync_version, updated_at)
-           VALUES ${placeholders(documentRows.length, 4)}
-           ON CONFLICT (id) DO UPDATE
-           SET payload = EXCLUDED.payload,
-               sync_version = EXCLUDED.sync_version,
-               updated_at = EXCLUDED.updated_at`,
+          bulkInsertSql(
+            'documents',
+            ['id', 'payload', 'sync_version', 'updated_at'],
+            documentRows.length,
+            `ON CONFLICT (id) DO UPDATE
+             SET payload = EXCLUDED.payload,
+                 sync_version = EXCLUDED.sync_version,
+                 updated_at = EXCLUDED.updated_at`,
+          ),
           flattenRows(documentRows),
         );
       }
@@ -153,11 +177,14 @@ export class PostgresStore implements FiletrailStore {
       const tombstoneRows = [...deletedDocumentRows, ...deletedFolderRows];
       if (tombstoneRows.length > 0) {
         await client.query(
-          `INSERT INTO tombstones (id, kind, deleted_at, sync_version)
-           VALUES ${placeholders(tombstoneRows.length, 4)}
-           ON CONFLICT (id, kind) DO UPDATE
-           SET deleted_at = EXCLUDED.deleted_at,
-               sync_version = EXCLUDED.sync_version`,
+          bulkInsertSql(
+            'tombstones',
+            ['id', 'kind', 'deleted_at', 'sync_version'],
+            tombstoneRows.length,
+            `ON CONFLICT (id, kind) DO UPDATE
+             SET deleted_at = EXCLUDED.deleted_at,
+                 sync_version = EXCLUDED.sync_version`,
+          ),
           flattenRows(tombstoneRows),
         );
       }
@@ -335,8 +362,11 @@ export class PostgresStore implements FiletrailStore {
         new Date().toISOString(),
       ]);
       await client.query(
-        `INSERT INTO analytics_events (id, event, device_id, user_id, properties, created_at)
-         VALUES ${placeholders(rows.length, 6)}`,
+        bulkInsertSql(
+          'analytics_events',
+          ['id', 'event', 'device_id', 'user_id', 'properties', 'created_at'],
+          rows.length,
+        ),
         flattenRows(rows),
       );
       await client.query('COMMIT');
@@ -456,19 +486,19 @@ export class PostgresStore implements FiletrailStore {
   }
 
   async updateUser(id: string, patch: { isPro?: boolean; fullName?: string; email?: string; storageAccessToken?: string; passwordHash?: string; provider?: UserRecord['provider']; appleUserId?: string }): Promise<UserRecord | null> {
-    const sets: string[] = [];
+    const columns: string[] = [];
     const values: unknown[] = [];
-    let idx = 1;
-    if (patch.isPro !== undefined) { sets.push(`is_pro = $${idx++}`); values.push(patch.isPro); }
-    if (patch.fullName !== undefined) { sets.push(`full_name = $${idx++}`); values.push(patch.fullName); }
-    if (patch.email !== undefined) { sets.push(`email = $${idx++}`); values.push(patch.email); }
-    if (patch.storageAccessToken !== undefined) { sets.push(`storage_access_token = $${idx++}`); values.push(patch.storageAccessToken); }
-    if (patch.passwordHash !== undefined) { sets.push(`password_hash = $${idx++}`); values.push(patch.passwordHash); }
-    if (patch.provider !== undefined) { sets.push(`provider = $${idx++}`); values.push(patch.provider); }
-    if (patch.appleUserId !== undefined) { sets.push(`apple_user_id = $${idx++}`); values.push(patch.appleUserId); }
-    if (sets.length === 0) return this.getUserById(id);
+    if (patch.isPro !== undefined) { columns.push('is_pro'); values.push(patch.isPro); }
+    if (patch.fullName !== undefined) { columns.push('full_name'); values.push(patch.fullName); }
+    if (patch.email !== undefined) { columns.push('email'); values.push(patch.email); }
+    if (patch.storageAccessToken !== undefined) { columns.push('storage_access_token'); values.push(patch.storageAccessToken); }
+    if (patch.passwordHash !== undefined) { columns.push('password_hash'); values.push(patch.passwordHash); }
+    if (patch.provider !== undefined) { columns.push('provider'); values.push(patch.provider); }
+    if (patch.appleUserId !== undefined) { columns.push('apple_user_id'); values.push(patch.appleUserId); }
+    if (columns.length === 0) return this.getUserById(id);
     values.push(id);
-    await this.pool.query(`UPDATE users SET ${sets.join(', ')} WHERE id = $${idx}`, values);
+    const sql = ['UPDATE users SET', userUpdateSetSql(columns), `WHERE id = $${columns.length + 1}`].join(' ');
+    await this.pool.query(sql, values);
     return this.getUserById(id);
   }
 

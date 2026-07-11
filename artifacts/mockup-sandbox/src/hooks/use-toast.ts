@@ -176,8 +176,12 @@ function useToast() {
       if (index > -1) {
         listeners.splice(index, 1)
       }
+      if (listeners.length === 0) {
+        toastTimeouts.forEach((timeout) => clearTimeout(timeout))
+        toastTimeouts.clear()
+      }
     }
-  }, [state])
+  }, [])
 
   return {
     ...state,

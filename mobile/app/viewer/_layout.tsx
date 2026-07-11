@@ -1,6 +1,8 @@
 import { Stack } from 'expo-router';
 import { C } from '@/theme/tokens';
 
+export { ErrorBoundary } from 'expo-router';
+
 export default function ViewerLayout() {
   return (
     <Stack

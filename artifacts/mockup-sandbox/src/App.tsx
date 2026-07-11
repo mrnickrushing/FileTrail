@@ -1,8 +1,21 @@
-import { useEffect, useState, type ComponentType } from "react";
+import { Component, useEffect, useState, type ComponentType, type ReactNode } from "react";
 
 import { modules as discoveredModules } from "./.generated/mockup-components";
 
 type ModuleMap = Record<string, () => Promise<Record<string, unknown>>>;
+
+class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean }> {
+  state = { hasError: false };
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+  render() {
+    if (this.state.hasError) {
+      return <pre style={{ color: "red", padding: "2rem", fontFamily: "system-ui" }}>Preview crashed.</pre>;
+    }
+    return this.props.children;
+  }
+}
 
 function _resolveComponent(
   mod: Record<string, unknown>,
@@ -133,14 +146,16 @@ function App() {
 
   if (previewPath) {
     return (
-      <PreviewRenderer
-        componentPath={previewPath}
-        modules={discoveredModules}
-      />
+      <ErrorBoundary>
+        <PreviewRenderer
+          componentPath={previewPath}
+          modules={discoveredModules}
+        />
+      </ErrorBoundary>
     );
   }
 
-  return <Gallery />;
+  return <ErrorBoundary><Gallery /></ErrorBoundary>;
 }
 
 export default App;

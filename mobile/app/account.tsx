@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState as useReactState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -76,16 +76,16 @@ export default function AccountScreen() {
   const setAdminAccess = useProStore((s) => s.setAdminAccess);
   const startTour = useTourStore((s) => s.startTour);
 
-  const [mode, setMode] = useState<AuthMode>(accountProfile ? 'login' : 'create');
-  const [fullName, setFullName] = useState(accountProfile?.fullName ?? '');
-  const [email, setEmail] = useState(accountProfile?.email ?? '');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState<string | null>(null);
-  const [ownerCode, setOwnerCode] = useState('');
-  const [ownerError, setOwnerError] = useState<string | null>(null);
-  const [busyAction, setBusyAction] = useState<BusyAction>(null);
-  const [appleAvailable, setAppleAvailable] = useState(false);
-  const [storedPasswordHash, setLocalPasswordHash] = useState<string | null>(null);
+  const [mode, setMode] = useReactState<AuthMode>(accountProfile ? 'login' : 'create');
+  const [fullName, setFullName] = useReactState(accountProfile?.fullName ?? '');
+  const [email, setEmail] = useReactState(accountProfile?.email ?? '');
+  const [password, setPassword] = useReactState('');
+  const [error, setError] = useReactState<string | null>(null);
+  const [ownerCode, setOwnerCode] = useReactState('');
+  const [ownerError, setOwnerError] = useReactState<string | null>(null);
+  const [busyAction, setBusyAction] = useReactState<BusyAction>(null);
+  const [appleAvailable, setAppleAvailable] = useReactState(false);
+  const [storedPasswordHash, setLocalPasswordHash] = useReactState<string | null>(null);
   const isMounted = React.useRef(true);
   React.useEffect(() => {
     isMounted.current = true;
@@ -374,6 +374,10 @@ export default function AccountScreen() {
     try {
       const rawNonce = await createAppleNonce();
       const nonceDigest = await createHash(rawNonce);
+      // Client only collects the Apple identity token. The backend verifies
+      // the token against Apple's JWKS, https://appleid.apple.com issuer,
+      // audience (aud), expiry, subject, and raw nonce before creating or
+      // returning a FileTrail account.
       const credential = await AppleAuthentication.signInAsync({
         requestedScopes: [
           AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
