@@ -14,6 +14,7 @@ workflows:
       node: 20
       groups:
         - public_env
+        - ios_credentials
       vars:
         CI: "1"
         OTA_CHANNEL: "production"
@@ -29,6 +30,9 @@ workflows:
       - name: Install mobile dependencies
         script: |
           npm run install:mobile
+      - name: Write .env for Metro bundler
+        script: |
+          ./scripts/write-mobile-env.sh
       - name: Publish Expo update
         script: |
           cd mobile
@@ -178,13 +182,7 @@ workflows:
           npm run install:mobile
       - name: Write .env for Metro bundler
         script: |
-          echo "EXPO_PUBLIC_API_URL=$EXPO_PUBLIC_API_URL" > mobile/.env
-          echo "EXPO_PUBLIC_API_KEY=$EXPO_PUBLIC_API_KEY" >> mobile/.env
-          echo "EXPO_PUBLIC_REVENUECAT_IOS_KEY=$EXPO_PUBLIC_REVENUECAT_IOS_KEY" >> mobile/.env
-          echo "EXPO_PUBLIC_ANTHROPIC_API_KEY=$EXPO_PUBLIC_ANTHROPIC_API_KEY" >> mobile/.env
-          echo "EXPO_PUBLIC_ADMIN_BYPASS_CODE=$EXPO_PUBLIC_ADMIN_BYPASS_CODE" >> mobile/.env
-          echo "--- mobile/.env contents (keys only) ---"
-          grep -o '^[^=]*=.' mobile/.env || true
+          ./scripts/write-mobile-env.sh
       - name: Set up keychain
         script: keychain initialize
       - name: Fetch signing files
