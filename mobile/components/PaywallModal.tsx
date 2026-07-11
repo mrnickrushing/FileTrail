@@ -30,6 +30,7 @@ import Animated, {
   useReducedMotion,
 } from 'react-native-reanimated';
 import { purchasePro, restorePurchases } from '@/services/purchases';
+import { PRO_PRICE_DISPLAY } from '@/store';
 import { C, T, R, S, Springs } from '@/theme/tokens';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
@@ -195,9 +196,13 @@ export function PaywallModal({ visible, onClose, onSuccess }: PaywallModalProps)
             {isPurchasing ? (
               <ActivityIndicator color={C.ink1} />
             ) : (
-              <Text style={styles.unlockBtnText}>Unlock Pro</Text>
+              <Text style={styles.unlockBtnText}>Unlock Pro — {PRO_PRICE_DISPLAY}</Text>
             )}
           </AnimatedPressable>
+
+          <Text style={styles.priceFootnote}>
+            {PRO_PRICE_DISPLAY}, billed monthly. Cancel anytime.
+          </Text>
 
           <Pressable
             style={styles.restoreBtn}
@@ -314,6 +319,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     minHeight: 44,
+  },
+  priceFootnote: {
+    fontSize: T.xs,
+    color: C.ash,
+    textAlign: 'center',
   },
   restoreText: {
     fontSize: T.sm,

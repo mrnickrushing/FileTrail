@@ -20,7 +20,7 @@ import {
 } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useAppStore } from '@/store';
+import { useAppStore, PRO_PRICE_DISPLAY } from '@/store';
 import { track } from '@/services/analytics';
 import { C, T, S, R } from '@/theme/tokens';
 
@@ -38,7 +38,7 @@ const SLIDES: Slide[] = [
     id: '1',
     emoji: '🗂️',
     title: 'Your documents,\nyour device.',
-    body: 'FileTrail stores everything locally. No account, no cloud, no fees — your files never leave your phone unless you choose to share them.',
+    body: 'FileTrail stores everything locally. Your files never leave your phone unless you choose to share them.',
   },
   {
     id: '2',
@@ -50,7 +50,7 @@ const SLIDES: Slide[] = [
     id: '3',
     emoji: '🔒',
     title: 'Private by default.',
-    body: 'Lock your vault with Face ID or Touch ID. Create a local backup any time. Upgrade to Pro for AI auto-naming and smart filing.',
+    body: `Lock your vault with Face ID or Touch ID. FileTrail Pro is ${PRO_PRICE_DISPLAY} and unlocks AI auto-naming, smart filing, and cloud sync.`,
   },
 ];
 

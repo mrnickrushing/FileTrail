@@ -220,31 +220,10 @@ export default function Home() {
 
       <section className={styles.pricing} id="pricing">
         <div className={styles.sectionInner}>
-          <h2 className={styles.sectionTitle}>Simple pricing, clear upgrade path.</h2>
-          <p className={styles.sectionSubtitle}>Use FileTrail as a vault for free. Upgrade when you want sync, AI depth, and email-driven workflows.</p>
+          <h2 className={styles.sectionTitle}>One plan. Everything included.</h2>
+          <p className={styles.sectionSubtitle}>FileTrail Pro is $5.99/month — download the app free and subscribe to unlock the full vault.</p>
           <div className={styles.pricingGrid}>
-            <div className={styles.pricingCard}>
-              <div className={styles.pricingName}>Free</div>
-              <div className={styles.pricingPriceRow}>
-                <span className={styles.pricingPrice}>$0</span>
-                <span className={styles.pricingPeriod}>forever</span>
-              </div>
-              <p className={styles.pricingTagline}>A strong local-first filing cabinet.</p>
-              <ul className={styles.pricingFeatures}>
-                {[
-                  'Document capture and imports',
-                  'OCR search',
-                  'Folders, tags, favorites',
-                  'Autopilot preview fields on saved docs',
-                  'Local-only vault access',
-                  'Export and share',
-                ].map((item) => <li key={item}><span className={styles.check}>✓</span>{item}</li>)}
-              </ul>
-              <a href="#download" className={styles.ctaOutline}>Download free</a>
-            </div>
-
             <div className={`${styles.pricingCard} ${styles.pricingCardPro}`}>
-              <div className={styles.proBadge}>Best fit</div>
               <div className={styles.pricingName}>Pro</div>
               <div className={styles.pricingPriceRow}>
                 <span className={styles.pricingPrice}>$5.99</span>
@@ -253,16 +232,16 @@ export default function Home() {
               <p className={styles.pricingTagline}>Where FileTrail becomes a life-admin system.</p>
               <ul className={styles.pricingFeatures}>
                 {[
+                  'Unlimited document capture and imports',
                   'Encrypted sync and restore',
                   'Autopilot dashboard and action lanes',
                   'AI extraction for dates, issuers, and identifiers',
                   'Email-to-vault forwarding',
                   'Share links and cloud recovery',
-                  'Family-focused organization',
                 ].map((item) => <li key={item}><span className={styles.checkPro}>✓</span>{item}</li>)}
               </ul>
               <a href="#download" className={styles.ctaPrimary}>Start with Pro</a>
-              <p className={styles.pricingNote}>Sync, AI extraction, and email intake are the real upgrade drivers.</p>
+              <p className={styles.pricingNote}>$5.99 billed monthly. Cancel anytime.</p>
             </div>
           </div>
           <div className={styles.valueAnchor}>

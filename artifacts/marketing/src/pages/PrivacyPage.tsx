@@ -3,7 +3,7 @@ import styles from '@/styles/legal.module.css';
 const TOC = [
   { id: 's1', label: '1. Who we are' },
   { id: 's2', label: '2. Data on your device' },
-  { id: 's3', label: '3. Free tier data' },
+  { id: 's3', label: '3. Data before you subscribe' },
   { id: 's4', label: '4. Pro tier data' },
   { id: 's5', label: '5. Analytics' },
   { id: 's6', label: '6. Push notifications' },
@@ -35,7 +35,7 @@ export default function PrivacyPage() {
           <div className={styles.heroBadge}>🔒 Privacy First</div>
           <h1 className={styles.heroTitle}>Privacy Policy</h1>
           <p className={styles.heroSubtitle}>Your documents belong to you. Here's exactly what data we collect, what we don't, and how we protect your privacy.</p>
-          <span className={styles.heroUpdated}>Last updated: June 3, 2026</span>
+          <span className={styles.heroUpdated}>Last updated: July 11, 2026</span>
         </div>
       </div>
       <div className={styles.contentWrap}>
@@ -61,9 +61,8 @@ export default function PrivacyPage() {
           </div>
           <div className={styles.section} id="s3">
             <span className={styles.sectionNum}>Section 3</span>
-            <h2 className={styles.sectionTitle}>Data we collect — Free tier</h2>
-            <p>On the free tier with no account, we collect <strong>nothing</strong>. The app functions entirely offline with no data transmitted to us.</p>
-            <p>If you use features that require a network connection (such as AI suggestions), we may receive the minimum data necessary to perform that specific function. We do not retain this data beyond the duration of the request.</p>
+            <h2 className={styles.sectionTitle}>Data we collect — before you subscribe</h2>
+            <p>FileTrail is free to download. Before you subscribe to Pro, we require <strong>no account and no document data</strong> — subscribing is required to save or manage documents. We may still collect the anonymised analytics described in Section 5, and if you use a feature that requires a network connection (such as AI suggestions), we may receive the minimum data necessary to perform that specific function. We do not retain that request data beyond the duration of the request.</p>
           </div>
           <div className={styles.section} id="s4">
             <span className={styles.sectionNum}>Section 4</span>
