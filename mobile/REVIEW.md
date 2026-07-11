@@ -4,6 +4,13 @@
 **Reviewer focus:** UI updates, feature ideas, comprehensive bug list — with extra emphasis on **performance**.
 **Mode:** Report only — no code changes were made.
 
+> **Status note (post SDK 56 upgrade):** most of the P0 items and many P1 items below
+> (salted password hashing, SecureStore migration, MMKV persistence, search indexing,
+> selector-based store subscriptions, AppState lock-on-inactive, real PDF page counts,
+> theme/dead-file cleanup, folder depth limit, incremental sync) have since been fixed.
+> Treat this document as a historical bug list, not a current backlog — verify against
+> the code before acting on any item below.
+
 ---
 
 ## Stack snapshot

@@ -152,9 +152,5 @@ export const userRegisterSchema = z.object({
 
 export const userLoginSchema = z.object({
   email: z.string().email(),
-  password: z.string().min(1).optional(),
-  passwordHash: z.string().min(1).optional(),
-}).refine((value) => Boolean(value.password || value.passwordHash), {
-  message: 'password is required',
-  path: ['password'],
+  password: z.string().min(1),
 });

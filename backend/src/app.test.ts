@@ -23,6 +23,7 @@ const config: RuntimeConfig = {
   databaseUrl: null,
   publicAppUrl: 'http://localhost:4000',
   inboundEmailDomain: 'mail.filetrail.test',
+  inboundEmailSecret: 'test-inbound-secret',
   integrations: {
     supabase: false,
     r2: false,
@@ -52,7 +53,7 @@ test('documentKey nests under user email with readable folder names', () => {
       'insurance',
       'Nicholas Rushing',
     ),
-    'user@example.com/insurance/Nicholas Rushing/Car Insurance 2026.pdf',
+    'user@example.com/insurance/Nicholas Rushing/Car Insurance 2026-doc1.pdf',
   );
 });
 
@@ -66,8 +67,14 @@ test('documentKey strips unsafe characters from title and email', () => {
       'Medical Records',
       'Ni/ck *Rushing',
     ),
-    'jo_hn@example.com/medical_records/Ni_ck _Rushing/Re_ce_ipt_ _42.jpeg',
+    'jo_hn@example.com/medical_records/Ni_ck _Rushing/Re_ce_ipt_ _42-doc1.jpeg',
   );
+});
+
+test('documentKey suffixes with the document id so identical titles never collide', () => {
+  const first = documentKey('doc-aaa', 'application/pdf', 'Receipt', 'user@example.com', 'receipt', 'User');
+  const second = documentKey('doc-bbb', 'application/pdf', 'Receipt', 'user@example.com', 'receipt', 'User');
+  assert.notEqual(first, second);
 });
 
 test('documentKey falls back to legacy path without an email', () => {
@@ -283,13 +290,46 @@ test('email config endpoint returns forwarding alias', async () => {
   assert.equal(res.json().inboundEnabled, true);
 });
 
-test('email inbound records can be listed', async () => {
+test('email inbound records can be listed for the owning user only', async () => {
   const auth = { Authorization: 'Bearer test-key' };
-  const inbound = await app.inject({
+
+  const register = await app.inject({
+    method: 'POST',
+    url: '/v1/auth/register',
+    headers: auth,
+    payload: {
+      id: 'user-inbound-1',
+      fullName: 'Inbound User',
+      email: 'inboundtest@example.com',
+      passwordHash: createHash('sha256').update('irrelevant').digest('hex'),
+      provider: 'email',
+    },
+  });
+  assert.equal(register.statusCode, 200);
+  const storageAccessToken = register.json().storageAccessToken as string;
+
+  // Without the worker-only secret, a client-supplied `recipient` must not
+  // be trusted for attribution — otherwise anyone holding just the public
+  // API key could forge mail into another user's vault.
+  const untrustedInbound = await app.inject({
     method: 'POST',
     url: '/v1/email/inbound',
     headers: auth,
     payload: {
+      recipient: 'filetrail+inboundtest.example.com@mail.filetrail.test',
+      sender: 'attacker@example.com',
+      subject: 'Forged statement',
+      attachments: [{ filename: 'forged.pdf', mimeType: 'application/pdf', sizeBytes: 1200 }],
+    },
+  });
+  assert.equal(untrustedInbound.statusCode, 200);
+
+  const inbound = await app.inject({
+    method: 'POST',
+    url: '/v1/email/inbound',
+    headers: { ...auth, 'x-filetrail-inbound-secret': 'test-inbound-secret' },
+    payload: {
+      recipient: 'filetrail+inboundtest.example.com@mail.filetrail.test',
       sender: 'billing@example.com',
       subject: 'June statement',
       attachments: [{ filename: 'statement.pdf', mimeType: 'application/pdf', sizeBytes: 1200 }],
@@ -297,10 +337,21 @@ test('email inbound records can be listed', async () => {
   });
   assert.equal(inbound.statusCode, 200);
 
-  const list = await app.inject({
+  const unauthorized = await app.inject({
     method: 'GET',
     url: '/v1/email/inbound?limit=5',
     headers: auth,
+  });
+  assert.equal(unauthorized.statusCode, 401);
+
+  const list = await app.inject({
+    method: 'GET',
+    url: '/v1/email/inbound?limit=5',
+    headers: {
+      ...auth,
+      'x-filetrail-user-id': 'user-inbound-1',
+      'x-filetrail-storage-token': storageAccessToken,
+    },
   });
   assert.equal(list.statusCode, 200);
   assert.ok(list.json().emails.length >= 1);
@@ -351,8 +402,8 @@ test('share links enforce passwords and list created links', async () => {
 
   const list = await app.inject({
     method: 'GET',
-    url: '/v1/share-links',
-    headers: auth,
+    url: '/v1/admin/share-links',
+    headers: { Authorization: 'Bearer test-admin-key' },
   });
   assert.equal(list.statusCode, 200);
   assert.equal(list.json().shareLinks.length, 1);

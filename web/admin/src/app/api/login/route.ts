@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { verifyPassword, SESSION_COOKIE } from '@/lib/auth';
+import { verifyPassword, createSessionToken, SESSION_COOKIE } from '@/lib/auth';
 
 export async function POST(req: Request) {
   const { password } = await req.json();
@@ -7,7 +7,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
   const res = NextResponse.json({ ok: true });
-  res.cookies.set(SESSION_COOKIE, password, {
+  res.cookies.set(SESSION_COOKIE, createSessionToken(password), {
     httpOnly: true,
     sameSite: 'lax',
     path: '/',

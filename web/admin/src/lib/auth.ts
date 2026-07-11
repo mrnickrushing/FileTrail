@@ -1,4 +1,5 @@
 import { cookies } from 'next/headers';
+import { createHmac, timingSafeEqual } from 'node:crypto';
 
 const SESSION_COOKIE = 'pt_admin_session';
 
@@ -22,16 +23,34 @@ function getAdminPassword(): string | null {
   return pw;
 }
 
+/**
+ * Session token derived from ADMIN_PASSWORD via a keyed hash — never the
+ * password itself, so a cookie leak (log capture, XSS, browser extension)
+ * doesn't hand over the literal admin credential. Rotating ADMIN_PASSWORD
+ * automatically invalidates all existing sessions.
+ */
+function sessionToken(password: string): string {
+  return createHmac('sha256', password).update('filetrail-admin-session').digest('hex');
+}
+
 export async function isAuthenticated(): Promise<boolean> {
   const store = await cookies();
   const val = store.get(SESSION_COOKIE)?.value;
   const password = getAdminPassword();
-  return Boolean(password && val === password);
+  if (!password || !val) return false;
+  const expected = sessionToken(password);
+  const a = Buffer.from(val);
+  const b = Buffer.from(expected);
+  return a.length === b.length && timingSafeEqual(a, b);
 }
 
 export function verifyPassword(password: string): boolean {
   const configuredPassword = getAdminPassword();
   return Boolean(configuredPassword && password === configuredPassword);
+}
+
+export function createSessionToken(password: string): string {
+  return sessionToken(password);
 }
 
 export { SESSION_COOKIE };

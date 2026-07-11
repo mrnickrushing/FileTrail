@@ -9,6 +9,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
+import { getStoredStorageAccessToken, setStoredStorageAccessToken } from '@/services/secureCredentials';
 
 export const CURRENT_APP_VERSION = Constants.expoConfig?.version ?? 'unknown';
 
@@ -19,6 +20,12 @@ export interface AccountProfile {
   email: string;
   provider: AccountProvider;
   appleUserId?: string;
+  /**
+   * Non-expiring backend sync bearer token. Kept in memory here for
+   * synchronous reads across the app, but never written to AsyncStorage —
+   * `partialize` strips it and `onRehydrateStorage` merges it back in from
+   * expo-secure-store on boot (see services/secureCredentials.ts).
+   */
   storageAccessToken?: string;
   /**
    * Legacy field — older builds stored the password hash here, persisted to
@@ -64,6 +71,7 @@ interface AppState {
   setAccountAuthenticated: (value: boolean) => void;
   clearAccountSession: () => void;
   clearAccountProfile: () => void;
+  hydrateStorageAccessToken: (token: string) => void;
   markChangelogSeen: () => void;
   setViewMode: (mode: 'card' | 'list') => void;
   setSortBy: (by: AppState['sortBy']) => void;
@@ -93,16 +101,25 @@ export const useAppStore = create<AppState>()(
       setLocked: (isLocked) => set({ isLocked }),
       setBiometricEnabled: (biometricEnabled) => set({ biometricEnabled }),
       setHasOnboarded: (hasOnboarded) => set({ hasOnboarded }),
-      completeAccountSetup: (accountProfile) => set({
-        accountProfile,
-        isAccountAuthenticated: true,
-      }),
+      completeAccountSetup: (accountProfile) => {
+        // Fire-and-forget: keep the non-expiring sync bearer token in
+        // expo-secure-store, never in the AsyncStorage-persisted profile.
+        if (accountProfile.storageAccessToken) {
+          void setStoredStorageAccessToken(accountProfile.storageAccessToken);
+        }
+        set({ accountProfile, isAccountAuthenticated: true });
+      },
       setAccountAuthenticated: (isAccountAuthenticated) => set({ isAccountAuthenticated }),
       clearAccountSession: () => set({ isAccountAuthenticated: false }),
       clearAccountProfile: () => set({
         accountProfile: null,
         isAccountAuthenticated: false,
       }),
+      hydrateStorageAccessToken: (storageAccessToken) => set((state) => (
+        state.accountProfile
+          ? { accountProfile: { ...state.accountProfile, storageAccessToken } }
+          : {}
+      )),
       markChangelogSeen: () => set({ lastSeenChangelogVersion: CURRENT_APP_VERSION }),
       setViewMode: (viewMode) => set({ viewMode }),
       setSortBy: (sortBy) => set({ sortBy }),
@@ -120,10 +137,14 @@ export const useAppStore = create<AppState>()(
       partialize: (state) => ({
         biometricEnabled: state.biometricEnabled,
         hasOnboarded: state.hasOnboarded,
-        // Never write passwordHash to AsyncStorage — it lives in
-        // expo-secure-store instead (see services/secureCredentials.ts).
+        // Never write passwordHash or storageAccessToken to AsyncStorage —
+        // both live in expo-secure-store instead (see
+        // services/secureCredentials.ts). storageAccessToken is a
+        // non-expiring bearer credential for the sync API; leaving it in
+        // plain-JSON AsyncStorage would hand full vault access to anything
+        // with filesystem read access on a compromised device.
         accountProfile: state.accountProfile
-          ? { ...state.accountProfile, passwordHash: undefined }
+          ? { ...state.accountProfile, passwordHash: undefined, storageAccessToken: undefined }
           : null,
         isAccountAuthenticated: state.isAccountAuthenticated,
         lastSeenChangelogVersion: state.lastSeenChangelogVersion,
@@ -146,6 +167,20 @@ export const useAppStore = create<AppState>()(
         // badge the moment this feature ships.
         if (state && state.lastSeenChangelogVersion == null) {
           state.markChangelogSeen();
+        }
+        // storageAccessToken is stripped by partialize before it ever
+        // reaches AsyncStorage — merge it back in from expo-secure-store.
+        if (state?.accountProfile) {
+          const legacyToken = state.accountProfile.storageAccessToken;
+          void (async () => {
+            if (legacyToken) {
+              // One-time migration from an older build that persisted this
+              // to AsyncStorage in plain JSON.
+              try { await setStoredStorageAccessToken(legacyToken); } catch { /* retry next launch */ }
+            }
+            const token = legacyToken ?? (await getStoredStorageAccessToken());
+            if (token) state.hydrateStorageAccessToken(token);
+          })();
         }
       },
     }

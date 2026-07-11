@@ -111,6 +111,8 @@ export type ShareLinkStoreRecord = ShareLinkRecord & {
 export type EmailInboundRecord = {
   id: string;
   recipient?: string;
+  ownerUserId?: string;
+  ownerEmail?: string;
   sender: string;
   subject: string;
   receivedAt: string;

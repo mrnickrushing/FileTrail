@@ -112,4 +112,13 @@ export const MIGRATIONS = [
       CREATE INDEX IF NOT EXISTS users_storage_access_token_idx ON users(storage_access_token);
     `,
   },
+  {
+    id: 6,
+    sql: `
+      ALTER TABLE inbound_emails ADD COLUMN IF NOT EXISTS recipient text;
+      ALTER TABLE inbound_emails ADD COLUMN IF NOT EXISTS owner_user_id text;
+      ALTER TABLE inbound_emails ADD COLUMN IF NOT EXISTS owner_email text;
+      CREATE INDEX IF NOT EXISTS inbound_emails_owner_email_idx ON inbound_emails(owner_email);
+    `,
+  },
 ] as const;

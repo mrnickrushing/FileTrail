@@ -22,9 +22,17 @@ export class PostgresStore implements FiletrailStore {
   private readonly pool: pg.Pool;
 
   constructor(databaseUrl: string) {
+    // `rejectUnauthorized: false` accepts the DB's certificate without
+    // validating it, which permits MITM on an untrusted network path. Many
+    // managed Postgres providers (including Railway) work fine with proper
+    // validation; set PGSSL_STRICT=true once you've confirmed your provider
+    // doesn't need the relaxed mode, and this will start rejecting invalid
+    // certs. Left permissive by default here to avoid breaking an existing
+    // deployment without warning.
+    const sslStrict = process.env.PGSSL_STRICT === 'true';
     this.pool = new Pool({
       connectionString: databaseUrl,
-      ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : undefined,
+      ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: sslStrict } : undefined,
     });
   }
 
@@ -241,29 +249,50 @@ export class PostgresStore implements FiletrailStore {
     const id = randomUUID();
     const receivedAt = new Date().toISOString();
     await this.pool.query(
-      `INSERT INTO inbound_emails (id, sender, subject, attachments, received_at)
-       VALUES ($1, $2, $3, $4, $5)`,
-      [id, input.sender, input.subject, JSON.stringify(input.attachments), receivedAt],
+      `INSERT INTO inbound_emails (id, recipient, owner_user_id, owner_email, sender, subject, attachments, received_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+      [
+        id,
+        input.recipient ?? null,
+        input.ownerUserId ?? null,
+        input.ownerEmail ?? null,
+        input.sender,
+        input.subject,
+        JSON.stringify(input.attachments),
+        receivedAt,
+      ],
     );
     return { ...input, id, receivedAt };
   }
 
-  async listInboundEmails(limit = 100): Promise<EmailInboundRecord[]> {
+  async listInboundEmails(limit = 100, ownerEmail?: string): Promise<EmailInboundRecord[]> {
     const res = await this.pool.query<{
       id: string;
+      recipient: string | null;
+      owner_user_id: string | null;
+      owner_email: string | null;
       sender: string;
       subject: string;
       attachments: Array<{ filename: string; mimeType: string; sizeBytes: number }> | string;
       received_at: Date;
     }>(
-      `SELECT id, sender, subject, attachments, received_at
-       FROM inbound_emails
-       ORDER BY received_at DESC
-       LIMIT $1`,
-      [limit],
+      ownerEmail
+        ? `SELECT id, recipient, owner_user_id, owner_email, sender, subject, attachments, received_at
+           FROM inbound_emails
+           WHERE owner_email = $2
+           ORDER BY received_at DESC
+           LIMIT $1`
+        : `SELECT id, recipient, owner_user_id, owner_email, sender, subject, attachments, received_at
+           FROM inbound_emails
+           ORDER BY received_at DESC
+           LIMIT $1`,
+      ownerEmail ? [limit, ownerEmail.toLowerCase()] : [limit],
     );
     return res.rows.map((row) => ({
       id: row.id,
+      recipient: row.recipient ?? undefined,
+      ownerUserId: row.owner_user_id ?? undefined,
+      ownerEmail: row.owner_email ?? undefined,
       sender: row.sender,
       subject: row.subject,
       attachments: Array.isArray(row.attachments) ? row.attachments : JSON.parse(row.attachments || '[]'),

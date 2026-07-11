@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { isAuthenticated } from '@/lib/auth';
-import { apiFetch } from '@/lib/api';
+import { adminApiFetch } from '@/lib/api';
 
 export async function POST(req: Request) {
   if (!(await isAuthenticated())) {
@@ -8,8 +8,8 @@ export async function POST(req: Request) {
   }
   const { title, body, filter } = await req.json();
   try {
-    const result = await apiFetch<{ ok: boolean; recipientCount: number; notificationId: string }>(
-      '/v1/notifications/broadcast',
+    const result = await adminApiFetch<{ ok: boolean; recipientCount: number; notificationId: string }>(
+      '/v1/admin/notifications/broadcast',
       { method: 'POST', body: JSON.stringify({ title, body, filter }) },
     );
     return NextResponse.json(result);

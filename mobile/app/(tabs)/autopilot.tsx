@@ -28,6 +28,8 @@ export default function AutopilotScreen() {
   const insets = useSafeAreaInsets();
   const documents = useDocumentStore((s) => s.documents);
   const accountEmail = useAppStore((s) => s.accountProfile?.email);
+  const accountUserId = useAppStore((s) => s.accountProfile?.userId);
+  const accountStorageAccessToken = useAppStore((s) => s.accountProfile?.storageAccessToken);
   const summary = React.useMemo(() => buildAutopilotSummary(documents), [documents]);
   const [emailConfig, setEmailConfig] = React.useState<EmailVaultConfig | null>(null);
   const [inboundEmails, setInboundEmails] = React.useState<EmailVaultInboundRecord[]>([]);
@@ -36,7 +38,7 @@ export default function AutopilotScreen() {
     let active = true;
     Promise.all([
       fetchEmailVaultConfig(accountEmail),
-      fetchInboundEmails(8),
+      fetchInboundEmails(8, { userId: accountUserId, storageAccessToken: accountStorageAccessToken }),
     ]).then(([config, emails]) => {
       if (!active) return;
       setEmailConfig(config);
@@ -45,7 +47,7 @@ export default function AutopilotScreen() {
     return () => {
       active = false;
     };
-  }, [accountEmail]);
+  }, [accountEmail, accountUserId, accountStorageAccessToken]);
 
   const topActions = summary.actions.slice(0, 8);
 
