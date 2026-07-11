@@ -1,5 +1,37 @@
 # Operational notes for Claude
 
+## Standing directive: exhaust every avenue before asking the user to act
+
+Default to doing it yourself. Before telling the user "you need to do X" or
+"I can't access Y," actually try — don't assume a system is inaccessible
+because the obvious first call fails. This session, every one of the
+following looked like a dead end on the first attempt and wasn't:
+
+- Codemagic's `GET /apps` 500s for this account — the fix wasn't "ask the
+  user for the app ID," it was finding `GET /user` → `teams[].applicationIds`
+  → per-ID `GET /apps/{id}`.
+- Verifying which RevenueCat API key actually shipped in a build wasn't
+  "ask the user to check" — it was downloading the built `.ipa` from
+  Codemagic's artifact URL, unzipping it, and grepping `main.jsbundle`
+  directly for the compiled-in key.
+- Updating a wrong Codemagic environment variable wasn't "tell the user to
+  edit it in the dashboard" — the documented `api.codemagic.io` v1 API
+  doesn't expose variable-group management, but `codemagic.io/api/v3`
+  (found via `/api/v3/schema` → `/api/v3/schema/openapi.json`) does:
+  `GET /api/v3/teams/{team_id}/variable-groups`, then
+  `.../variable-groups/{id}/variables`, then
+  `PATCH .../variables/{variable_id}` with `{"value": "..."}`.
+
+The pattern: if a documented/obvious endpoint fails or doesn't exist, look
+for (a) an alternate endpoint that reaches the same data, (b) a newer/older
+API version, (c) a way to inspect the actual artifact/output directly
+instead of asking someone to eyeball a dashboard, before concluding an
+action requires the user. Only hand something back to the user when there
+is a real, confirmed hard blocker — a credential you don't have and can't
+derive, an action that requires their explicit authorization (destructive,
+financial, or account-security consequences), or a physical-world step
+(installing a build on their device, checking their email).
+
 ## Codemagic API access
 
 `GET https://api.codemagic.io/apps` (the app-listing endpoint) returns a
