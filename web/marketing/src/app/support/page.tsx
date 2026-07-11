@@ -94,11 +94,11 @@ export default function SupportPage() {
             <div className={supportStyles.faqGroup}>
               <div className={supportStyles.faqItem}>
                 <div className={supportStyles.question}>What's included in FileTrail Pro?</div>
-                <div className={supportStyles.answer}>Pro unlocks unlimited documents (free tier is limited to 25), folder organisation, cloud backup, and priority support.</div>
+                <div className={supportStyles.answer}>FileTrail requires a Pro subscription ($5.99/month) to save and manage documents. Pro includes unlimited documents, folder organisation, cloud backup, and priority support. There's no free tier.</div>
               </div>
               <div className={supportStyles.faqItem}>
-                <div className={supportStyles.question}>How do I upgrade to Pro?</div>
-                <div className={supportStyles.answer}>Tap the ✦ icon in the top right of the home screen, or go to Settings → FileTrail Pro. You'll see the subscription options there.</div>
+                <div className={supportStyles.question}>How do I subscribe to Pro?</div>
+                <div className={supportStyles.answer}>Tap the ✦ icon in the top right of the home screen, or go to Settings → FileTrail Pro, to start your $5.99/month subscription.</div>
               </div>
               <div className={supportStyles.faqItem}>
                 <div className={supportStyles.question}>Can I restore my Pro purchase on a new device?</div>

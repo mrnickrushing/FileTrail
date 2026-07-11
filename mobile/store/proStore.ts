@@ -11,6 +11,11 @@ import { apiRequest, isBackendConfigured } from '@/services/api';
 // FileTrail has no free tier — Pro is required to save any document.
 export const FREE_DOCUMENT_LIMIT = 0;
 
+// Single source of truth for the Pro price shown across onboarding, the
+// paywall, and settings — keep in sync with the App Store Connect price.
+export const PRO_PRICE_DISPLAY = '$5.99/month';
+export const PRO_PRICE_DISPLAY_SHORT = '$5.99/mo';
+
 interface ProState {
   isPro: boolean;
   isChecking: boolean;

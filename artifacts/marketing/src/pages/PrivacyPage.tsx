@@ -35,7 +35,7 @@ export default function PrivacyPage() {
           <div className={styles.heroBadge}>🔒 Privacy First</div>
           <h1 className={styles.heroTitle}>Privacy Policy</h1>
           <p className={styles.heroSubtitle}>Your documents belong to you. Here's exactly what data we collect, what we don't, and how we protect your privacy.</p>
-          <span className={styles.heroUpdated}>Last updated: June 3, 2026</span>
+          <span className={styles.heroUpdated}>Last updated: July 11, 2026</span>
         </div>
       </div>
       <div className={styles.contentWrap}>
@@ -62,8 +62,7 @@ export default function PrivacyPage() {
           <div className={styles.section} id="s3">
             <span className={styles.sectionNum}>Section 3</span>
             <h2 className={styles.sectionTitle}>Data we collect — before you subscribe</h2>
-            <p>FileTrail is free to download. Before you subscribe to Pro, we collect <strong>nothing</strong> — the app requires no account and functions entirely offline until you subscribe, which is required to save or manage documents.</p>
-            <p>If you use features that require a network connection (such as AI suggestions), we may receive the minimum data necessary to perform that specific function. We do not retain this data beyond the duration of the request.</p>
+            <p>FileTrail is free to download. Before you subscribe to Pro, we require <strong>no account and no document data</strong> — subscribing is required to save or manage documents. We may still collect the anonymised analytics described in Section 5, and if you use a feature that requires a network connection (such as AI suggestions), we may receive the minimum data necessary to perform that specific function. We do not retain that request data beyond the duration of the request.</p>
           </div>
           <div className={styles.section} id="s4">
             <span className={styles.sectionNum}>Section 4</span>

@@ -70,7 +70,7 @@ export default function HomePage() {
         <div className={styles.heroStats}>
           <div className={styles.heroStat}><span className={styles.heroStatNum}>3 sec</span><span className={styles.heroStatLabel}>avg search time</span></div>
           <div className={styles.heroStat}><span className={styles.heroStatNum}>100%</span><span className={styles.heroStatLabel}>offline capable</span></div>
-          <div className={styles.heroStat}><span className={styles.heroStatNum}>0</span><span className={styles.heroStatLabel}>accounts needed</span></div>
+          <div className={styles.heroStat}><span className={styles.heroStatNum}>$5.99</span><span className={styles.heroStatLabel}>per month</span></div>
         </div>
       </section>
 

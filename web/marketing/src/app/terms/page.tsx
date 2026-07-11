@@ -94,7 +94,7 @@ export default function TermsOfService() {
           <div className={styles.section} id="s4">
             <span className={styles.sectionNum}>Section 4</span>
             <h2 className={styles.sectionTitle}>Pro subscription</h2>
-            <p>Pro is the only plan FileTrail offers: a recurring subscription billed at $5.99 per month (or the equivalent in your local currency), with no free trial, annual option, or family plan. By subscribing, you authorise us to charge your payment method the full $5.99 immediately and on a recurring monthly basis thereafter.</p>
+            <p>Pro is the only plan FileTrail offers: a recurring subscription priced at $5.99 per month (or the equivalent in your local currency), with no free trial, annual option, or family plan. Subscriptions are billed through the applicable Apple App Store or Google Play billing system at the price shown at checkout, charged immediately upon subscribing, and renewed monthly unless cancelled.</p>
             <ul>
               <li><strong>Cancellation:</strong> You may cancel at any time. Your Pro access continues until the end of the current billing period. No refunds are issued for partial months.</li>
               <li><strong>Price changes:</strong> We may change the Pro price with 30 days' notice. Continued use after the notice period constitutes acceptance.</li>

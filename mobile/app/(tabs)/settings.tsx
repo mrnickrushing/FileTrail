@@ -9,7 +9,7 @@ import Animated, {
   withSpring,
   useReducedMotion,
 } from 'react-native-reanimated';
-import { useAppStore, useProStore, useOwnerStore } from '@/store';
+import { useAppStore, useProStore, useOwnerStore, PRO_PRICE_DISPLAY_SHORT } from '@/store';
 import { CURRENT_APP_VERSION } from '@/store/appStore';
 import { TourBubble } from '@/components/TourBubble';
 import { useTourTip } from '@/hooks/useTourTip';
@@ -113,7 +113,7 @@ export default function SettingsScreen() {
           ))}
         </View>
         <View style={styles.proAction}>
-          <Text style={styles.proPrice}>{isPro ? 'Pro unlocked' : 'From $4.99/mo'}</Text>
+          <Text style={styles.proPrice}>{isPro ? 'Pro unlocked' : PRO_PRICE_DISPLAY_SHORT}</Text>
           <AnimatedPressable
             style={[styles.proCTA, isPro && styles.proCTADisabled, ctaStyle]}
             onPressIn={() => { if (!isPro && !reducedMotion) ctaScale.value = withSpring(0.95, Springs.snappy); }}
