@@ -21,7 +21,9 @@ const RC_API_KEY_IOS = (
   ?? 'appl_TgiNXVHaxiiEfFbKfcYfbSnFCwh'
 ).trim();
 const PRO_PRODUCT_ID = 'FileTrail.monthly';
-const PRO_ENTITLEMENT_ID = 'pro';
+// Must match the entitlement's lookup_key in RevenueCat exactly
+// (Project Settings > Entitlements) — currently "FileTrail Pro", not "pro".
+const PRO_ENTITLEMENT_ID = 'FileTrail Pro';
 const NORMALIZED_PRO_ENTITLEMENT_ID = PRO_ENTITLEMENT_ID.toLowerCase();
 
 let isConfigured = false;
