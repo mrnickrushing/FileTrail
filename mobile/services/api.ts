@@ -34,6 +34,12 @@ export function isBackendConfigured(): boolean {
   return true;
 }
 
+/** Thrown only when the backend actually responded with a non-2xx status —
+ * as opposed to fetch/AbortController failures (offline, timeout, DNS),
+ * which reject with their own Error types and should NOT be treated as
+ * having a user-facing message to display. */
+export class BackendHttpError extends Error {}
+
 export async function apiRequest<T>(path: string, options: ApiOptions = {}): Promise<T> {
   const baseUrl = getApiBaseUrl();
   if (!baseUrl) {
@@ -72,7 +78,7 @@ export async function apiRequest<T>(path: string, options: ApiOptions = {}): Pro
         : typeof data === 'string' && data.trim()
           ? data
           : `Backend request failed (${res.status})`;
-      throw new Error(message);
+      throw new BackendHttpError(message);
     }
 
     return data as T;
