@@ -8,7 +8,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { checkProEntitlement } from '@/services/purchases';
 import { apiRequest, isBackendConfigured } from '@/services/api';
 
-export const FREE_DOCUMENT_LIMIT = 3;
+// FileTrail has no free tier — Pro is required to save any document.
+export const FREE_DOCUMENT_LIMIT = 0;
 
 interface ProState {
   isPro: boolean;

@@ -46,7 +46,7 @@ export default function TermsOfService() {
             These terms govern your use of FileTrail, developed and operated by
             Rushing Technologies. By using FileTrail, you agree to these terms.
           </p>
-          <span className={styles.heroUpdated}>Last updated: June 3, 2026</span>
+          <span className={styles.heroUpdated}>Last updated: July 11, 2026</span>
         </div>
       </div>
 
@@ -77,13 +77,13 @@ export default function TermsOfService() {
           <div className={styles.section} id="s2">
             <span className={styles.sectionNum}>Section 2</span>
             <h2 className={styles.sectionTitle}>Description of service</h2>
-            <p>FileTrail is a document management application that allows you to scan, organise, search, and store documents on your device. A free tier is available with local storage. A Pro subscription tier provides additional features including cloud sync, AI features, and sharing.</p>
+            <p>FileTrail is a document management application that allows you to scan, organise, search, and store documents on your device. The App requires an active Pro subscription to save and manage documents; there is no free tier.</p>
           </div>
 
           <div className={styles.section} id="s3">
             <span className={styles.sectionNum}>Section 3</span>
             <h2 className={styles.sectionTitle}>Your account</h2>
-            <p>The free tier requires no account. If you subscribe to Pro, you will create an account with an email address and password. You are responsible for:</p>
+            <p>To subscribe to Pro, you will create an account with an email address and password. You are responsible for:</p>
             <ul>
               <li>Maintaining the confidentiality of your credentials</li>
               <li>All activity that occurs under your account</li>
@@ -94,9 +94,8 @@ export default function TermsOfService() {
           <div className={styles.section} id="s4">
             <span className={styles.sectionNum}>Section 4</span>
             <h2 className={styles.sectionTitle}>Pro subscription</h2>
-            <p>Pro is a recurring subscription billed at $5.99 per month (or the equivalent in your local currency). By subscribing, you authorise us to charge your payment method on a recurring basis.</p>
+            <p>Pro is the only plan FileTrail offers: a recurring subscription billed at $5.99 per month (or the equivalent in your local currency), with no free trial, annual option, or family plan. By subscribing, you authorise us to charge your payment method the full $5.99 immediately and on a recurring monthly basis thereafter.</p>
             <ul>
-              <li><strong>Free trial:</strong> New Pro subscribers receive a 7-day free trial. You will not be charged until the trial ends.</li>
               <li><strong>Cancellation:</strong> You may cancel at any time. Your Pro access continues until the end of the current billing period. No refunds are issued for partial months.</li>
               <li><strong>Price changes:</strong> We may change the Pro price with 30 days' notice. Continued use after the notice period constitutes acceptance.</li>
               <li><strong>Refunds:</strong> Refund requests are handled on a case-by-case basis. Contact <a href="mailto:support@rushingtechnologies.com">support@rushingtechnologies.com</a> within 14 days of a charge to request a refund.</li>

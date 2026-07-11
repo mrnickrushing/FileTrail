@@ -195,9 +195,13 @@ export function PaywallModal({ visible, onClose, onSuccess }: PaywallModalProps)
             {isPurchasing ? (
               <ActivityIndicator color={C.ink1} />
             ) : (
-              <Text style={styles.unlockBtnText}>Unlock Pro</Text>
+              <Text style={styles.unlockBtnText}>Unlock Pro — $5.99/month</Text>
             )}
           </AnimatedPressable>
+
+          <Text style={styles.priceFootnote}>
+            $5.99 per month, billed monthly. Cancel anytime.
+          </Text>
 
           <Pressable
             style={styles.restoreBtn}
@@ -314,6 +318,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     minHeight: 44,
+  },
+  priceFootnote: {
+    fontSize: T.xs,
+    color: C.ash,
+    textAlign: 'center',
   },
   restoreText: {
     fontSize: T.sm,

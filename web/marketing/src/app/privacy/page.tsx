@@ -8,7 +8,7 @@ export const metadata = {
 const TOC = [
   { id: 's1',  label: '1. Who we are' },
   { id: 's2',  label: '2. Data on your device' },
-  { id: 's3',  label: '3. Free tier data' },
+  { id: 's3',  label: '3. Data before you subscribe' },
   { id: 's4',  label: '4. Pro tier data' },
   { id: 's5',  label: '5. Analytics' },
   { id: 's6',  label: '6. Push notifications' },
@@ -89,8 +89,8 @@ export default function PrivacyPolicy() {
 
           <div className={styles.section} id="s3">
             <span className={styles.sectionNum}>Section 3</span>
-            <h2 className={styles.sectionTitle}>Data we collect — Free tier</h2>
-            <p>On the free tier with no account, we collect <strong>nothing</strong>. The app functions entirely offline with no data transmitted to us.</p>
+            <h2 className={styles.sectionTitle}>Data we collect — before you subscribe</h2>
+            <p>FileTrail is free to download. Before you subscribe to Pro, we collect <strong>nothing</strong> — the app requires no account and functions entirely offline until you subscribe, which is required to save or manage documents.</p>
             <p>If you use features that require a network connection (such as AI suggestions), we may receive the minimum data necessary to perform that specific function. We do not retain this data beyond the duration of the request.</p>
           </div>
 

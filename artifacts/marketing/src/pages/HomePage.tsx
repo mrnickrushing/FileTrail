@@ -36,7 +36,7 @@ export default function HomePage() {
           <div className={styles.navLinks}>
             <a href="#features">Features</a>
             <a href="#pricing">Pricing</a>
-            <a href="#download" className={styles.navCta}>Download free</a>
+            <a href="#download" className={styles.navCta}>Get FileTrail</a>
           </div>
         </div>
       </nav>
@@ -45,7 +45,7 @@ export default function HomePage() {
         <div className={styles.heroGlow} />
         <div className={styles.heroGlow2} />
         <div className={styles.heroContent}>
-          <div className={styles.heroBadge}>📱 Free on iOS &amp; Android</div>
+          <div className={styles.heroBadge}>📱 $5.99/month on iOS &amp; Android</div>
           <img src={`${import.meta.env.BASE_URL}icon.png`} alt="FileTrail" className={styles.heroIcon} />
           <h1 className={styles.heroTitle}>
             Stop losing<br />
@@ -65,7 +65,7 @@ export default function HomePage() {
               Download for Android
             </a>
           </div>
-          <p className={styles.heroNote}>Free forever · No account · No cloud required</p>
+          <p className={styles.heroNote}>$5.99/month · Cancel anytime</p>
         </div>
         <div className={styles.heroStats}>
           <div className={styles.heroStat}><span className={styles.heroStatNum}>3 sec</span><span className={styles.heroStatLabel}>avg search time</span></div>
@@ -147,22 +147,9 @@ export default function HomePage() {
       <section className={styles.pricing} id="pricing">
         <div className={styles.sectionInner}>
           <h2 className={styles.sectionTitle}>Honest pricing.</h2>
-          <p className={styles.sectionSubtitle}>Free forever for the essentials. Pro when you want superpowers.</p>
+          <p className={styles.sectionSubtitle}>One plan, $5.99/month. Download the app free and subscribe to unlock the vault.</p>
           <div className={styles.pricingGrid}>
-            <div className={styles.pricingCard}>
-              <div className={styles.pricingName}>Free</div>
-              <div className={styles.pricingPriceRow}>
-                <span className={styles.pricingPrice}>$0</span>
-                <span className={styles.pricingPeriod}>forever</span>
-              </div>
-              <p className={styles.pricingTagline}>Everything you need to go paperless.</p>
-              <ul className={styles.pricingFeatures}>
-                {['Unlimited local documents','On-device OCR (full text search)','Auto-categorisation','Folders, tags, favorites','ZIP export','Biometric lock','Works completely offline','No account required — ever'].map(f => <li key={f}><span className={styles.check}>✓</span>{f}</li>)}
-              </ul>
-              <a href="#download" className={styles.ctaOutline}>Download free</a>
-            </div>
             <div className={`${styles.pricingCard} ${styles.pricingCardPro}`}>
-              <div className={styles.proBadge}>Most popular</div>
               <div className={styles.pricingName}>Pro</div>
               <div className={styles.pricingPriceRow}>
                 <span className={styles.pricingPrice}>$5.99</span>
@@ -170,10 +157,10 @@ export default function HomePage() {
               </div>
               <p className={styles.pricingTagline}>For people serious about their documents.</p>
               <ul className={styles.pricingFeatures}>
-                {['Everything in Free','Encrypted cloud sync','Access from any device','Email-to-vault forwarding','AI auto-naming & categorisation','AI expiry detection (IDs, warranties)','Natural-language search','Time-limited shareable links','Shared vaults (family / business)','Spending analytics by vendor','Priority OCR processing'].map(f => <li key={f}><span className={styles.checkPro}>✓</span>{f}</li>)}
+                {['Unlimited local documents','On-device OCR (full text search)','Auto-categorisation','Folders, tags, favorites','ZIP export','Biometric lock','Encrypted cloud sync','Access from any device','Email-to-vault forwarding','AI auto-naming & categorisation','AI expiry detection (IDs, warranties)','Natural-language search','Time-limited shareable links','Priority OCR processing'].map(f => <li key={f}><span className={styles.checkPro}>✓</span>{f}</li>)}
               </ul>
-              <a href="#download" className={styles.ctaPrimary}>Start free trial</a>
-              <p className={styles.pricingNote}>7-day free trial · Cancel anytime</p>
+              <a href="#download" className={styles.ctaPrimary}>Start with Pro</a>
+              <p className={styles.pricingNote}>$5.99 billed monthly · Cancel anytime</p>
             </div>
           </div>
           <div className={styles.valueAnchor}>
@@ -187,7 +174,7 @@ export default function HomePage() {
           <h2 className={styles.sectionTitle}>Up and running in 60 seconds.</h2>
           <div className={styles.steps}>
             {[
-              { n: '1', title: 'Download & open', body: "No sign-up. No email. No credit card. Just open the app and you're ready." },
+              { n: '1', title: 'Download & subscribe', body: "Download the app, then subscribe to Pro for $5.99/month to unlock your vault." },
               { n: '2', title: 'Scan your first document', body: 'Tap the camera button, point at anything — a receipt, letter, card — and tap capture.' },
               { n: '3', title: 'Search anything', body: 'Type any word that appears in the document. FileTrail finds it in under 3 seconds.' },
             ].map(step => (
@@ -215,7 +202,7 @@ export default function HomePage() {
               <div className={styles.privacyBadge}>🏠 Local-first storage</div>
               <div className={styles.privacyBadge}>🔐 End-to-end encrypted sync</div>
               <div className={styles.privacyBadge}>👁️ Zero data mining</div>
-              <div className={styles.privacyBadge}>📵 No account required</div>
+              <div className={styles.privacyBadge}>📵 No account until you subscribe</div>
             </div>
           </div>
         </div>
@@ -227,7 +214,7 @@ export default function HomePage() {
             <div className={styles.finalCtaGlow} />
             <img src={`${import.meta.env.BASE_URL}icon.png`} alt="FileTrail" className={styles.finalCtaIcon} />
             <h2 className={styles.finalCtaTitle}>Get your documents under control. Today.</h2>
-            <p className={styles.finalCtaBody}>Free forever. No account. Works offline. Takes 60 seconds to set up.</p>
+            <p className={styles.finalCtaBody}>$5.99/month. Cancel anytime. Takes 60 seconds to set up.</p>
             <div className={styles.heroCtas}>
               <a href="#" className={styles.ctaPrimary}>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M18.71 19.5C17.88 20.74 17 21.95 15.66 21.97C14.32 22 13.89 21.18 12.37 21.18C10.84 21.18 10.37 21.95 9.1 22C7.78 22.05 6.8 20.68 5.96 19.47C4.25 17 2.94 12.45 4.7 9.39C5.57 7.87 7.13 6.91 8.82 6.88C10.1 6.86 11.32 7.75 12.11 7.75C12.89 7.75 14.37 6.68 15.92 6.84C16.57 6.87 18.39 7.1 19.56 8.82C19.47 8.88 17.39 10.1 17.41 12.63C17.44 15.65 20.06 16.66 20.09 16.67C20.06 16.74 19.67 18.11 18.71 19.5M13 3.5C13.73 2.67 14.94 2.04 15.94 2C16.07 3.17 15.6 4.35 14.9 5.19C14.21 6.04 13.07 6.7 11.95 6.61C11.8 5.46 12.36 4.26 13 3.5Z"/></svg>
