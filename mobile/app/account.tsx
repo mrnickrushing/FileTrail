@@ -393,8 +393,10 @@ export default function AccountScreen() {
 
       const credentialName = appleFullName(credential.fullName);
       const fallbackEmail = await appleRelayFallbackHashed(credential.user);
+      // `||`, not `??`: email/accountProfile?.email default to '' (not null/undefined)
+      // when unset, and '' must still fall through to the next candidate.
       const normalizedEmail = normalizeEmail(
-        credential.email ?? email ?? accountProfile?.email ?? fallbackEmail,
+        credential.email || email || accountProfile?.email || fallbackEmail,
       );
 
       if (isCreateMode) {
