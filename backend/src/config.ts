@@ -39,7 +39,6 @@ export function loadConfig(): RuntimeConfig {
 
   if (nodeEnv === 'production') {
     const missing = [
-      !apiKey ? 'API_KEY' : null,
       !adminKey ? 'ADMIN_KEY' : null,
       corsOrigins.includes('*') ? 'CORS_ORIGINS' : null,
       appleClientIds.length === 0 ? 'APPLE_CLIENT_ID or APPLE_CLIENT_IDS' : null,
