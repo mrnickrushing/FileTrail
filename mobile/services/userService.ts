@@ -12,7 +12,15 @@ export type BackendAuthResult = {
   appleUserId?: string;
   createdAt?: string;
   isPro?: boolean;
+  /** The backend's actual error message (e.g. "Email already registered"),
+   * when the request reached the server but was rejected. Absent for
+   * genuine network failures/timeouts. */
+  error?: string;
 };
+
+function errorMessage(err: unknown): string | undefined {
+  return err instanceof Error ? err.message : undefined;
+}
 
 export async function registerUserWithBackend(params: {
   id: string;
@@ -29,8 +37,8 @@ export async function registerUserWithBackend(params: {
       body: params,
     });
     return result;
-  } catch {
-    return { ok: false };
+  } catch (err) {
+    return { ok: false, error: errorMessage(err) };
   }
 }
 
@@ -45,8 +53,8 @@ export async function loginUserWithBackend(params: {
       body: params,
     });
     return result;
-  } catch {
-    return { ok: false };
+  } catch (err) {
+    return { ok: false, error: errorMessage(err) };
   }
 }
 
@@ -63,7 +71,7 @@ export async function signInWithAppleBackend(params: {
       method: 'POST',
       body: params,
     });
-  } catch {
-    return { ok: false };
+  } catch (err) {
+    return { ok: false, error: errorMessage(err) };
   }
 }

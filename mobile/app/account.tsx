@@ -229,7 +229,7 @@ export default function AccountScreen() {
       provider: 'email',
     });
     if (!regResult.ok || !regResult.userId || !regResult.storageAccessToken) {
-      fail('Could not create your backend account. Check your connection and try again.');
+      fail(regResult.error ?? 'Could not create your backend account. Check your connection and try again.');
       return;
     }
     await setStoredPasswordHash(pwHash);
@@ -284,7 +284,7 @@ export default function AccountScreen() {
     });
 
     if (!backendLogin.ok || !backendLogin.userId || !backendLogin.storageAccessToken) {
-      fail('Could not reconnect this account to the backend. Check your email and password, then try again.');
+      fail(backendLogin.error ?? 'Could not reconnect this account to the backend. Check your email and password, then try again.');
       return;
     }
 
@@ -421,7 +421,7 @@ export default function AccountScreen() {
           appleUserId: credential.user,
         });
         if (!appleResult.ok || !appleResult.userId || !appleResult.storageAccessToken) {
-          fail('Apple sign in could not create your FileTrail account. Try again.');
+          fail(appleResult.error ?? 'Apple sign in could not create your FileTrail account. Try again.');
           return;
         }
         startTour();
@@ -461,7 +461,7 @@ export default function AccountScreen() {
         appleUserId: credential.user,
       });
       if (!appleResult.ok || !appleResult.userId || !appleResult.storageAccessToken) {
-        fail('Apple sign in could not reconnect this account. Try again.');
+        fail(appleResult.error ?? 'Apple sign in could not reconnect this account. Try again.');
         return;
       }
 
