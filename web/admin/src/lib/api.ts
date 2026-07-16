@@ -131,3 +131,13 @@ export async function getUsers() {
 export async function deleteUser(id: string) {
   return adminApiFetch<{ ok: boolean }>(`/v1/admin/users/${id}`, { method: 'DELETE' });
 }
+
+// Toggle a user's Pro entitlement. PATCHes /v1/admin/users/:id (admin-authed).
+// The mobile app reads this flag back via /v1/users/pro-status as the fallback
+// when RevenueCat reports no entitlement, so flipping it here grants Pro in-app.
+export async function setUserPro(id: string, isPro: boolean) {
+  return adminApiFetch<{ ok: boolean; user: UserRecord }>(`/v1/admin/users/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ isPro }),
+  });
+}

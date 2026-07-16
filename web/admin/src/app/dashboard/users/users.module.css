@@ -29,6 +29,22 @@
   color: var(--faint); font-size: 11px; font-weight: 600;
 }
 
+.proToggle {
+  display: inline-block; padding: 3px 12px; border-radius: 99px;
+  font-size: 11px; font-weight: 700; letter-spacing: 0.4px;
+  cursor: pointer; transition: background 0.15s, color 0.15s, border-color 0.15s, opacity 0.15s;
+}
+.proToggle:disabled { opacity: 0.6; cursor: progress; }
+.proToggleOn {
+  background: var(--amber-dim, rgba(245,176,72,0.15)); border: 1px solid rgba(245,176,72,0.3);
+  color: var(--amber, #F5B048);
+}
+.proToggleOn:hover:not(:disabled) { background: rgba(245,176,72,0.28); }
+.proToggleOff {
+  background: var(--ink3); border: 1px solid var(--ink4); color: var(--faint);
+}
+.proToggleOff:hover:not(:disabled) { border-color: rgba(245,176,72,0.4); color: var(--amber, #F5B048); }
+
 .deleteBtn {
   padding: 4px 12px; border-radius: 6px; font-size: 12px; font-weight: 600;
   background: transparent; border: 1px solid var(--ink4); color: var(--faint);

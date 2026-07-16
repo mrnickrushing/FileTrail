@@ -1,6 +1,7 @@
 import { revalidatePath } from 'next/cache';
-import { getUsers, deleteUser, type UserRecord } from '@/lib/api';
+import { getUsers, deleteUser, setUserPro, type UserRecord } from '@/lib/api';
 import { DeleteUserButton } from './DeleteUserButton';
+import { ProToggle } from './ProToggle';
 import styles from './users.module.css';
 
 export const revalidate = 0;
@@ -17,6 +18,12 @@ async function fetchUsers() {
 async function handleDelete(id: string) {
   'use server';
   await deleteUser(id);
+  revalidatePath('/dashboard/users');
+}
+
+async function handleSetPro(id: string, isPro: boolean) {
+  'use server';
+  await setUserPro(id, isPro);
   revalidatePath('/dashboard/users');
 }
 
@@ -53,7 +60,7 @@ export default async function UsersPage() {
                   <td>{u.fullName}</td>
                   <td className={styles.mono}>{u.email}</td>
                   <td>{u.provider}</td>
-                  <td>{u.isPro ? <span className={styles.proBadge}>Pro</span> : <span className={styles.freeBadge}>Free</span>}</td>
+                  <td><ProToggle userId={u.id} isPro={u.isPro} onToggle={handleSetPro} /></td>
                   <td className={styles.time}>{new Date(u.createdAt).toLocaleString()}</td>
                   <td>
                     <DeleteUserButton
