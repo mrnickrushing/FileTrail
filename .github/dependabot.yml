@@ -6,8 +6,8 @@ updates:
       interval: weekly
     open-pull-requests-limit: 10
     groups:
-      backend-minor-patch:
-        update-types: ['minor', 'patch']
+      backend-all:
+        update-types: ['major', 'minor', 'patch']
 
   - package-ecosystem: npm
     directory: /mobile
@@ -15,8 +15,8 @@ updates:
       interval: weekly
     open-pull-requests-limit: 10
     groups:
-      mobile-minor-patch:
-        update-types: ['minor', 'patch']
+      mobile-all:
+        update-types: ['major', 'minor', 'patch']
     ignore:
       # Expo/React Native major versions must be bumped together by hand
       # (SDK upgrades touch native code and EAS build profiles).
@@ -35,8 +35,8 @@ updates:
       interval: weekly
     open-pull-requests-limit: 10
     groups:
-      admin-minor-patch:
-        update-types: ['minor', 'patch']
+      admin-all:
+        update-types: ['major', 'minor', 'patch']
 
   - package-ecosystem: npm
     directory: /web/marketing
@@ -44,8 +44,8 @@ updates:
       interval: weekly
     open-pull-requests-limit: 10
     groups:
-      marketing-minor-patch:
-        update-types: ['minor', 'patch']
+      marketing-all:
+        update-types: ['major', 'minor', 'patch']
 
   - package-ecosystem: npm
     directory: /cloudflare/email-worker
@@ -53,8 +53,8 @@ updates:
       interval: weekly
     open-pull-requests-limit: 10
     groups:
-      email-worker-minor-patch:
-        update-types: ['minor', 'patch']
+      email-worker-all:
+        update-types: ['major', 'minor', 'patch']
 
   - package-ecosystem: npm
     directory: /
