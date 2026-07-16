@@ -56,12 +56,12 @@ export type ConfigResponse = {
   integrations: Record<string, boolean>;
 };
 
-export type SyncPullResponse = {
-  syncVersion: number;
-  documents: unknown[];
-  folders: unknown[];
-  tombstones: unknown[];
-  serverTime: string;
+export type AdminStatsResponse = {
+  userCount: number;
+  documentCount: number;
+  totalStorageBytes: number;
+  eventCount: number;
+  recentActiveUsers: number;
 };
 
 export type ShareLink = {
@@ -96,11 +96,12 @@ export async function getConfig() {
   return apiFetch<ConfigResponse>('/v1/config');
 }
 
-export async function getSyncStats() {
-  return apiFetch<SyncPullResponse>('/v1/sync/pull', {
-    method: 'POST',
-    body: JSON.stringify({ deviceId: 'admin-dashboard', sinceVersion: 0 }),
-  });
+// Aggregate backend stats. Uses the admin-authed /v1/admin/stats endpoint
+// (gated by ADMIN_KEY) — NOT /v1/sync/pull, which is a per-user storage
+// endpoint that requires an individual user's storage token and returns
+// "Storage access denied" for the dashboard.
+export async function getAdminStats() {
+  return adminApiFetch<AdminStatsResponse>('/v1/admin/stats');
 }
 
 export async function getShareLinks() {

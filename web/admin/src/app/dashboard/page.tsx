@@ -1,21 +1,33 @@
-import { getHealth, getConfig, getSyncStats } from '@/lib/api';
+import { getHealth, getConfig, getAdminStats } from '@/lib/api';
 import styles from './overview.module.css';
+
+function formatBytes(bytes: number): string {
+  if (!bytes || bytes < 1024) return `${bytes ?? 0} B`;
+  const units = ['KB', 'MB', 'GB', 'TB'];
+  let value = bytes / 1024;
+  let unit = 0;
+  while (value >= 1024 && unit < units.length - 1) {
+    value /= 1024;
+    unit += 1;
+  }
+  return `${value.toFixed(1)} ${units[unit]}`;
+}
 
 async function fetchDashboardData() {
   try {
-    const [health, config, sync] = await Promise.all([
+    const [health, config, stats] = await Promise.all([
       getHealth(),
       getConfig(),
-      getSyncStats(),
+      getAdminStats(),
     ]);
-    return { health, config, sync, error: null };
+    return { health, config, stats, error: null };
   } catch (e) {
-    return { health: null, config: null, sync: null, error: String(e) };
+    return { health: null, config: null, stats: null, error: String(e) };
   }
 }
 
 export default async function OverviewPage() {
-  const { health, config, sync, error } = await fetchDashboardData();
+  const { health, config, stats, error } = await fetchDashboardData();
 
   return (
     <div>
@@ -39,19 +51,24 @@ export default async function OverviewPage() {
         </div>
 
         <div className={styles.card}>
-          <div className={styles.cardLabel}>Sync version</div>
-          <div className={styles.cardValue}>{sync?.syncVersion ?? '—'}</div>
-          {sync?.serverTime && <div className={styles.cardMeta}>{new Date(sync.serverTime).toLocaleString()}</div>}
+          <div className={styles.cardLabel}>Users</div>
+          <div className={styles.cardValue}>{stats?.userCount ?? '—'}</div>
+          {typeof stats?.recentActiveUsers === 'number' && (
+            <div className={styles.cardMeta}>{stats.recentActiveUsers} active recently</div>
+          )}
         </div>
 
         <div className={styles.card}>
-          <div className={styles.cardLabel}>Documents synced</div>
-          <div className={styles.cardValue}>{sync?.documents?.length ?? '—'}</div>
+          <div className={styles.cardLabel}>Documents</div>
+          <div className={styles.cardValue}>{stats?.documentCount ?? '—'}</div>
         </div>
 
         <div className={styles.card}>
-          <div className={styles.cardLabel}>Folders synced</div>
-          <div className={styles.cardValue}>{sync?.folders?.length ?? '—'}</div>
+          <div className={styles.cardLabel}>Storage used</div>
+          <div className={styles.cardValue}>{stats ? formatBytes(stats.totalStorageBytes) : '—'}</div>
+          {typeof stats?.eventCount === 'number' && (
+            <div className={styles.cardMeta}>{stats.eventCount} analytics events</div>
+          )}
         </div>
       </div>
 
