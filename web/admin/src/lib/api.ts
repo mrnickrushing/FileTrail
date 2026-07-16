@@ -4,7 +4,6 @@ const headers = () => {
     console.warn('[api] BACKEND_API_KEY is not set — requests will be rejected with 401');
   }
   return {
-    'Content-Type': 'application/json',
     Authorization: `Bearer ${key}`,
   };
 };
@@ -19,14 +18,25 @@ const adminHeaders = () => {
     console.warn('[api] BACKEND_ADMIN_KEY/BACKEND_API_KEY is not set — admin requests will be rejected');
   }
   return {
-    'Content-Type': 'application/json',
     Authorization: `Bearer ${key}`,
   };
 };
 
 async function doFetch<T>(path: string, init: RequestInit | undefined, headerFn: () => Record<string, string>): Promise<T> {
   const base = process.env.BACKEND_URL ?? 'http://localhost:4000';
-  const res = await fetch(`${base}${path}`, { ...init, headers: { ...headerFn(), ...(init?.headers ?? {}) } });
+  // Only send a JSON content-type when there's actually a body. A bodyless
+  // request (e.g. DELETE) with `Content-Type: application/json` makes the
+  // Fastify backend try to parse an empty body and fail with
+  // FST_ERR_CTP_EMPTY_JSON_BODY (surfacing as a 500).
+  const hasBody = init?.body != null;
+  const res = await fetch(`${base}${path}`, {
+    ...init,
+    headers: {
+      ...(hasBody ? { 'Content-Type': 'application/json' } : {}),
+      ...headerFn(),
+      ...(init?.headers ?? {}),
+    },
+  });
   if (!res.ok) {
     const text = await res.text().catch(() => res.statusText);
     throw new Error(`${res.status} ${text}`);
