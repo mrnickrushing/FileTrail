@@ -61,9 +61,15 @@ updates:
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
+    groups:
+      root-all:
+        update-types: ['major', 'minor', 'patch']
 
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
+    groups:
+      github-actions-all:
+        update-types: ['major', 'minor', 'patch']
