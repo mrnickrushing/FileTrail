@@ -37,6 +37,13 @@ updates:
     groups:
       admin-all:
         update-types: ['major', 'minor', 'patch']
+    ignore:
+      # TypeScript 7.x is the native (Go) port: its npm package exposes only
+      # ./unstable/* and has no `main`, so Next.js 16's TypeScript detection
+      # can't resolve the compiler and `next build` fails. Stay on 6.x until
+      # Next.js supports the native port.
+      - dependency-name: 'typescript'
+        update-types: ['version-update:semver-major']
 
   - package-ecosystem: npm
     directory: /web/marketing
