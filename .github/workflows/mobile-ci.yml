@@ -34,8 +34,15 @@ jobs:
 
       - run: npm ci
 
+      # This checks installed versions against whatever npm currently
+      # considers "expected" for the SDK — i.e. against a moving target, not
+      # against this repo's own package-lock.json. It has gone red twice on
+      # unrelated PRs within days purely from upstream patch releases, with
+      # no code change involved. Kept as visibility, not a merge blocker;
+      # run `npx expo install --fix` locally when it flags something.
       - name: Verify Expo SDK package alignment
         run: npx expo install --check
+        continue-on-error: true
 
       - run: npm run typecheck
 

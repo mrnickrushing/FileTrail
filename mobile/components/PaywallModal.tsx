@@ -14,6 +14,7 @@ import {
   StyleSheet,
   ActivityIndicator,
   Alert,
+  Linking,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, {
@@ -30,6 +31,7 @@ import Animated, {
   useReducedMotion,
 } from 'react-native-reanimated';
 import { purchasePro, restorePurchases } from '@/services/purchases';
+import { PRIVACY_POLICY_URL, TERMS_OF_USE_URL } from '@/services/legal';
 import { PRO_PRICE_DISPLAY } from '@/store';
 import { C, T, R, S, Springs } from '@/theme/tokens';
 
@@ -129,6 +131,9 @@ export function PaywallModal({ visible, onClose, onSuccess }: PaywallModalProps)
 
   const isLoading = isPurchasing || isRestoring;
 
+  const openTerms = () => { Linking.openURL(TERMS_OF_USE_URL).catch(() => undefined); };
+  const openPrivacy = () => { Linking.openURL(PRIVACY_POLICY_URL).catch(() => undefined); };
+
   return (
     <Modal
       visible={visible}
@@ -215,6 +220,16 @@ export function PaywallModal({ visible, onClose, onSuccess }: PaywallModalProps)
               <Text style={[styles.restoreText, isLoading && styles.restoreTextDisabled]}>Restore Purchases</Text>
             )}
           </Pressable>
+
+          <View style={styles.legalLinks}>
+            <Pressable onPress={openTerms} hitSlop={8} accessibilityRole="link">
+              <Text style={styles.legalLinkText}>Terms of Use</Text>
+            </Pressable>
+            <Text style={styles.legalLinkDivider}>·</Text>
+            <Pressable onPress={openPrivacy} hitSlop={8} accessibilityRole="link">
+              <Text style={styles.legalLinkText}>Privacy Policy</Text>
+            </Pressable>
+          </View>
         </View>
       </View>
     </Modal>
@@ -332,5 +347,21 @@ const styles = StyleSheet.create({
   },
   restoreTextDisabled: {
     opacity: 0.4,
+  },
+  legalLinks: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: S[2],
+    marginTop: S[1],
+  },
+  legalLinkText: {
+    fontSize: T.xs,
+    color: C.ash,
+    textDecorationLine: 'underline',
+  },
+  legalLinkDivider: {
+    fontSize: T.xs,
+    color: C.ash,
   },
 });
