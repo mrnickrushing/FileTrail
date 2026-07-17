@@ -1,5 +1,5 @@
 import React from 'react';
-import { Platform, Text, StyleSheet, Alert, View, TouchableOpacity } from 'react-native';
+import { Platform, Text, StyleSheet, Alert, View, TouchableOpacity, Linking } from 'react-native';
 import Constants from 'expo-constants';
 import { useAppStore, useOwnerStore } from '@/store';
 import {
@@ -13,6 +13,7 @@ import {
   spendWarning,
   SpendWarningBanner,
 } from '@/components/settings/SettingsUi';
+import { PRIVACY_POLICY_URL, TERMS_OF_USE_URL } from '@/services/legal';
 import { C, T, S } from '@/theme/tokens';
 
 const APP_VERSION = Constants.expoConfig?.version ?? 'Unknown';
@@ -93,6 +94,17 @@ export default function AboutSettingsScreen() {
         Estimated cost of Claude API calls made for AI Organize on this device, based on Claude Haiku pricing.
       </Hint>
       {warning && <SpendWarningBanner tone={warning.tone} message={warning.message} />}
+
+      <SectionHeader title="Legal" icon="file-text" />
+      <SettingsCard>
+        <TouchableOpacity onPress={() => Linking.openURL(TERMS_OF_USE_URL).catch(() => undefined)} activeOpacity={0.7}>
+          <SettingsRow label="Terms of Use" value="›" />
+        </TouchableOpacity>
+        <Divider />
+        <TouchableOpacity onPress={() => Linking.openURL(PRIVACY_POLICY_URL).catch(() => undefined)} activeOpacity={0.7}>
+          <SettingsRow label="Privacy Policy" value="›" />
+        </TouchableOpacity>
+      </SettingsCard>
 
       <Text style={styles.footer}>
         FileTrail stores your documents privately on your device.

@@ -22,8 +22,8 @@
       "buildNumber": "2",
       "usesAppleSignIn": true,
       "infoPlist": {
-        "NSCameraUsageDescription": "FileTrail uses your camera to scan documents.",
-        "NSPhotoLibraryUsageDescription": "FileTrail accesses your photos to import documents.",
+        "NSCameraUsageDescription": "FileTrail uses your camera to scan physical documents — for example, a receipt, ID card, or bill — so it can save a digital copy in your vault.",
+        "NSPhotoLibraryUsageDescription": "FileTrail accesses your photo library so you can import existing photos of documents — for example, a receipt, ID card, or insurance form already saved in your Photos app — and add them to your vault without retaking a picture.",
         "NSFaceIDUsageDescription": "FileTrail uses Face ID to protect your vault.",
         "ITSAppUsesNonExemptEncryption": false
       },
@@ -67,8 +67,8 @@
       [
         "expo-image-picker",
         {
-          "cameraPermission": "FileTrail uses your camera to scan documents.",
-          "photosPermission": "FileTrail accesses your photos to import documents.",
+          "cameraPermission": "FileTrail uses your camera to scan physical documents — for example, a receipt, ID card, or bill — so it can save a digital copy in your vault.",
+          "photosPermission": "FileTrail accesses your photo library so you can import existing photos of documents — for example, a receipt, ID card, or insurance form already saved in your Photos app — and add them to your vault without retaking a picture.",
           "microphonePermission": false
         }
       ],
