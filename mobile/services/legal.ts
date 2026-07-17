@@ -5,7 +5,10 @@
  * 3.1.2(c)) and surfaced in Settings for general visibility.
  */
 
-const MARKETING_BASE_URL = 'https://marketing-production-5aa0.up.railway.app';
+// Branded domain — the same host used for the App Store Connect metadata
+// (privacy policy URL, marketing URL, support URL), so the in-app links and
+// the store listing stay consistent for App Review.
+const MARKETING_BASE_URL = 'https://papertrail.rushingtechnologies.com';
 
 export const PRIVACY_POLICY_URL = `${MARKETING_BASE_URL}/privacy`;
 export const TERMS_OF_USE_URL = `${MARKETING_BASE_URL}/terms`;
