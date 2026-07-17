@@ -357,11 +357,11 @@ const styles = StyleSheet.create({
   },
   legalLinkText: {
     fontSize: T.xs,
-    color: C.ink4,
+    color: C.ash,
     textDecorationLine: 'underline',
   },
   legalLinkDivider: {
     fontSize: T.xs,
-    color: C.ink4,
+    color: C.ash,
   },
 });
