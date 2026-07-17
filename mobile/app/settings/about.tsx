@@ -97,11 +97,11 @@ export default function AboutSettingsScreen() {
 
       <SectionHeader title="Legal" icon="file-text" />
       <SettingsCard>
-        <TouchableOpacity onPress={() => Linking.openURL(TERMS_OF_USE_URL).catch(() => undefined)} activeOpacity={0.7}>
+        <TouchableOpacity onPress={() => Linking.openURL(TERMS_OF_USE_URL).catch(() => undefined)} activeOpacity={0.7} accessibilityRole="link">
           <SettingsRow label="Terms of Use" value="›" />
         </TouchableOpacity>
         <Divider />
-        <TouchableOpacity onPress={() => Linking.openURL(PRIVACY_POLICY_URL).catch(() => undefined)} activeOpacity={0.7}>
+        <TouchableOpacity onPress={() => Linking.openURL(PRIVACY_POLICY_URL).catch(() => undefined)} activeOpacity={0.7} accessibilityRole="link">
           <SettingsRow label="Privacy Policy" value="›" />
         </TouchableOpacity>
       </SettingsCard>

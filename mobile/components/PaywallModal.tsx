@@ -222,11 +222,11 @@ export function PaywallModal({ visible, onClose, onSuccess }: PaywallModalProps)
           </Pressable>
 
           <View style={styles.legalLinks}>
-            <Pressable onPress={openTerms} hitSlop={8}>
+            <Pressable onPress={openTerms} hitSlop={8} accessibilityRole="link">
               <Text style={styles.legalLinkText}>Terms of Use</Text>
             </Pressable>
             <Text style={styles.legalLinkDivider}>·</Text>
-            <Pressable onPress={openPrivacy} hitSlop={8}>
+            <Pressable onPress={openPrivacy} hitSlop={8} accessibilityRole="link">
               <Text style={styles.legalLinkText}>Privacy Policy</Text>
             </Pressable>
           </View>
