@@ -19,17 +19,14 @@ export const PRO_PRICE_DISPLAY_SHORT = '$5.99/mo';
 interface ProState {
   isPro: boolean;
   isChecking: boolean;
-  hasAdminAccess: boolean;
   checkPro: (email?: string) => Promise<void>;
-  setAdminAccess: (enabled: boolean) => void;
 }
 
 export const useProStore = create<ProState>()(
   persist(
-    (set, get) => ({
+    (set) => ({
       isPro: false,
       isChecking: false,
-      hasAdminAccess: false,
       checkPro: async (email?: string) => {
         set({ isChecking: true });
         try {
@@ -52,21 +49,19 @@ export const useProStore = create<ProState>()(
               // Network error — non-fatal, fall through to local state
             }
           }
-          set({ isPro: get().hasAdminAccess });
+          // Pro is unlocked solely via In-App Purchase (or a verified backend
+          // Pro status above). There is no local/owner bypass — unlocking paid
+          // functionality outside of IAP is disallowed (App Store Guideline 3.1.1).
+          set({ isPro: false });
         } finally {
           set({ isChecking: false });
         }
       },
-      setAdminAccess: (enabled) => set(() => ({
-        hasAdminAccess: enabled,
-        isPro: enabled ? true : false,
-      })),
     }),
     {
       name: 'filetrail-pro-v1',
       storage: createJSONStorage(() => AsyncStorage),
       partialize: (state) => ({
-        hasAdminAccess: state.hasAdminAccess,
         isPro: state.isPro,
       }),
     },

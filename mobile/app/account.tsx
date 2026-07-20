@@ -15,12 +15,7 @@ import { Redirect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import * as Crypto from 'expo-crypto';
-import { useAppStore, useProStore, useTourStore } from '@/store';
-import {
-  getAdminProfileDefaults,
-  isAdminBypassConfigured,
-  validateAdminBypassCode,
-} from '@/services/adminAccess';
+import { useAppStore, useTourStore } from '@/store';
 import { C, R, S, T } from '@/theme/tokens';
 import { hashPassword, verifyPassword, registerUserWithBackend, loginUserWithBackend, signInWithAppleBackend } from '@/services/userService';
 import { createHash } from '@/services/hashUtils';
@@ -71,9 +66,6 @@ export default function AccountScreen() {
   const accountProfile = useAppStore((s) => s.accountProfile);
   const isAccountAuthenticated = useAppStore((s) => s.isAccountAuthenticated);
   const completeAccountSetup = useAppStore((s) => s.completeAccountSetup);
-  const setAccountAuthenticated = useAppStore((s) => s.setAccountAuthenticated);
-  const hasAdminAccess = useProStore((s) => s.hasAdminAccess);
-  const setAdminAccess = useProStore((s) => s.setAdminAccess);
   const startTour = useTourStore((s) => s.startTour);
 
   const [mode, setMode] = useReactState<AuthMode>(accountProfile ? 'login' : 'create');
@@ -81,8 +73,6 @@ export default function AccountScreen() {
   const [email, setEmail] = useReactState(accountProfile?.email ?? '');
   const [password, setPassword] = useReactState('');
   const [error, setError] = useReactState<string | null>(null);
-  const [ownerCode, setOwnerCode] = useReactState('');
-  const [ownerError, setOwnerError] = useReactState<string | null>(null);
   const [busyAction, setBusyAction] = useReactState<BusyAction>(null);
   const [appleAvailable, setAppleAvailable] = useReactState(false);
   const [storedPasswordHash, setLocalPasswordHash] = useReactState<string | null>(null);
@@ -91,8 +81,6 @@ export default function AccountScreen() {
     isMounted.current = true;
     return () => { isMounted.current = false; };
   }, []);
-  const ownerAccessConfigured = isAdminBypassConfigured();
-  const adminDefaults = getAdminProfileDefaults();
 
   // One-time migration: older builds stored the password hash on
   // accountProfile (persisted to AsyncStorage as plain JSON). Move any
@@ -181,10 +169,6 @@ export default function AccountScreen() {
 
   function clearInlineError() {
     if (error) setError(null);
-  }
-
-  function clearOwnerError() {
-    if (ownerError) setOwnerError(null);
   }
 
   async function createManualProfile() {
@@ -310,53 +294,6 @@ export default function AccountScreen() {
     } finally {
       if (isMounted.current) setBusyAction(null);
     }
-  }
-
-  function resolveOwnerProfile(): { fullName: string; email: string } | null {
-    const trimmedName = fullName.trim() || adminDefaults.fullName;
-    const normalizedEmail = normalizeEmail(email || adminDefaults.email || '');
-
-    if (!trimmedName) {
-      setOwnerError('Enter a name or set EXPO_PUBLIC_ADMIN_NAME for the owner profile.');
-      return null;
-    }
-
-    if (!isValidEmail(normalizedEmail)) {
-      setOwnerError('Enter a valid owner email or set EXPO_PUBLIC_ADMIN_EMAIL.');
-      return null;
-    }
-
-    return { fullName: trimmedName, email: normalizedEmail };
-  }
-
-  function handleOwnerAccess() {
-    clearInlineError();
-    clearOwnerError();
-
-    if (!validateAdminBypassCode(ownerCode)) {
-      setOwnerError('Owner code did not match the configured admin secret.');
-      return;
-    }
-
-    if (accountProfile) {
-      setAdminAccess(true);
-      setAccountAuthenticated(true);
-      setOwnerCode('');
-      return;
-    }
-
-    const ownerProfile = resolveOwnerProfile();
-    if (!ownerProfile) return;
-
-    completeAccountSetup({
-      fullName: ownerProfile.fullName,
-      email: ownerProfile.email,
-      provider: 'email',
-      createdAt: new Date().toISOString(),
-    });
-    setAdminAccess(true);
-    startTour();
-    setOwnerCode('');
   }
 
   async function handleAppleAuth() {
@@ -655,54 +592,6 @@ export default function AccountScreen() {
           )}
         </View>
 
-        {ownerAccessConfigured && (
-          <View style={styles.ownerCard}>
-            <View style={styles.ownerHeader}>
-              <Text style={styles.ownerTitle}>Owner access</Text>
-              {hasAdminAccess && (
-                <View style={styles.ownerBadge}>
-                  <Text style={styles.ownerBadgeText}>ACTIVE</Text>
-                </View>
-              )}
-            </View>
-            <Text style={styles.ownerBody}>
-              Use your owner code here to create your local admin account or unlock the existing one.
-            </Text>
-            {adminDefaults.email && !accountProfile && (
-              <Text style={styles.ownerHint}>
-                Default owner email: {adminDefaults.email}
-              </Text>
-            )}
-            <TextInput
-              value={ownerCode}
-              onChangeText={(value) => {
-                setOwnerCode(value);
-                clearOwnerError();
-              }}
-              placeholder="Owner access code"
-              placeholderTextColor={C.ash}
-              autoCapitalize="none"
-              autoCorrect={false}
-              secureTextEntry
-              style={styles.ownerInput}
-              editable={!isWorking}
-            />
-            {ownerError && <Text style={styles.ownerError}>{ownerError}</Text>}
-            <Pressable
-              style={({ pressed }) => [
-                styles.ownerBtn,
-                (pressed || isWorking || ownerCode.trim().length === 0) && styles.ownerBtnPressed,
-              ]}
-              onPress={handleOwnerAccess}
-              disabled={isWorking || ownerCode.trim().length === 0}
-            >
-              <Text style={styles.ownerBtnText}>
-                {accountProfile ? 'Unlock owner account' : 'Create owner account'}
-              </Text>
-            </Pressable>
-          </View>
-        )}
-
         <Text style={styles.footer}>
           {accountProfile
             ? 'This device already has a FileTrail profile. Log in to keep using the same vault.'
@@ -888,81 +777,6 @@ const styles = StyleSheet.create({
     color: C.ash,
     fontSize: T.sm,
     lineHeight: 20,
-  },
-  ownerCard: {
-    backgroundColor: C.ink2,
-    borderRadius: R.xl,
-    borderWidth: 1,
-    borderColor: `${C.amber}33`,
-    padding: S[5],
-    gap: S[3],
-  },
-  ownerHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: S[3],
-  },
-  ownerTitle: {
-    color: C.cream,
-    fontSize: T.base,
-    fontWeight: '700',
-  },
-  ownerBadge: {
-    borderRadius: R.full,
-    backgroundColor: C.amberDim,
-    borderWidth: 1,
-    borderColor: `${C.amber}44`,
-    paddingHorizontal: S[3],
-    paddingVertical: 6,
-  },
-  ownerBadgeText: {
-    color: C.amber,
-    fontSize: T.xs,
-    fontWeight: '700',
-    letterSpacing: 0.6,
-  },
-  ownerBody: {
-    color: C.ash,
-    fontSize: T.sm,
-    lineHeight: 20,
-  },
-  ownerHint: {
-    color: C.amber,
-    fontSize: T.xs,
-    lineHeight: 18,
-  },
-  ownerInput: {
-    minHeight: 48,
-    borderRadius: R.lg,
-    borderWidth: 1,
-    borderColor: C.ink4,
-    backgroundColor: C.ink3,
-    paddingHorizontal: S[4],
-    color: C.cream,
-    fontSize: T.base,
-  },
-  ownerError: {
-    color: C.danger,
-    fontSize: T.xs,
-    lineHeight: 18,
-  },
-  ownerBtn: {
-    minHeight: 48,
-    borderRadius: R.lg,
-    backgroundColor: C.amberDim,
-    borderWidth: 1,
-    borderColor: `${C.amber}44`,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  ownerBtnPressed: {
-    opacity: 0.72,
-  },
-  ownerBtnText: {
-    color: C.amber,
-    fontSize: T.sm,
-    fontWeight: '700',
   },
   footer: {
     color: C.ash,
